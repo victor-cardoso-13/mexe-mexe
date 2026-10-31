@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<!--
+  MOCK (desenho estático) das partes C, D e E — não é o jogo de verdade.
+  Abra "mock-escolha.html" para ver tudo lado a lado.
+  Parâmetros: ?modo=bonito|idade  &tela=jogo|tutorial  &passo=1..7
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mock Mexe-Mexe</title>
+<link rel="stylesheet" href="file:///Users/victor/Desktop/Jogos/miaudoku/node_modules/@fontsource/fredoka/latin-600.css" />
+<link rel="stylesheet" href="file:///Users/victor/Desktop/Jogos/miaudoku/node_modules/@fontsource/fredoka/latin-700.css" />
+<link rel="stylesheet" href="file:///Users/victor/Desktop/Jogos/miaudoku/node_modules/@fontsource/nunito/latin-700.css" />
+<link rel="stylesheet" href="file:///Users/victor/Desktop/Jogos/miaudoku/node_modules/@fontsource/nunito/latin-800.css" />
+<style>
+  /* ===== Identidade do Miaudoku: creme, tinta marrom, âmbar, Fredoka + Nunito ===== */
+  :root {
+    --tinta: #3b2f2a; --creme: #fbf6ee; --ambar: #e7a400; --ambar-claro: #f3c969;
+    --vermelho: #c8102e; --preto: #1d1a19;
+    --titulo: 'Fredoka', 'Nunito', system-ui, sans-serif;
+    --w: 66px;          /* largura da carta da mão */
+    --wm: 50px;         /* largura da carta da mesa */
+    --mostra: .46;      /* quanto aparece de cada carta num jogo da mesa */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Nunito', -apple-system, system-ui, sans-serif; font-weight: 700; color: var(--tinta);
+    background: radial-gradient(circle at 50% 0%, #fffaf2, #f6eee2 70%);
+    display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px;
+  }
+  button { font: inherit; color: inherit; border: 0; background: none; padding: 0; }
+  svg.ic { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- topo ---------- */
+  .topo { display: flex; align-items: center; gap: 8px; }
+  .pilula {
+    display: flex; align-items: center; gap: 7px; background: #fff; border-radius: 99px;
+    padding: 6px 13px 6px 8px; font-size: 14px; font-weight: 800; box-shadow: 0 2px 8px #3b2f2a14;
+  }
+  .pilula .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--ambar-claro); display: grid; place-items: center; font-size: 14px; }
+  .versos { display: flex; }
+  .versos i { width: 11px; height: 16px; border-radius: 3px; margin-left: -5px; background: linear-gradient(135deg, #2f6b4f, #1f4d38); border: 1.5px solid #fff; }
+  .versos i:first-child { margin-left: 0; }
+  .espaco { flex: 1; }
+  .redondo { width: 40px; height: 40px; border-radius: 50%; background: #fff; display: grid; place-items: center; box-shadow: 0 2px 8px #3b2f2a14; }
+  .redondo svg { width: 22px; height: 22px; }
+
+  /* faixa de aviso: agora só uma frase curta (as instruções foram para o tutorial) */
+  .faixa { align-self: center; font-size: 14px; font-weight: 800; padding: 5px 14px; border-radius: 99px; background: #fff; box-shadow: 0 2px 8px #3b2f2a10; }
+  .faixa b { color: #2f7a52; }
+
+  /* ---------- mesa ---------- */
+  .mesa {
+    flex: 1; min-height: 0; border-radius: 26px; padding: 14px; position: relative;
+    background: radial-gradient(circle at 50% 30%, #3f8763, #2c654a 75%);
+    box-shadow: inset 0 2px 14px #0003, 0 2px 0 #fff8;
+    display: flex; flex-wrap: wrap; align-content: flex-start; gap: 14px 12px; overflow-y: auto;
+  }
+  .jogo { display: flex; padding: 5px; border-radius: 14px; background: #ffffff1a; }
+  .jogo .carta { --w: var(--wm); }
+  .jogo .carta + .carta { margin-left: calc(var(--wm) * (var(--mostra) - 1)); }
+  /* E) espaço vazio da mesa: aparece só quando há carta escolhida ou sendo arrastada */
+  .vazio {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    min-width: calc(var(--wm) * 2.4); height: calc(var(--wm) * 1.42 + 10px); padding: 0 10px;
+    border: 2.5px dashed #ffffffb0; border-radius: 14px; color: #fff; font-size: 12px; line-height: 1.2;
+    animation: respira 1.6s ease-in-out infinite alternate;
+  }
+  @keyframes respira { to { border-color: #ffffff55; background: #ffffff10; } }
+
+  /* ---------- carta ---------- */
+  .carta {
+    width: var(--w); height: calc(var(--w) * 1.42); flex: none; position: relative;
+    background: #fff; border-radius: calc(var(--w) * .14); color: var(--preto);
+    box-shadow: 0 1px 0 #0000000d, 0 3px 8px #3b2f2a26;
+    font-family: var(--titulo);
+  }
+  .carta.v { color: var(--vermelho); }
+  .carta .canto { position: absolute; left: 9%; top: 5%; display: flex; flex-direction: column; align-items: center; line-height: .95; }
+  .carta .valor { font-size: calc(var(--w) * .4); font-weight: 700; letter-spacing: -1px; }
+  .carta .naipe { font-size: calc(var(--w) * .3); }
+  .carta .grande { position: absolute; right: 9%; bottom: 6%; font-size: calc(var(--w) * .5); line-height: 1; }
+  .carta.escolhida { transform: translateY(-12px); box-shadow: 0 0 0 3px var(--ambar), 0 10px 18px #e7a40055; }
+  .carta.nova::after { content: 'NOVA'; position: absolute; top: -8px; right: -6px; font: 800 9px Nunito; color: #fff; background: #e07a1f; border-radius: 99px; padding: 2px 6px; }
+
+  /* ---------- mão ---------- */
+  .area-mao { position: relative; }
+  .linha-mao { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin: 0 2px; }
+  .rotulo-mao { font-size: 12px; font-weight: 800; letter-spacing: 1.5px; opacity: .5; }
+  .mao { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding-top: 10px; }
+  /* E) botão que aparece quando as 3 cartas escolhidas formam um jogo */
+  .baixar-jogo {
+    display: flex; align-items: center; gap: 8px; white-space: nowrap;
+    background: var(--ambar); color: #fff; border-radius: 99px; padding: 11px 20px 11px 16px;
+    font-size: 17px; font-weight: 800; box-shadow: 0 6px 16px #e7a40066; padding: 9px 18px 9px 14px;
+    animation: sobe .25s ease-out;
+  }
+  .baixar-jogo svg { width: 22px; height: 22px; }
+  .baixar-jogo small { font-weight: 700; opacity: .9; font-size: 14px; }
+  @keyframes sobe { from { transform: translateY(8px); opacity: 0; } }
+
+  /* ---------- barra de botões (ícone de traço + nome pequeno, como no Miaudoku) ---------- */
+  .barra { display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11.5px; min-width: 56px; }
+  .item .bola { width: 46px; height: 46px; border-radius: 50%; background: #fff; display: grid; place-items: center; box-shadow: 0 2px 8px #3b2f2a14; }
+  .item .bola svg { width: 23px; height: 23px; }
+  .item .rotulo { opacity: .7; }
+  .item.apagado { opacity: .35; }
+  .item.forte .bola { background: var(--ambar); color: #fff; }
+  .passar svg { width: 22px; height: 22px; flex: none; }
+  .passar { display: flex; align-items: center; gap: 6px; padding: 12px 18px; border-radius: 99px; background: #e9e1d4; font-size: 15px; font-weight: 800; opacity: .55; }
+
+  /* =================== MODO BONITO: sombras, transições, cores =================== */
+  body.bonito .carta { transition: transform .2s cubic-bezier(.3,1.5,.6,1), box-shadow .2s; }
+  body.bonito .mao .carta:nth-child(odd) { rotate: -.6deg; }
+  body.bonito .mao .carta:nth-child(even) { rotate: .6deg; }
+  body.bonito .jogo.novo { box-shadow: 0 0 0 3px #f3c969aa; }
+
+  /* =================== MODO MELHOR IDADE: grande, alto contraste, sem enfeite =================== */
+  body.idade { --w: 76px; --wm: 58px; --mostra: .56; background: var(--creme); }
+  body.idade * { animation: none !important; transition: none !important; }
+  body.idade .carta { border: 2.5px solid #1d1a19; box-shadow: none; border-radius: 10px; }
+  body.idade .carta .valor { font-size: calc(var(--w) * .46); font-weight: 700; }
+  body.idade .carta .naipe { font-size: calc(var(--w) * .34); }
+  body.idade .carta.escolhida { transform: translateY(-10px); box-shadow: 0 0 0 5px #0057d9; }
+  body.idade .mesa { background: #1f5a3d; box-shadow: none; border-radius: 16px; }
+  body.idade .jogo { background: #ffffff26; }
+  body.idade .vazio { border: 3px dashed #fff; font-size: 15px; font-weight: 800; }
+  body.idade .faixa { font-size: 19px; padding: 8px 18px; border: 2.5px solid var(--tinta); box-shadow: none; }
+  body.idade .faixa b { color: #1d6b40; }
+  body.idade .pilula { font-size: 17px; border: 2px solid var(--tinta); box-shadow: none; }
+  body.idade .redondo { width: auto; height: auto; border-radius: 14px; padding: 8px 14px; border: 2px solid var(--tinta); box-shadow: none; gap: 6px; display: flex; font-size: 17px; font-weight: 800; }
+  body.idade .rotulo-mao { font-size: 16px; opacity: .85; letter-spacing: .5px; }
+  body.idade .baixar-jogo { background: #1d6b40; font-size: 20px; padding: 10px 18px; box-shadow: none; border: 3px solid #0d3d24; }
+  body.idade .linha-mao { min-height: 54px; }
+  body.idade .pilula { white-space: nowrap; }
+  body.idade .baixar-jogo small { font-size: 18px; }
+  /* botões: grandes, com nome escrito, em 2 fileiras no celular */
+  body.idade .barra { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  body.idade .item { flex-direction: row; justify-content: center; gap: 8px; min-height: 56px; border-radius: 14px; background: #fff; border: 2.5px solid var(--tinta); font-size: 17px; font-weight: 800; }
+  body.idade .item .bola { width: auto; height: auto; background: none; box-shadow: none; }
+  body.idade .item .rotulo { opacity: 1; }
+  body.idade .item.apagado { opacity: .4; }
+  body.idade .item.forte { background: var(--ambar-claro); }
+  body.idade .item.forte .bola { background: none; color: var(--tinta); }
+  body.idade .passar { justify-content: center; border-radius: 14px; font-size: 17px; border: 2.5px solid #0004; min-height: 56px; }
+
+  /* ---------- iPad deitado / telas largas ---------- */
+  @media (min-width: 900px) {
+    :root { --w: 92px; --wm: 70px; }
+    body { padding: 14px 20px 16px; gap: 12px; }
+    .mao { flex-wrap: nowrap; gap: 10px; }
+    .barra { justify-content: center; gap: 22px; }
+    .item { font-size: 13px; }
+    .item .bola { width: 54px; height: 54px; }
+    .faixa { font-size: 16px; }
+    .vazio { font-size: 14px; }
+    body.idade { --w: 104px; --wm: 76px; }
+    body.idade .barra { grid-template-columns: repeat(6, 1fr); }
+  }
+
+  /* ---------- D) tutorial ---------- */
+  .tampa { position: fixed; inset: 0; background: #3b2f2a73; display: grid; place-items: center; padding: 18px; z-index: 5; }
+  .tutorial {
+    width: min(100%, 560px); background: var(--creme); border-radius: 28px; padding: 18px 20px 20px;
+    box-shadow: 0 20px 50px #0005; display: flex; flex-direction: column; gap: 12px; position: relative;
+  }
+  .tutorial .pular { position: absolute; right: 14px; top: 14px; font-size: 15px; font-weight: 800; padding: 6px 12px; border-radius: 99px; background: #fff; box-shadow: 0 2px 8px #3b2f2a14; }
+  .tutorial .contador { font-size: 11px; font-weight: 800; letter-spacing: 2px; opacity: .5; }
+  .tutorial h2 { margin: 0; font-family: var(--titulo); font-weight: 700; font-size: 25px; line-height: 1.15; padding-right: 70px; }
+  .tutorial p { margin: 0; font-size: 17px; line-height: 1.45; }
+  .palco { border-radius: 20px; padding: 18px 10px; display: flex; flex-direction: column; align-items: center; gap: 12px; background: radial-gradient(circle at 50% 30%, #3f8763, #2c654a 75%); color: #fff; }
+  .palco .linha { display: flex; gap: 6px; align-items: center; }
+  .palco .carta { --w: 58px; }
+  .palco .ok, .palco .nao { font-size: 14px; font-weight: 800; padding: 3px 10px; border-radius: 99px; background: #fff; }
+  .palco .ok { color: #1d6b40; } .palco .nao { color: var(--vermelho); }
+  .palco .seta { font-size: 26px; }
+  .pontos { display: flex; gap: 7px; justify-content: center; }
+  .pontos i { width: 9px; height: 9px; border-radius: 50%; background: #3b2f2a33; }
+  .pontos i.atual { background: var(--ambar); width: 24px; border-radius: 99px; }
+  .tutorial .botoes { display: flex; gap: 10px; }
+  .tutorial .botoes button { flex: 1; padding: 14px; border-radius: 16px; font-size: 17px; font-weight: 800; background: var(--tinta); color: #fff; }
+  .tutorial .botoes button.claro { background: #f0e8dc; color: var(--tinta); }
+  body.idade .tutorial { border: 3px solid var(--tinta); box-shadow: none; }
+  body.idade .tutorial h2 { font-size: 28px; }
+  body.idade .tutorial p { font-size: 20px; }
+  body.idade .tutorial .pular { font-size: 18px; border: 2px solid var(--tinta); box-shadow: none; }
+  body.idade .palco { background: #1f5a3d; }
+  body.idade .palco .carta { --w: 64px; }
+  body.idade .tutorial .botoes button { font-size: 20px; padding: 16px; }
+</style>
+</head>
+<body>
+<script>
+const q = new URLSearchParams(location.search);
+const modo = q.get('modo') ?? 'bonito', tela = q.get('tela') ?? 'jogo', passo = Number(q.get('passo') ?? 3);
+document.body.className = modo;
+const N = { c: '♥', o: '♦', e: '♠', p: '♣' };
+const carta = (t, cls = '') => {
+  const v = t.slice(0, -1), n = t.slice(-1), verm = n === 'c' || n === 'o';
+  return `<div class="carta ${verm ? 'v' : ''} ${cls}"><div class="canto"><span class="valor">${v}</span><span class="naipe">${N[n]}</span></div><div class="grande">${N[n]}</div></div>`;
+};
+const cartas = (s, cls) => s.split(' ').map(t => carta(t, typeof cls === 'function' ? cls(t) : cls)).join('');
+const ic = {
+  ajustes: '<path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  desfazer: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  tudo: '<path d="M3 12a9 9 0 1 0 2.8-6.5L3 8"/><path d="M3 3v5h5"/>',
+  ordenar: '<path d="M7 4v16"/><path d="m3 8 4-4 4 4"/><path d="M17 20V4"/><path d="m13 16 4 4 4-4"/>',
+  dica: '<path d="M9 18h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.6V16h6v-.1c0-.6.3-1.2.8-1.6A6.5 6.5 0 0 0 12 2.5z"/>',
+  comprar: '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M12 8v8"/><path d="M8 12h8"/>',
+  passar: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  baixar: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
+};
+const svg = (n) => `<svg class="ic" viewBox="0 0 24 24">${ic[n]}</svg>`;
+const item = (n, rot, cls = '') => `<button class="item ${cls}"><span class="bola">${svg(n)}</span><span class="rotulo">${rot}</span></button>`;
+const largo = innerWidth >= 900;
+const idade = modo === 'idade';
+
+const escolhidas = ['5c', '6c', '7c'];
+let html = `
+<div class="topo">
+  <div class="pilula">${idade ? '' : '<span class="avatar">🖥</span>'}Computador${idade ? ': 7 cartas' : `<span class="versos">${'<i></i>'.repeat(7)}</span> 7`}</div>
+  <div class="pilula">${idade ? 'Monte: 72' : 'Monte 72'}</div>
+  <div class="espaco"></div>
+  <button class="redondo">${svg('ajustes')}${idade && largo ? 'Ajustes' : ''}</button>
+</div>
+<div class="faixa"><b>Sua vez</b></div>
+<div class="mesa">
+  <div class="jogo">${cartas('3e 4e 5e 6e')}</div>
+  <div class="jogo">${cartas('9c 9p 9o')}</div>
+  <div class="jogo">${cartas('Jo Qo Ko')}</div>
+  <div class="jogo">${cartas('7p 8p 9p 10p')}</div>
+  <div class="jogo">${cartas('4c 4e 4o 4p 4c 4e')}</div>
+  <div class="vazio">${idade ? 'Toque ou solte aqui:<br>jogo novo' : '+ jogo novo<br><span style="opacity:.8">toque ou solte aqui</span>'}</div>
+</div>
+<div class="area-mao">
+  <div class="linha-mao"><div class="rotulo-mao">SUAS CARTAS (9)</div>
+  <button class="baixar-jogo">${svg('baixar')} Baixar jogo <small>5♥︎ 6♥︎ 7♥︎</small></button></div>
+  <div class="mao">${cartas('2c 5c 6c 7c 8e Ao 4o 10p Kp', t => (escolhidas.includes(t) ? 'escolhida' : t === 'Kp' ? 'nova' : ''))}</div>
+</div>
+<div class="barra">
+  ${item('desfazer', 'Desfazer', 'apagado')}${item('tudo', 'Desfazer tudo', 'apagado')}${item('ordenar', 'Ordenar')}${item('dica', 'Dica')}${item('comprar', idade ? 'Comprar e passar' : 'Comprar', 'forte')}
+  <button class="passar">${svg('passar')} Passar a vez</button>
+</div>`;
+
+// ----- D) tutorial: 7 passos curtos, "Pular" sempre visível -----
+const PASSOS = [
+  ['Bem-vindo ao Mexe-Mexe!', 'Ganha quem <b>acabar com as cartas da mão</b> primeiro. Vamos ver como, em 7 passos rapidinhos.',
+    `<div class="linha">${cartas('2c 5c 9e Kp')}</div><div class="seta">→ 🏆</div>`],
+  ['Dois tipos de jogo', '<b>Sequência:</b> 3 ou mais cartas seguidas do <b>mesmo naipe</b>.<br><b>Trinca:</b> mesmo número, com pelo menos <b>3 naipes diferentes</b>.',
+    `<div class="linha">${cartas('4c 5c 6c')}<span class="ok">sequência</span></div><div class="linha">${cartas('9c 9p 9o')}<span class="ok">trinca</span></div>`],
+  ['Da mão: 1 carta ou 3', 'Na sua vez, tire da mão <b>1 carta</b> (para um jogo da mesa) ou <b>3 cartas</b> que formam um jogo sozinhas. Escolheu 3 que formam jogo? Aparece o botão <b>Baixar jogo</b>.',
+    `<div class="linha">${cartas('5c 6c 7c', 'escolhida')}</div><button class="baixar-jogo" style="position:static;transform:none">${svg('baixar')} Baixar jogo</button>`],
+  ['A mesa é de todos', 'Você pode <b>mexer à vontade</b> nos jogos da mesa: tirar, juntar e separar cartas. No fim da vez, todos precisam estar certos.',
+    `<div class="linha">${cartas('7p 8p 9p 10p')}<span class="seta">→</span>${cartas('10p')}</div>`],
+  ['Tocar ou arrastar', '<b>Toque</b> numa carta e depois <b>toque</b> onde ela vai. Ou <b>arraste</b>. Para começar um jogo novo, toque ou solte num <b>espaço vazio</b> da mesa.',
+    `<div class="linha">${carta('Ao', 'escolhida')}<span class="seta">👆 →</span><div class="vazio" style="min-width:110px;height:84px">jogo novo</div></div>`],
+  ['A vez passa sozinha', 'Quando tudo fica certo, <b>a vez passa sozinha</b>. Sem jogada? Toque em <b>Comprar</b>: você pega uma carta e passa a vez.',
+    `<div class="linha"><span class="ok">✔ Tudo certo! Passando a vez…</span></div>`],
+  ['Ajuda sempre à mão', '<b>Dica</b> mostra uma jogada. <b>Desfazer</b> volta um passo. Pode rever este tutorial em <b>Ajustes → Como jogar</b>.',
+    `<div class="linha" style="color:var(--tinta)">${item('dica', '<span style="color:#fff">Dica</span>')}${item('desfazer', '<span style="color:#fff">Desfazer</span>')}${item('ajustes', '<span style="color:#fff">Ajustes</span>')}</div>`],
+];
+if (tela === 'tutorial') {
+  const [t, txt, desenho] = PASSOS[passo - 1];
+  html += `<div class="tampa"><div class="tutorial">
+    <button class="pular">Pular</button>
+    <div class="contador">PASSO ${passo} DE ${PASSOS.length}</div>
+    <h2>${t}</h2>
+    <div class="palco">${desenho}</div>
+    <p>${txt}</p>
+    <div class="pontos">${PASSOS.map((_, i) => `<i class="${i === passo - 1 ? 'atual' : ''}"></i>`).join('')}</div>
+    <div class="botoes"><button class="claro">Voltar</button><button>Próximo</button></div>
+  </div></div>`;
+}
+document.body.innerHTML = html;
+</script>
+</body>
+</html>

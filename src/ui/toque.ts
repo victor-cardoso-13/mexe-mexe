@@ -1,3 +1,5 @@
+import { encaixar } from './encaixe';
+
 /**
  * Toque e arrasto das cartas (funciona com dedo no iPad e com mouse no computador).
  *
@@ -51,6 +53,9 @@ export function ligarToque(raiz: HTMLElement, acoes: AcoesDeToque) {
           original.classList.add('arrastando');
         }
         document.body.appendChild(fantasma);
+        // Mostra o espaço vazio da mesa (jogo novo) e refaz o encaixe, pois a mesa ganhou um item.
+        document.body.classList.add('arrastando-cartas');
+        encaixar();
       }
       fantasma.style.left = `${e.clientX - 30}px`;
       fantasma.style.top = `${e.clientY - 40}px`;
@@ -68,9 +73,13 @@ export function ligarToque(raiz: HTMLElement, acoes: AcoesDeToque) {
       window.removeEventListener('pointercancel', aoCancelar);
       alvoAtual?.classList.remove('alvo-arraste');
       if (fantasma) {
+        // Primeiro descobre onde soltou (o espaço vazio da mesa só existe enquanto arrasta).
+        const alvoFinal = alvoEm(e.clientX, e.clientY);
+        document.body.classList.remove('arrastando-cartas');
         fantasma.remove();
         raiz.querySelectorAll('.arrastando').forEach((el) => el.classList.remove('arrastando'));
-        if (!cancelado) acoes.soltar(ids, alvoEm(e.clientX, e.clientY), e.clientX, e.clientY);
+        if (!cancelado) acoes.soltar(ids, alvoFinal, e.clientX, e.clientY);
+        else encaixar();
       } else if (!cancelado) {
         acoes.tocarCarta(id);
       }

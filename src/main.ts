@@ -12,7 +12,8 @@ import { criarRegras, type NivelIA } from './motor/regras';
 import { escolherJogada, jogadaDoCuringa, ultimaBusca } from './ia';
 import { anotar, baixarDiario, textoCartas, textoMesa } from './ui/diario';
 import { estadoInicial, type Ajustes, type Ordenacao } from './ui/estado';
-import { escapar, htmlAjustes, htmlConfirmarNova, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlRetrospecto, type Mensagem } from './ui/desenho';
+import { escapar, htmlAjustes, htmlConfirmarNova, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlRetrospecto, htmlTutorial, type Mensagem } from './ui/desenho';
+import { podeBaixarJogo } from './ui/baixarJogo';
 import { encaixar } from './ui/encaixe';
 import { carregarAjustes, carregarGaveta, salvarAjustes, salvarGaveta, type Gaveta } from './ui/salvar';
 import { resultadoDaPartida, resumir } from './ui/retrospecto';
@@ -74,6 +75,8 @@ abrirGaveta();
  */
 function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms: number }) {
   const antes = movimento ? capturarPosicoes(app) : null;
+  document.body.classList.toggle('idade', ajustes.visual === 'idade');
+  document.body.classList.toggle('bonito', ajustes.visual === 'bonito');
   let html = '';
   if (e.partida && e.tela === 'jogo') html += htmlJogo(e, ajustes);
   if (e.tela === 'inicio' && !e.janela) html += htmlInicio(!!e.partida && !e.partida.resultado, usuarioAtual()?.email ?? null);
@@ -81,6 +84,7 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   if (e.janela === 'retrospecto') html += htmlRetrospecto(resumir(gaveta.resultados), usuarioAtual()?.email ?? null);
   if (e.janela === 'conta') html += htmlConta();
   if (e.janela === 'mensagem' && mensagem) html += htmlMensagem(mensagem);
+  if (e.janela === 'tutorial') html += htmlTutorial(e.tutorialPasso);
   if (e.janela === 'confirmarNova') html += htmlConfirmarNova();
   if (e.janela === 'fim' && e.partida) html += htmlFim(e.partida);
   app.innerHTML = html;
@@ -102,7 +106,8 @@ function chaveDoEncaixe(): string {
   const p = e.partida;
   if (!p || e.tela !== 'jogo') return '';
   const mesa = (e.mesaExibida ?? p.mesa).map((j) => j.cartas.map((c) => c.id).sort().join(',')).join(';');
-  return `${mesa}#${p.jogadores[0].mao.length}#${e.cartasExibidas?.join(',') ?? ''}#${e.aviso?.texto.length ?? 0}`;
+  const vazio = e.selecionadas.length > 0 ? 'v' : '';
+  return `${mesa}#${p.jogadores[0].mao.length}#${e.cartasExibidas?.join(',') ?? ''}#${e.aviso?.texto.length ?? 0}#${ajustes.visual}#${vazio}`;
 }
 
 function salvar() {
@@ -176,6 +181,28 @@ function comecarPartida() {
   limparMensagens();
   if (e.ordenacao === 'manual') e.ordenacao = 'naipe';
   salvar();
+  // Primeira partida: mostra o tutorial (a pessoa pode pular).
+  if (!ajustes.tutorialVisto) Object.assign(e, { janela: 'tutorial', tutorialPasso: 0 });
+  desenhar();
+}
+
+// ---------------------------------------------------------------------------
+// Tutorial
+// ---------------------------------------------------------------------------
+
+function abrirTutorial() {
+  if (e.janela === 'ajustes') e.voltarPara = 'ajustes';
+  Object.assign(e, { janela: 'tutorial', tutorialPasso: 0 });
+  desenhar();
+}
+
+function fecharTutorial() {
+  if (!ajustes.tutorialVisto) {
+    ajustes.tutorialVisto = true;
+    salvarAjustes(ajustes);
+  }
+  e.janela = e.voltarPara;
+  e.voltarPara = null;
   desenhar();
 }
 
@@ -231,7 +258,6 @@ function tocarDestino(destino: Destino) {
   if (!minhaVez()) return;
   limparMensagens();
   if (e.selecionadas.length === 0) {
-    if (destino.tipo === 'novoJogo') avisar(TEXTOS.novoSemCartas, 'normal');
     desenhar();
     return;
   }
@@ -518,6 +544,7 @@ function mudarAjuste(chave: string, valor: string) {
     // O nível vale na hora, até na partida em andamento.
     if (e.partida) e.partida = { ...e.partida, regras: { ...e.partida.regras, nivelIA: ajustes.nivel } };
   }
+  if (chave === 'visual') ajustes.visual = valor as Ajustes['visual'];
   if (chave === 'velocidade') ajustes.velocidade = valor as Ajustes['velocidade'];
   if (chave === 'quatroCores') ajustes.quatroCores = valor === 'true';
   if (chave === 'curinga') ajustes.curinga = valor === 'true';
@@ -690,6 +717,17 @@ app.addEventListener('click', (ev) => {
     switch (acao) {
       case 'desfazer': return botaoDesfazer(false);
       case 'desfazerTudo': return botaoDesfazer(true);
+      case 'baixarJogo':
+        if (minhaVez() && podeBaixarJogo(e.partida!, e.selecionadas)) mover(e.selecionadas, { tipo: 'novoJogo' });
+        return;
+      case 'abrirTutorial': return abrirTutorial();
+      case 'tutorialPular': return fecharTutorial();
+      case 'tutorialProximo':
+        e.tutorialPasso++;
+        return desenhar();
+      case 'tutorialVoltar':
+        e.tutorialPasso = Math.max(0, e.tutorialPasso - 1);
+        return desenhar();
       case 'comprar': return botaoComprar();
       case 'baixar': return botaoBaixar();
       case 'dica': return botaoDica();

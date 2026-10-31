@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!-- Página para ESCOLHER o visual: mostra os mocks lado a lado, no tamanho do iPhone Pro Max (em pé) e do iPad (deitado). -->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Mexe-Mexe — escolha o visual</title>
+<style>
+  body { margin: 0; padding: 28px; font-family: -apple-system, system-ui, sans-serif; background: #e9e4dc; color: #3b2f2a; }
+  h1 { margin: 0 0 4px; } h2 { margin: 34px 0 6px; } p { margin: 0 0 14px; max-width: 900px; line-height: 1.45; }
+  .fila { display: flex; gap: 26px; align-items: flex-start; flex-wrap: wrap; }
+  figure { margin: 0; } figcaption { font-weight: 700; margin-bottom: 6px; }
+  .tel { width: 440px; height: 800px; border: 10px solid #222; border-radius: 46px; overflow: hidden; background: #fff; }
+  .ipad { width: 590px; height: 410px; border: 9px solid #222; border-radius: 22px; overflow: hidden; background: #fff; }
+  .ipad iframe { width: 1180px; height: 820px; transform: scale(.5); transform-origin: 0 0; }
+  iframe { border: 0; width: 100%; height: 100%; display: block; }
+  .passos { display: flex; gap: 8px; margin: 6px 0 10px; } .passos button { font: inherit; padding: 6px 12px; border-radius: 99px; border: 2px solid #3b2f2a; background: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Mexe-Mexe: escolha o visual</h1>
+<p>Isto é só um <b>desenho</b> (mock), não o jogo de verdade. A mesa é montada de mentira.
+  Em todos aparece o mesmo momento: você escolheu <b>5♥ 6♥ 7♥</b>, que formam jogo, e por isso aparece o botão <b>Baixar jogo</b>.
+  O quadrado "Novo jogo" sumiu: no lugar dele, quando há carta escolhida, um <b>espaço vazio pontilhado</b> na mesa mostra onde tocar ou soltar para fazer um jogo novo.</p>
+
+<h2>1. Modo "bonito"</h2>
+<p>Mais caprichado: sombras, cartas que "pulam" ao serem escolhidas, leve inclinação na mão, animações suaves. Botões só com ícone e nome pequeno (igual ao Miaudoku).</p>
+<div class="fila">
+  <figure><figcaption>iPhone Pro Max (em pé)</figcaption><div class="tel"><iframe src="mock-visual.html?modo=bonito"></iframe></div></figure>
+  <figure><figcaption>iPad (deitado)</figcaption><div class="ipad"><iframe src="mock-visual.html?modo=bonito"></iframe></div></figure>
+</div>
+
+<h2>2. Modo "melhor idade"</h2>
+<p>Foco em ler e jogar: cartas maiores com borda preta, números maiores, botões grandes com o nome escrito, carta escolhida com moldura azul forte, mesa de cor lisa, sem animações.</p>
+<div class="fila">
+  <figure><figcaption>iPhone Pro Max (em pé)</figcaption><div class="tel"><iframe src="mock-visual.html?modo=idade"></iframe></div></figure>
+  <figure><figcaption>iPad (deitado)</figcaption><div class="ipad"><iframe src="mock-visual.html?modo=idade"></iframe></div></figure>
+</div>
+
+<h2>3. Tutorial (no lugar do textão da faixa)</h2>
+<p>A faixa de cima agora só diz o essencial ("Sua vez", "Tudo certo! Passando a vez…", ou o motivo de um erro).
+  As instruções viram um tutorial de <b>7 passos</b>, que aparece na primeira vez, tem <b>Pular</b> sempre visível e pode ser revisto em <b>Ajustes → Como jogar</b>.
+  Toque nos números para ver cada passo.</p>
+<div class="passos" id="passos"></div>
+<div class="fila">
+  <figure><figcaption>Bonito — iPhone Pro Max</figcaption><div class="tel"><iframe id="t1" src="mock-visual.html?modo=bonito&tela=tutorial&passo=1"></iframe></div></figure>
+  <figure><figcaption>Melhor idade — iPhone Pro Max</figcaption><div class="tel"><iframe id="t2" src="mock-visual.html?modo=idade&tela=tutorial&passo=1"></iframe></div></figure>
+  <figure><figcaption>Bonito — iPad</figcaption><div class="ipad"><iframe id="t3" src="mock-visual.html?modo=bonito&tela=tutorial&passo=1"></iframe></div></figure>
+</div>
+<script>
+  const nomes = ['Bem-vindo', 'Dois tipos de jogo', 'Da mão: 1 ou 3', 'A mesa é de todos', 'Tocar ou arrastar', 'A vez passa sozinha', 'Ajuda'];
+  passos.innerHTML = nomes.map((n, i) => `<button data-p="${i + 1}">${i + 1}. ${n}</button>`).join('');
+  passos.onclick = e => { const p = e.target.dataset.p; if (!p) return;
+    t1.src = `mock-visual.html?modo=bonito&tela=tutorial&passo=${p}`; t2.src = `mock-visual.html?modo=idade&tela=tutorial&passo=${p}`; t3.src = `mock-visual.html?modo=bonito&tela=tutorial&passo=${p}`; };
+</script>
+</body>
+</html>

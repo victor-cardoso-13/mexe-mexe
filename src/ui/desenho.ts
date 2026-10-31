@@ -8,7 +8,9 @@ import { ordemDaTrinca, ordemParaMostrar, validarJogo } from '../motor/validacao
 import type { NivelIA } from '../motor/regras';
 import type { Ajustes, Aviso, Estado } from './estado';
 import type { Contagem, Resumo } from './retrospecto';
+import { podeBaixarJogo } from './baixarJogo';
 import { NOMES_ORDENACAO, ordenarMao, TEXTOS } from './textos';
+import { passosDoTutorial } from './tutorial';
 
 // ---------------------------------------------------------------------------
 // Carta
@@ -124,7 +126,9 @@ function htmlMesa(e: Estado, p: Partida): string {
       return `<div class="${classes}" data-destino="jogo:${j.id}">${cartas}${erro}</div>`;
     })
     .join('');
-  return `<div class="mesa"><div class="jogos">${jogos}</div></div>`;
+  // Espaço vazio pontilhado: aparece com carta escolhida (ou arrastando) e cria um jogo novo.
+  const vazio = `<div class="vazio" data-destino="novo"><div>+ jogo novo<small>toque ou solte aqui</small></div></div>`;
+  return `<div class="mesa"><div class="jogos">${jogos}${vazio}</div></div>`;
 }
 
 function htmlMao(e: Estado, p: Partida): string {
@@ -141,34 +145,46 @@ function htmlMao(e: Estado, p: Partida): string {
       return htmlCarta(c, classes.join(' '));
     })
     .join('');
-  // "Novo jogo" fica sempre no mesmo lugar: à direita das suas cartas.
-  // Na vez do computador ele fica invisível, mas continua ocupando o lugar (nada "pula").
-  const novo = `<div class="novo-jogo ${e.computadorJogando ? 'invisivel' : ''}" data-destino="novo"><div><div class="mais">+</div>Novo jogo</div></div>`;
-  // No celular, o "Novo jogo" vira um botãozinho na linha do "Suas cartas" (a mão fica com a fila toda).
-  const novoPequeno = `<div class="novo-jogo-pequeno ${e.computadorJogando ? 'invisivel' : ''}" data-destino="novo">+ Novo jogo</div>`;
+  // "Baixar jogo" fica sempre no mesmo lugar (na linha "Suas cartas"); só aparece quando vale.
+  const baixar = podeBaixarJogo(p, e.selecionadas) && !e.computadorJogando
+    ? `<button class="baixar-jogo" data-acao="baixarJogo"><span class="icone-baixar">${ICONES.baixar}</span>Baixar jogo</button>`
+    : '';
   return `<div class="area-mao" data-destino="mao">
-    <div class="rotulo-mao"><span>Suas cartas (${mao.length})</span><span class="dica-arrastar">· arraste para mudar a ordem</span>${novoPequeno}</div>
+    <div class="rotulo-mao"><span>Suas cartas (${mao.length})</span><span class="dica-arrastar">· arraste para mudar a ordem</span><div class="espaco-baixar">${baixar}</div></div>
     <div class="linha-mao">
       <div class="mao">${cartas}</div>
-      ${novo}
     </div>
   </div>`;
 }
+
+/** Ícones de traço (os mesmos do mock aprovado). */
+const TRACOS = {
+  desfazer: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  tudo: '<path d="M3 12a9 9 0 1 0 2.8-6.5L3 8"/><path d="M3 3v5h5"/>',
+  ordenar: '<path d="M7 4v16"/><path d="m3 8 4-4 4 4"/><path d="M17 20V4"/><path d="m13 16 4 4 4-4"/>',
+  dica: '<path d="M9 18h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.6V16h6v-.1c0-.6.3-1.2.8-1.6A6.5 6.5 0 0 0 12 2.5z"/>',
+  comprar: '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M12 8v8"/><path d="M8 12h8"/>',
+  passar: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  baixar: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
+};
+const ICONES = Object.fromEntries(
+  Object.entries(TRACOS).map(([nome, traco]) => [nome, `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${traco}</svg>`]),
+) as Record<keyof typeof TRACOS, string>;
 
 function htmlBotoes(p: Partida, minhaVez: boolean): string {
   const off = minhaVez ? '' : 'disabled';
   const podeDesfazer = minhaVez && mexeuNaVez(p) ? '' : 'disabled';
   const pronto = minhaVez && conferirJogada(p).ok;
-  // Cada botão: ícone + nome. No celular o nome fica pequeno embaixo do ícone (botões minimalistas).
+  // Cada botão: ícone + nome. Bonito: nome pequeno embaixo do ícone. Melhor idade: botão grande com o nome escrito.
   const b = (acao: string, icone: string, nome: string, extra = '') =>
     `<button data-acao="${acao}" ${extra}><span class="icone">${icone}</span><span class="nome-botao">${nome}</span></button>`;
   return `<div class="botoes">
-    ${b('desfazer', '↶', 'Desfazer', podeDesfazer)}
-    ${b('desfazerTudo', '⟲', 'Desfazer tudo', podeDesfazer)}
-    <div class="ordenar">${b('menuOrdenar', '⇅', 'Ordenar')}</div>
-    ${b('dica', '💡', 'Dica', off)}
-    ${b('comprar', '🂠', 'Comprar e passar', `class="comprar ${minhaVez && mexeuNaVez(p) ? 'apagado' : ''}" ${off}`)}
-    ${b('baixar', '✔', 'Passar a vez', `class="baixar ${pronto ? '' : 'apagado'}" ${off}`)}
+    ${b('desfazer', ICONES.desfazer, 'Desfazer', podeDesfazer)}
+    ${b('desfazerTudo', ICONES.tudo, 'Desfazer tudo', podeDesfazer)}
+    <div class="ordenar">${b('menuOrdenar', ICONES.ordenar, 'Ordenar')}</div>
+    ${b('dica', ICONES.dica, 'Dica', off)}
+    ${b('comprar', ICONES.comprar, 'Comprar e passar', `class="comprar ${minhaVez && mexeuNaVez(p) ? 'apagado' : ''}" ${off}`)}
+    ${b('baixar', ICONES.passar, 'Passar a vez', `class="baixar ${pronto ? '' : 'apagado'}" ${off}`)}
   </div>`;
 }
 
@@ -327,6 +343,8 @@ function opcoes(chave: string, atual: string, lista: Array<[string, string]>): s
 export function htmlAjustes(a: Ajustes, emJogo: boolean): string {
   return `<div class="fundo-janela"><div class="janela">
     <h2>⚙️ Ajustes</h2>
+    <div class="ajuste"><div class="nome-ajuste">Visual</div>
+      ${opcoes('visual', a.visual, [['idade', 'Melhor idade'], ['bonito', 'Bonito']])}</div>
     <div class="ajuste"><div class="nome-ajuste">Computador</div>
       ${opcoes('nivel', a.nivel, [['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']])}</div>
     <div class="ajuste"><div class="nome-ajuste">Velocidade do computador</div>
@@ -338,6 +356,7 @@ export function htmlAjustes(a: Ajustes, emJogo: boolean): string {
     <div class="ajuste"><div class="nome-ajuste">Adversários<small>vale na próxima partida</small></div>
       ${opcoes('adversarios', String(a.adversarios), [['1', '1'], ['2', '2'], ['3', '3']])}</div>
     <div class="linha-botoes">
+      <button class="grande secundario" data-acao="abrirTutorial">❓ Como jogar</button>
       <button class="grande secundario" data-acao="abrirRetrospecto">📊 Retrospecto</button>
       <button class="grande secundario" data-acao="abrirMenuConta">☁️ Conta</button>
     </div>
@@ -376,5 +395,24 @@ export function htmlFim(p: Partida): string {
     ${explicacao}
     <button class="grande" data-acao="novaPartida">Jogar de novo</button>
     <button class="grande secundario" data-acao="fecharJanela">Ver a mesa</button>
+  </div></div>`;
+}
+
+/** Tutorial: um passo por vez, com "Pular" sempre visível. */
+export function htmlTutorial(passo: number): string {
+  const passos = passosDoTutorial();
+  const p = passos[passo];
+  const ultimo = passo === passos.length - 1;
+  return `<div class="fundo-janela"><div class="tutorial">
+    <button class="pular" data-acao="tutorialPular">Pular</button>
+    <div class="contador">PASSO ${passo + 1} DE ${passos.length}</div>
+    <h2>${p.titulo}</h2>
+    <div class="palco">${p.desenho}</div>
+    <p>${p.texto}</p>
+    <div class="pontos">${passos.map((_, i) => `<i class="${i === passo ? 'atual' : ''}"></i>`).join('')}</div>
+    <div class="botoes-tutorial">
+      <button class="claro" data-acao="tutorialVoltar" ${passo === 0 ? 'disabled' : ''}>Voltar</button>
+      <button data-acao="${ultimo ? 'tutorialPular' : 'tutorialProximo'}">${ultimo ? 'Começar' : 'Próximo'}</button>
+    </div>
   </div></div>`;
 }

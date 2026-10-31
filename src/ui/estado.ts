@@ -25,6 +25,10 @@ export interface Ajustes {
   adversarios: number;
   quatroCores: boolean;
   velocidade: 'devagar' | 'normal';
+  /** Visual: "idade" (melhor idade, padrão) ou "bonito". */
+  visual: 'idade' | 'bonito';
+  /** Já viu o tutorial (ele aparece sozinho só na primeira partida). */
+  tutorialVisto: boolean;
 }
 
 export const AJUSTES_PADRAO: Ajustes = {
@@ -33,13 +37,17 @@ export const AJUSTES_PADRAO: Ajustes = {
   adversarios: 1,
   quatroCores: false,
   velocidade: 'devagar',
+  visual: 'idade',
+  tutorialVisto: false,
 };
 
 export interface Estado {
   tela: 'inicio' | 'jogo';
-  janela: null | 'ajustes' | 'fim' | 'confirmarNova' | 'conta' | 'retrospecto' | 'mensagem';
+  janela: null | 'ajustes' | 'fim' | 'confirmarNova' | 'conta' | 'retrospecto' | 'mensagem' | 'tutorial';
   /** Para onde o botão "Voltar" das janelas de conta e retrospecto leva. */
   voltarPara: null | 'ajustes';
+  /** Passo do tutorial que está na tela (0 a 6). */
+  tutorialPasso: number;
   partida: Partida | null;
   /** Identidade da partida (o retrospecto conta cada uma uma vez só). */
   partidaId: string;
@@ -74,6 +82,7 @@ export function estadoInicial(): Estado {
     tela: 'inicio',
     janela: null,
     voltarPara: null,
+    tutorialPasso: 0,
     partida: null,
     partidaId: '',
     selecionadas: [],

@@ -8,14 +8,13 @@ import type { Passo } from '../ia';
 import type { Ordenacao } from './estado';
 
 export const TEXTOS = {
-  suaVez: 'Sua vez! Da sua mão, baixe 1 carta num jogo ou 3 cartas de uma vez. Na mesa, pode mexer à vontade.',
-  escolheuCartas: 'Agora toque no jogo onde quer colocar, ou em ➕ Novo jogo.',
-  tudoCerto: 'Tudo certo! Toque em ✔ Passar a vez.',
-  mesaComProblema: 'Ainda tem jogo que não vale (em vermelho). Arrume, ou toque em ⟲ Desfazer tudo.',
-  mexeuAntesDeComprar: 'Você mexeu na mesa. Para comprar, toque antes em ⟲ Desfazer tudo.',
-  novoSemCartas: 'Primeiro toque nas cartas que quer colocar no jogo novo.',
-  semDica: 'Não achei jogada com as suas cartas. Toque em 🂠 Comprar e passar.',
-  baixarSemNada: 'Você ainda não baixou nenhuma carta. Baixe um jogo, ou toque em 🂠 Comprar e passar.',
+  suaVez: 'Sua vez',
+  escolheuCartas: 'Toque no jogo, ou no espaço vazio',
+  tudoCerto: 'Tudo certo! Passando a vez…',
+  mesaComProblema: 'Tem jogo que não vale (em vermelho)',
+  mexeuAntesDeComprar: 'Você mexeu na mesa. Antes de comprar, toque em Desfazer tudo.',
+  semDica: 'Não achei jogada. Toque em Comprar e passar.',
+  baixarSemNada: 'Você ainda não baixou carta. Baixe um jogo, ou compre e passe.',
 };
 
 export const NOMES_ORDENACAO: Record<Exclude<Ordenacao, 'manual'>, string> = {
