@@ -1,0 +1,575 @@
+/* ==========================================================
+   Visual do Mexe-Mexe. Pensado para o iPad deitado, com
+   letras e cartas grandes. A tela NUNCA rola: as cartas
+   encolhem para caber (veja src/ui/encaixe.ts).
+   ========================================================== */
+
+:root {
+  --verde: #0f5f3a;
+  --verde-escuro: #0a4329;
+  --amarelo: #ffd400;
+  --vermelho: #e02424;
+  --ok: #4cd07d;
+  --mesa-w: 60px; /* largura das cartas da mesa (ajustada sozinha) */
+  --mao-w: 90px;  /* largura das cartas da mão (ajustada sozinha) */
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--verde-escuro);
+  color: #fff;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app { height: 100dvh; width: 100vw; }
+
+button {
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- Estrutura da tela de jogo ---------- */
+
+.tela-jogo {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr); /* nada pode deixar a tela mais larga que o aparelho */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.topo {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 8px 16px;
+  font-size: 22px;
+  font-weight: 600;
+  min-height: 60px;
+}
+.adversario { display: flex; align-items: center; gap: 10px; }
+.adversario.da-vez .nome { color: var(--amarelo); }
+.versos { display: flex; }
+.versos .verso { margin-left: -14px; }
+.versos .verso:first-child { margin-left: 0; }
+.verso {
+  width: 28px;
+  height: 40px;
+  border-radius: 5px;
+  border: 2px solid #fff;
+  background: repeating-linear-gradient(45deg, #b3261e 0 5px, #8c1d17 5px 10px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  transition: opacity .4s;
+}
+.alerta-uma {
+  background: var(--vermelho);
+  color: #fff;
+  font-weight: 800;
+  font-size: 20px;
+  border-radius: 12px;
+  padding: 6px 12px;
+  animation: pisca .8s infinite alternate;
+}
+@keyframes pisca { from { opacity: 1; } to { opacity: .55; } }
+.monte { display: flex; align-items: center; gap: 10px; }
+.espaco { flex: 1; }
+.botao-ajustes {
+  background: #fff;
+  color: var(--verde-escuro);
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.aviso {
+  margin: 0 16px;
+  background: #fff8d6;
+  color: #3a2e00;
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-size: 22px;
+  font-weight: 600;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.aviso.problema { background: #ffe1e1; color: #7a0000; }
+.aviso.computador { background: #dfefff; color: #0c2d57; }
+.aviso .acao {
+  margin-left: auto;
+  flex: none;
+  background: var(--verde);
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* ---------- Mesa ---------- */
+
+.mesa {
+  overflow: hidden;
+  padding: 12px 16px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 26px;
+  background: var(--verde);
+  margin: 10px 0 0;
+}
+.jogos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 26px 14px;
+}
+.jogos:empty { display: none; }
+.jogo {
+  display: flex;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .1);
+  border: 4px solid var(--ok);
+  position: relative;
+}
+.jogo.invalido { border-color: var(--vermelho); background: rgba(224, 36, 36, .22); }
+.jogo.destaque { animation: brilho 1s ease-in-out 2; }
+@keyframes brilho { 50% { box-shadow: 0 0 0 6px var(--amarelo); } }
+/* Sequência: cartas um pouco sobrepostas (o canto com o valor sempre aparece). */
+.jogo:not(.trinca) > .carta + .carta { margin-left: calc(var(--w) * -0.42); }
+/* Trinca: naipes lado a lado, sem sobrepor; repetidas empilhadas na vertical. */
+.jogo.trinca { flex-direction: column; align-items: center; }
+.colunas { display: flex; align-items: flex-start; gap: calc(var(--mesa-w) * 0.08); }
+/* Linha de baixo (dois cartões do 4º naipe): cada um fica entre duas colunas. */
+.base { display: flex; gap: calc(var(--mesa-w) * 0.08); margin-top: calc(var(--mesa-w) * -0.62); position: relative; }
+.coluna { display: flex; flex-direction: column; }
+.coluna .carta + .carta { margin-top: calc(var(--w) * -0.62); } /* deixa o canto (valor e naipe) inteiro à mostra */
+.jogo .erro {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 2px;
+  background: var(--vermelho);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  z-index: 2;
+}
+.linha-mao { display: flex; align-items: flex-end; gap: 14px; }
+.linha-mao .mao { flex: 1; min-width: 0; }
+.novo-jogo {
+  flex: none;
+  width: max(calc(var(--mao-w) * 1.5), 110px);
+  height: calc(var(--mao-w) * 1.4);
+  min-height: 56px;
+  white-space: nowrap;
+  border: 4px dashed rgba(255, 255, 255, .75);
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 700;
+  color: #fff;
+  padding: 4px;
+}
+.novo-jogo.invisivel { visibility: hidden; }
+/* Celular: a mesa pode rolar (só ela), com as cartas num tamanho legível */
+.mesa.rolavel { overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+/* Na mesa que rola: deslizar na vertical rola a mesa; tocar ou arrastar para o lado mexe na carta */
+.mesa.rolavel .carta { touch-action: pan-y; }
+.novo-jogo .mais { font-size: 40px; line-height: 1; font-weight: 400; }
+.tem-selecao .novo-jogo, .tem-selecao .jogo { cursor: pointer; }
+.tem-selecao .novo-jogo { border-color: var(--amarelo); color: var(--amarelo); }
+.alvo-arraste { outline: 6px solid var(--amarelo); outline-offset: 2px; }
+
+/* ---------- Cartas ---------- */
+
+.carta {
+  --w: var(--mesa-w);
+  width: var(--w);
+  height: calc(var(--w) * 1.4);
+  flex: none;
+  background: #fff;
+  border-radius: calc(var(--w) * 0.12);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .35);
+  position: relative;
+  color: #111;
+  touch-action: none;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.carta .canto {
+  position: absolute;
+  top: calc(var(--w) * 0.04);
+  left: calc(var(--w) * 0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: .95;
+  font-weight: 800;
+}
+.carta .valor { font-size: calc(var(--w) * 0.4); letter-spacing: -0.04em; }
+.carta .naipe-peq { font-size: calc(var(--w) * 0.3); }
+.carta .naipe-grande {
+  position: absolute;
+  right: calc(var(--w) * 0.06);
+  bottom: calc(var(--w) * 0.02);
+  font-size: calc(var(--w) * 0.62);
+  line-height: 1;
+}
+.vermelho { color: #d10000; }
+/* Modo 4 cores: ♥ vermelho, ♦ azul, ♣ verde, ♠ preto */
+.quatro-cores .naipe-ouros { color: #0057d9; }
+.quatro-cores .naipe-paus { color: #0a8a2a; }
+
+/* Curinga: estrela dourada sobre fundo roxo */
+.carta.curinga {
+  background: radial-gradient(circle at 50% 45%, #7b3fe4 0%, #4b1fa3 70%, #34127a 100%);
+  color: #fff;
+  border: calc(var(--w) * 0.04) solid #ffd75e;
+}
+.carta.curinga .estrela {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--w) * 0.85);
+  color: #ffd75e;
+  text-shadow: 0 0 calc(var(--w) * 0.12) rgba(255, 215, 94, .8);
+  padding-bottom: calc(var(--w) * 0.18);
+}
+.carta.curinga .rotulo-curinga {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--w) * 0.1);
+  text-align: center;
+  font-size: calc(var(--w) * 0.155);
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: #ffe9a8;
+}
+.carta.curinga .canto { color: #ffd75e; }
+
+.carta.selecionada {
+  transform: translateY(calc(var(--w) * -0.18));
+  outline: 5px solid var(--amarelo);
+  z-index: 3;
+}
+.carta.nova::after {
+  content: 'NOVA';
+  position: absolute;
+  left: 50%;
+  top: calc(var(--w) * -0.2);
+  transform: translateX(-50%);
+  background: #2f80ff;
+  color: #fff;
+  font-size: max(12px, calc(var(--w) * 0.16));
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.carta.nova { box-shadow: 0 0 0 4px #2f80ff, 0 2px 4px rgba(0, 0, 0, .35); }
+/* Cartas que o computador acabou de baixar: selo laranja "NOVA" */
+.carta.do-computador { box-shadow: 0 0 0 4px #ff8a00, 0 2px 4px rgba(0, 0, 0, .35); }
+.carta.do-computador::after {
+  content: 'NOVA';
+  position: absolute;
+  left: 50%;
+  top: calc(var(--w) * -0.2);
+  transform: translateX(-50%);
+  background: #ff8a00;
+  color: #fff;
+  font-size: max(11px, calc(var(--w) * 0.16));
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 6px;
+  z-index: 5;
+}
+.carta.dica { animation: dica 1s ease-in-out infinite alternate; }
+@keyframes dica { to { box-shadow: 0 0 0 6px #ff9f1a; } }
+.carta.chegou { animation: chegou .8s ease-out; }
+@keyframes chegou { from { transform: scale(1.35); box-shadow: 0 0 0 8px var(--amarelo); } }
+
+/* Na vez do computador, jogos pela metade (no meio da animação) não ficam vermelhos. */
+.computador-jogando .jogo.invalido { border-color: rgba(255, 255, 255, .6); border-style: dashed; background: rgba(255, 255, 255, .08); }
+.computador-jogando .jogo .erro { display: none; }
+
+/* Jogada do computador: a carta que está "voando" fica por cima de tudo, com brilho. */
+.animando .mesa { overflow: visible; }
+.carta.voando { z-index: 40; box-shadow: 0 0 0 5px var(--amarelo), 0 10px 24px rgba(0, 0, 0, .5); }
+
+.fantasma {
+  position: fixed;
+  pointer-events: none;
+  z-index: 50;
+  display: flex;
+  opacity: .9;
+  transform: rotate(-3deg);
+}
+.arrastando { opacity: .35; }
+
+/* ---------- Mão ---------- */
+
+.area-mao { padding: 10px 16px 6px; background: var(--verde-escuro); }
+.rotulo-mao { font-size: 18px; opacity: .85; margin-bottom: 4px; display: flex; gap: 12px; }
+.mao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: calc(var(--mao-w) * 0.2);
+  min-height: calc(var(--mao-w) * 1.6);
+}
+.mao .carta { --w: var(--mao-w); }
+
+/* ---------- Botões de baixo ---------- */
+
+.botoes { display: flex; gap: 10px; padding: 8px 16px 12px; }
+.botoes > button, .botoes > .ordenar > button {
+  flex: 1;
+  width: 100%;
+  font-size: 20px;
+  font-weight: 700;
+  border: 0;
+  border-radius: 16px;
+  padding: 14px 6px;
+  background: #fff;
+  color: #133;
+  min-height: 64px;
+}
+.botoes .ordenar { flex: 1; position: relative; display: flex; }
+.botoes .icone { margin-right: 6px; }
+.novo-jogo-pequeno { display: none; }
+.rotulo-mao { align-items: center; }
+.botoes .comprar { background: #ffcf5c; }
+.botoes .baixar { background: #2fbf5b; color: #fff; flex: 1.4; font-size: 22px; }
+.botoes .apagado { opacity: .45; }
+/* "Passar a vez" ainda não liberado: cinza bem visível, sem parecer quebrado */
+.botoes .baixar.apagado { opacity: 1; background: #5f7a6b; color: #d9e4dd; }
+.botoes button:disabled { opacity: .35; }
+.janela .exemplo { opacity: .7; font-weight: 600; margin-left: 8px; }
+.janela .nota-ordenar { font-size: 18px; color: #555; margin-top: 14px; }
+
+/* ---------- Janelas (início, ajustes, fim de jogo) ---------- */
+
+.fundo-janela {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 16px;
+}
+.janela {
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 24px;
+  padding: 28px 32px;
+  width: min(640px, 100%);
+  max-height: 100%;
+  overflow-y: auto; /* só rola se a janela não couber (celular pequeno deitado) */
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .5);
+}
+.janela h1 { margin: 0 0 10px; font-size: 44px; }
+.janela h2 { margin: 0 0 14px; font-size: 32px; }
+.janela p { font-size: 22px; margin: 8px 0; }
+.janela .grande {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 18px;
+  padding: 18px;
+  font-size: 26px;
+  font-weight: 800;
+  background: #2fbf5b;
+  color: #fff;
+}
+.janela .grande.secundario { background: #e9eef0; color: #133; }
+.janela .emoji { font-size: 64px; line-height: 1.1; }
+.janela .placar { font-size: 22px; margin: 12px 0; }
+.janela .placar div { padding: 4px 0; }
+
+.linha-botoes { display: flex; gap: 12px; }
+/* ---------- Conta e retrospecto ---------- */
+
+.linha-inicio { flex-wrap: wrap; row-gap: 0; }
+.linha-inicio .grande { flex: 1 1 150px; white-space: nowrap; }
+.retro { table-layout: fixed; }
+.retro th:first-child { width: 24%; }
+.quem-joga { font-size: 16px; color: #555; margin-top: 12px; overflow-wrap: anywhere; }
+.formulario input {
+  display: block; width: 100%; box-sizing: border-box; margin-top: 12px;
+  font-size: 20px; padding: 14px 16px; border: 2px solid #c9d3d6; border-radius: 14px; background: #f7f9fa; color: #1a1a1a;
+}
+.formulario input:focus { outline: none; border-color: #1d7a4a; background: #fff; }
+.formulario .erro { min-height: 1.3em; margin-top: 8px; font-size: 17px; font-weight: 600; color: #b3261e; }
+.formulario .erro.ok { color: #1d7a4a; }
+.formulario button:disabled { opacity: .5; }
+.linha-links { display: flex; justify-content: space-between; margin-top: 8px; }
+.linha-links .link-diario { font-size: 17px; }
+.janela-retro h3 { margin: 18px 0 6px; font-size: 22px; text-align: left; }
+.retro { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 20px; }
+.retro th, .retro td { padding: 8px 4px; border-bottom: 1px solid #e3e8ea; }
+.retro thead th { font-size: 15px; color: #555; font-weight: 700; }
+.retro tbody th { text-align: left; }
+.retro td { font-weight: 700; font-variant-numeric: tabular-nums; }
+.retro tr.total th, .retro tr.total td { border-bottom: 0; background: #eef5f0; }
+.ultimas { list-style: none; margin: 0; padding: 0; text-align: left; font-size: 18px; }
+.ultimas li { padding: 7px 0; border-bottom: 1px solid #eef1f2; }
+.ultimas li span { display: block; color: #555; font-size: 16px; margin-top: 2px; }
+.janela .nada { font-size: 18px; color: #555; text-align: left; }
+
+.link-diario { background: none; border: 0; color: #2a5d9f; text-decoration: underline; font-size: 15px; margin-top: 6px; padding: 4px; }
+.linha-botoes .grande { flex: 1; }
+.ajuste { display: flex; align-items: center; gap: 12px; margin: 12px 0; text-align: left; }
+.ajuste .nome-ajuste { flex: 1.1; font-size: 21px; font-weight: 700; }
+.ajuste .nome-ajuste small { display: block; font-size: 15px; font-weight: 500; color: #666; }
+.opcoes { flex: 2; display: flex; gap: 6px; }
+.opcoes button {
+  flex: 1;
+  border: 3px solid #cfd8dc;
+  background: #fff;
+  color: #133;
+  border-radius: 12px;
+  padding: 10px 4px;
+  font-size: 19px;
+  font-weight: 700;
+}
+.opcoes button.atual { border-color: #2fbf5b; background: #e6f7ec; }
+
+/* ==========================================================
+   Telas menores. Tudo continua cabendo, só fica mais compacto.
+   ========================================================== */
+
+/* Em pé (celular ou iPad): botões em 2 linhas de 3 */
+@media (orientation: portrait) {
+  .botoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .botoes .baixar { font-size: 20px; }
+}
+
+/* Celular em pé (tela estreita) */
+@media (max-width: 600px) {
+  .retro thead th { font-size: 12px; letter-spacing: -.2px; }
+  .retro { font-size: 18px; }
+  .topo { flex-wrap: wrap; gap: 8px 12px; padding: 6px 10px; font-size: 16px; min-height: 0; }
+  .verso { width: 18px; height: 26px; border-radius: 4px; }
+  .versos .verso { margin-left: -10px; }
+  .alerta-uma { font-size: 14px; padding: 3px 8px; }
+  .botao-ajustes { font-size: 15px; padding: 6px 10px; border-radius: 10px; }
+  .aviso { margin: 0 10px; font-size: 16px; padding: 8px 10px; min-height: 0; }
+  .aviso .acao { font-size: 15px; padding: 6px 10px; }
+  .mesa { padding: 8px 10px 20px; gap: 18px; }
+  .jogos { gap: 20px 10px; }
+  .area-mao { padding: 6px 10px 4px; }
+  .rotulo-mao { font-size: 14px; }
+  .botoes { gap: 6px; padding: 6px 10px 10px; }
+  .botoes > button, .botoes > .ordenar > button, .botoes .baixar { font-size: 15px; min-height: 48px; padding: 6px 4px; border-radius: 12px; }
+  .novo-jogo { font-size: 15px; height: auto; min-height: 48px; width: auto; padding: 6px 12px; }
+  .novo-jogo > div { display: flex; align-items: center; gap: 6px; }
+  .novo-jogo .mais { font-size: 24px; }
+  .jogo { padding: 3px; border-width: 3px; }
+  .jogos { gap: 14px 8px; }
+}
+
+/* Celular deitado (tela baixa) */
+@media (max-height: 500px) {
+  .topo { padding: 4px 12px; font-size: 16px; min-height: 0; gap: 14px; }
+  .verso { width: 18px; height: 26px; border-radius: 4px; }
+  .versos .verso { margin-left: -10px; }
+  .alerta-uma { font-size: 14px; padding: 3px 8px; }
+  .botao-ajustes { font-size: 15px; padding: 5px 10px; border-radius: 10px; }
+  .aviso { margin: 0 12px; font-size: 15px; padding: 5px 12px; min-height: 0; }
+  .aviso .acao { font-size: 14px; padding: 4px 10px; }
+  .mesa { padding: 6px 12px 16px; gap: 14px; margin-top: 6px; }
+  .jogos { gap: 16px 10px; }
+  .jogo { padding: 4px; border-width: 3px; }
+  .area-mao { padding: 4px 12px 2px; }
+  .rotulo-mao { display: none; }
+  .botoes { gap: 6px; padding: 4px 12px 6px; }
+  .botoes > button, .botoes > .ordenar > button, .botoes .baixar { font-size: 15px; min-height: 40px; padding: 4px; border-radius: 10px; }
+  /* "Novo jogo" com o + ao lado do texto */
+  .novo-jogo { font-size: 14px; height: auto; min-height: 40px; width: auto; padding: 4px 12px; }
+  .novo-jogo > div { display: flex; align-items: center; gap: 6px; }
+  .novo-jogo .mais { font-size: 22px; }
+  .janela { padding: 14px 18px; }
+  .janela h1 { font-size: 30px; }
+  .janela h2 { font-size: 24px; margin-bottom: 6px; }
+  .janela p { font-size: 17px; }
+  .janela .grande { padding: 10px; font-size: 19px; margin-top: 8px; }
+  .janela .emoji { font-size: 40px; }
+  .ajuste { margin: 4px 0; }
+  .ajuste .nome-ajuste { font-size: 17px; }
+  .ajuste .nome-ajuste small { font-size: 12px; }
+  .opcoes button { padding: 5px 4px; font-size: 16px; }
+  .formulario input { padding: 8px 12px; font-size: 17px; margin-top: 6px; }
+  .retro { font-size: 16px; margin-top: 4px; }
+  .retro th, .retro td { padding: 4px; }
+  .janela-retro h3 { margin-top: 8px; font-size: 18px; }
+  .ultimas { font-size: 15px; }
+  .ultimas li { padding: 4px 0; }
+  .ultimas li span { font-size: 14px; }
+  .formulario p { display: none; }
+  .quem-joga { font-size: 14px; margin-top: 6px; }
+}
+
+/* Celular pequeno deitado (ex.: iPhone SE): aperta mais um pouco */
+@media (max-height: 400px) {
+  .topo { padding: 2px 10px; font-size: 15px; }
+  .monte .verso { display: none; }
+  .aviso { font-size: 14px; padding: 3px 10px; }
+  .mesa { padding: 4px 10px 12px; gap: 10px; margin-top: 4px; }
+  .jogos { gap: 12px 8px; }
+  .botoes { padding: 3px 10px 4px; }
+  .botoes > button, .botoes > .ordenar > button, .botoes .baixar { min-height: 36px; font-size: 14px; }
+}
+
+/* ==========================================================
+   Celular (iPhone em pé ou deitado): botões minimalistas e
+   mão com a fila toda; "Novo jogo" vira botãozinho no rótulo.
+   ========================================================== */
+@media (max-width: 600px), (max-height: 500px) {
+  .botoes { display: flex; gap: 4px; padding: 4px 8px 6px; }
+  .botoes > button, .botoes > .ordenar > button, .botoes .baixar {
+    min-height: 0; padding: 5px 2px; border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    font-size: 11px; line-height: 1.1;
+  }
+  .botoes .icone { margin: 0; font-size: 20px; line-height: 1; }
+  .botoes .nome-botao { font-size: 11px; font-weight: 700; }
+  .linha-mao > .novo-jogo { display: none; }
+  .novo-jogo-pequeno {
+    display: block; margin-left: auto; padding: 4px 12px; border: 2px dashed rgba(255, 255, 255, .8);
+    border-radius: 10px; font-size: 15px; font-weight: 800; color: #fff; cursor: pointer;
+  }
+  .novo-jogo-pequeno.invisivel { visibility: hidden; }
+  .tem-selecao .novo-jogo-pequeno { border-color: var(--amarelo); color: var(--amarelo); }
+  .dica-arrastar { display: none; }
+  /* Topo numa linha só: Ajustes vira só o ícone */
+  .topo { flex-wrap: nowrap; }
+  .nome-ajustes, .monte .verso { display: none; }
+  .botao-ajustes { font-size: 20px; padding: 4px 10px; }
+  .rotulo-mao { display: flex !important; font-size: 14px; margin-bottom: 2px; }
+}
