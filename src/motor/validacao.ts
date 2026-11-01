@@ -15,16 +15,16 @@ export type ResultadoJogo =
 /** Mensagens amigáveis mostradas para a jogadora. */
 export const MOTIVOS = {
   poucasCartas: 'Um jogo precisa de pelo menos 3 cartas.',
-  curingaEmTrinca: 'O curinga não pode entrar em trinca, só no meio de uma sequência.',
+  curingaEmTrinca: 'O coringa não pode entrar em trinca, só no meio de uma sequência.',
   poucosNaipes: 'A trinca precisa ter pelo menos 3 naipes diferentes.',
   quartoNaipe: 'O 4º naipe só entra quando a trinca já tem 2 naipes repetidos (6 cartas ou mais).',
   naipesDiferentes: 'Na sequência, todas as cartas têm que ser do mesmo naipe.',
   cartaRepetida: 'Tem carta repetida nessa sequência.',
-  curingaNaPonta: 'O curinga só pode ficar no meio da sequência, nunca na ponta.',
+  curingaNaPonta: 'O coringa só pode ficar no meio da sequência, nunca na ponta.',
   foraDeSequencia: 'Essas cartas não estão em sequência.',
-  curingasDemais: 'Tem curinga demais nesse jogo.',
-  curingasJuntos: 'Dois curingas não podem ficar um do lado do outro.',
-  curingaDesligado: 'Esta partida está sem curinga.',
+  curingasDemais: 'Tem coringa demais nesse jogo.',
+  curingasJuntos: 'Dois coringas não podem ficar um do lado do outro.',
+  curingaDesligado: 'Esta partida está sem coringa.',
 } as const;
 
 export function validarJogo(cartas: Carta[], regras: Regras): ResultadoJogo {

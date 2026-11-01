@@ -85,7 +85,7 @@ export interface Estado {
   /** Cartas que o computador baixou da mão dele na última rodada (selo laranja "NOVA"). */
   baixadasPeloComputador: string[];
   menuOrdenar: boolean;
-  /** Onde o curinga da mão pode ficar nesta vez (botão "Deixar o curinga solto"). */
+  /** Onde o curinga da mão pode ficar nesta vez (botão "Deixar o coringa solto"). */
   lugarCuringa: Foto | null;
   /** Para qual vez o lugar do curinga já foi calculado. */
   lugarCuringaVez: string;

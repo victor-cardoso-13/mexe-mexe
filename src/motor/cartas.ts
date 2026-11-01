@@ -38,9 +38,9 @@ export function nomeDoValor(valor: number): string {
   return String(valor);
 }
 
-/** Texto curto da carta, ex.: "7♥", "A♠", "Curinga". */
+/** Texto curto da carta, ex.: "7♥", "A♠", "Coringa". */
 export function nomeDaCarta(c: Carta): string {
-  if (c.curinga) return 'Curinga';
+  if (c.curinga) return 'Coringa';
   return nomeDoValor(c.valor) + SIMBOLO_NAIPE[c.naipe];
 }
 
