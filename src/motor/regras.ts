@@ -112,7 +112,7 @@ export const REGRAS_PADRAO: Regras = {
   niveis: {
     facil: { maximoDeJogosMexidos: 1, otimizar: false, tempoMaximoMs: 300 },
     medio: { maximoDeJogosMexidos: 3, otimizar: false, tempoMaximoMs: 800 },
-    dificil: { maximoDeJogosMexidos: null, otimizar: true, tempoMaximoMs: 2000 },
+    dificil: { maximoDeJogosMexidos: null, otimizar: true, tempoMaximoMs: 5000 },
   },
 
   curinga: {

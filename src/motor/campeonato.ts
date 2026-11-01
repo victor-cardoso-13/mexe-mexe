@@ -15,6 +15,8 @@ export interface Campeonato {
   rodada: number;
   /** Identidade da última partida somada (para nunca somar duas vezes a mesma). */
   contada: string;
+  /** A pessoa escolheu terminar o campeonato ali mesmo (ganha quem tem menos pontos). */
+  encerrado?: boolean;
 }
 
 export function novoCampeonato(jogadores: number, alvo = PONTOS_DO_CAMPEONATO): Campeonato {
@@ -38,14 +40,33 @@ export interface Situacao {
   acabou: boolean;
   /** Quem ganhou o campeonato (menos pontos). */
   campeao: number | null;
+  /** Alguém chegou ao alvo mas ainda há 2 ou mais jogadores (contando você) abaixo dele: dá para escolher continuar só com eles. */
+  podeContinuar?: boolean;
 }
 
-/** O campeonato acaba quando alguém chega ao alvo e há um único com menos pontos (senão, outra rodada). */
-export function situacaoDoCampeonato(c: Campeonato): Situacao {
-  if (Math.max(...c.totais) < c.alvo) return { acabou: false, campeao: null };
+/** Quem ainda não chegou ao alvo (índices). */
+export function sobreviventes(c: Campeonato): number[] {
+  return c.totais.flatMap((t, i) => (t < c.alvo ? [i] : []));
+}
+
+/**
+ * O campeonato acaba quando alguém chega ao alvo e há um único com menos pontos (senão, outra rodada).
+ * Com "comEscolha" (partida contra o computador com 3 ou 4 jogadores), quando alguém chega ao alvo e você
+ * e mais alguém ainda estão abaixo dele, a pessoa escolhe: continuar só com esses ou terminar ali.
+ */
+export function situacaoDoCampeonato(c: Campeonato, comEscolha = false): Situacao {
   const menor = Math.min(...c.totais);
   const melhores = c.totais.flatMap((t, i) => (t === menor ? [i] : []));
+  if (c.encerrado) return { acabou: true, campeao: ordemDoPlacar(c.totais)[0].jogador };
+  if (Math.max(...c.totais) < c.alvo) return { acabou: false, campeao: null };
+  const vivos = sobreviventes(c);
+  if (comEscolha && vivos.length >= 2 && vivos.includes(0)) return { acabou: false, campeao: null, podeContinuar: true };
   return melhores.length === 1 ? { acabou: true, campeao: melhores[0] } : { acabou: false, campeao: null };
+}
+
+/** Continua o campeonato só com quem não chegou ao alvo (os pontos deles ficam). */
+export function semOsEliminados(c: Campeonato): Campeonato {
+  return { ...c, totais: sobreviventes(c).map((i) => c.totais[i]), rodada: c.rodada + 1 };
 }
 
 export function proximaRodada(c: Campeonato): Campeonato {

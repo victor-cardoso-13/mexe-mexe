@@ -64,7 +64,7 @@ export interface Online {
 
 export interface Estado {
   tela: 'inicio' | 'jogo' | 'sala';
-  janela: null | 'ajustes' | 'fim' | 'confirmarNova' | 'conta' | 'retrospecto' | 'mensagem' | 'tutorial' | 'online';
+  janela: null | 'ajustes' | 'fim' | 'confirmarNova' | 'confirmarSair' | 'comoJogar' | 'conta' | 'retrospecto' | 'mensagem' | 'tutorial' | 'online';
   /** Para onde o botão "Voltar" das janelas de conta e retrospecto leva. */
   voltarPara: null | 'ajustes';
   /** Passo do tutorial que está na tela (0 a 6). */
