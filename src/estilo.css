@@ -861,3 +861,30 @@ body.idade .tempo-vez { border: 2px solid var(--tinta); box-shadow: none; font-s
 /* Barra de cima: os "chips" nunca quebram o texto em 2 linhas (o aviso "Só 1 carta!" fazia a barra crescer). */
 .topo .adversario, .topo .monte, .topo .alerta-uma { white-space: nowrap; }
 .topo .alerta-uma { flex: none; }
+
+/* Nome do adversário: inteiro nas telas grandes, abreviado ("Adv. 2") no celular, onde as cartinhas viradas somem
+   (o número entre parênteses já diz quantas cartas ele tem). */
+.nome-curto { display: none; }
+@media (max-width: 600px), (max-height: 500px) {
+  .nome-longo { display: none; }
+  .nome-curto { display: inline; }
+  .topo .adversario .versos { display: none; }
+}
+/* 3 adversários: sem as cartinhas viradas, para o topo caber (o número já diz quantas cartas têm). */
+.topo.muitos .adversario .versos { display: none; }
+@media (max-width: 600px), (max-height: 500px) {
+  .topo .adversario { padding: 3px 6px; flex: none; }
+  .topo .adversario .nome { font-size: 13px; }
+}
+@media (max-width: 600px), (max-height: 500px) {
+  .topo { gap: 4px; }
+  .topo .monte { font-size: 14px; padding: 3px 7px; }
+  .botao-ajustes { flex: none; padding: 5px 8px; }
+}
+@media (max-width: 600px), (max-height: 500px) {
+  body.idade .topo .monte, body.bonito .topo .monte { font-size: 13px; padding: 3px 6px; }
+  body.idade .topo .botao-ajustes, body.bonito .topo .botao-ajustes { padding: 4px 7px; font-size: 18px; }
+  body.idade .topo .botao-sair, body.bonito .topo .botao-sair { padding: 4px 7px; font-size: 14px; }
+  body.idade .topo .adversario, body.bonito .topo .adversario { padding: 3px 5px; }
+  body.idade .topo .adversario .nome, body.bonito .topo .adversario .nome { font-size: 12px; }
+}

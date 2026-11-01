@@ -27,6 +27,7 @@ for (const [nome, w, h] of telas.filter((_, i) => !so || so.includes(i))) {
       // sorteio fixo: a "semente" do jogo vem de Math.random; muda o estado do gerador antes de começar
       await pg.evaluate((s) => { let x = s; Math.random = () => ((x = (x * 1664525 + 1013904223) % 4294967296) / 4294967296); }, semente);
       await pg.locator('[data-acao="pedirNova"]').click();
+      await pg.locator('[data-acao="comecarComoEscolhido"]').click(); // "Como vai ser?" (valores dos Ajustes)
       // amostrador: anota cada mudança de tamanho
       await pg.evaluate(() => {
         window.__mudancas = [];
@@ -65,6 +66,7 @@ for (const [nome, w, h] of telas.filter((_, i) => !so || so.includes(i))) {
         turnos++;
         await pg.waitForTimeout(400);
       }
+      if (process.env.PRINT) await pg.screenshot({ path: `${process.env.PRINT}/tamanhos-${w}x${h}-${adversarios + 1}j.png` });
       const m = await pg.evaluate(() => window.__mudancas);
       // conta mudanças de tamanho de carta (não de altura de caixa) e inversões (A→B→A)
       const tam = m.map((x) => `${x.mesaW}/${x.maoW}`).filter((v, i, a) => i === 0 || v !== a[i - 1]);

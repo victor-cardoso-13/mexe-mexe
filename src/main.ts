@@ -64,7 +64,9 @@ function abrirGaveta() {
     nivelIA: antigas.nivelIA,
     curinga: { ...criarRegras().curinga, ativo: antigas.curinga.ativo },
   });
-  e.partida = { ...salvo.partida, regras };
+  // Partidas guardadas antes da troca de nome: "Computador" virou "Adversário".
+  const jogadores = salvo.partida.jogadores.map((j) => ({ ...j, nome: j.nome.replace('Computador', 'Adversário') }));
+  e.partida = { ...salvo.partida, jogadores, regras };
   e.partidaId = salvo.id ?? `antiga-${salvo.partida.semente}`; // partidas de antes do retrospecto
   e.ordenacao = salvo.ordenacao;
   e.ordemManual = salvo.ordemManual;

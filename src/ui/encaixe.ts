@@ -162,6 +162,15 @@ function encaixarTudo(mesa: HTMLElement, mao: HTMLElement) {
     if (transborda()) encaixarMesa(MESA_MINIMA);
     return;
   }
+  // Celular com a mesa cheia: a mão (poucas cartas) encolhe, até um mínimo confortável, para a mesa ganhar espaço.
+  // Só encolhe aqui; quem faz a mão crescer de novo é o começo da vez (veja "encaixar").
+  const MESA_ALVO_CELULAR = altura <= 500 ? 40 : 50;
+  const MAO_MINIMA_CELULAR = altura <= 500 ? 34 : 46;
+  while (wMesa < MESA_ALVO_CELULAR && wMao - 4 >= MAO_MINIMA_CELULAR) {
+    wMao -= 4;
+    definir('--mao-w', wMao);
+    wMesa = encaixarMesa(MESA_LEGIVEL);
+  }
   // Celular: em vez de cartas miúdas, a mesa fica com um tamanho mínimo legível e,
   // se não couber, SÓ a área da mesa rola com o dedo (mão e botões ficam fixos).
   if (wMesa < MESA_CELULAR) {

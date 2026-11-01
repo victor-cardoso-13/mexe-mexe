@@ -58,10 +58,10 @@ export function htmlJogo(e: Estado, a: Ajustes): string {
   </div>${e.menuOrdenar ? htmlOrdenar(e) : ''}`;
 }
 
-/** Pílula do campeonato, em ordem de quem está ganhando: "Rodada 2 · 1 Você 35 · 2 Comp. 60 /100". */
+/** Pílula do campeonato, em ordem de quem está ganhando: "Rodada 2 · 1 Você 35 · 2 Adv. 60 /100". */
 function htmlPlacar(c: Campeonato, p: Partida): string {
   const nomes = ordemDoPlacar(c.totais)
-    .map((l) => `<span class="pos">${l.posicao}</span> ${l.jogador === 0 ? 'Você' : p.jogadores[l.jogador].nome.replace('Computador', 'Comp.')} <b>${l.pontos}</b>`)
+    .map((l) => `<span class="pos">${l.posicao}</span> ${l.jogador === 0 ? 'Você' : p.jogadores[l.jogador].nome.replace('Adversário', 'Adv.')} <b>${l.pontos}</b>`)
     .join(' · ');
   return `<div class="placar-camp">Rodada ${c.rodada} · ${nomes} <span class="ate">/${c.alvo}</span></div>`;
 }
@@ -80,7 +80,7 @@ function htmlPlacarFim(c: Campeonato, p: Partida, rodada: number[]): string {
     return `<div class="placar-fim"><div class="dupla">${lado(0)}<div class="meio"><span>RODADA ${c.rodada}</span><span>até ${c.alvo}</span></div>${lado(1)}</div></div>`;
   }
   const lin = linhas
-    .map((l) => `<div class="lin"><span class="quem">${l.posicao === 1 ? '👑 ' : ''}${nome(l.jogador).replace('Computador', 'Comp.')}</span><span class="total">${l.pontos}</span>${barra(l.pontos)}${delta(l.jogador)}</div>`)
+    .map((l) => `<div class="lin"><span class="quem">${l.posicao === 1 ? '👑 ' : ''}${nome(l.jogador).replace('Adversário', 'Adv.')}</span><span class="total">${l.pontos}</span>${barra(l.pontos)}${delta(l.jogador)}</div>`)
     .join('');
   return `<div class="placar-fim"><div class="lista">${lin}</div></div>`;
 }
@@ -93,10 +93,10 @@ function htmlTopo(e: Estado, p: Partida): string {
       const versos = '<div class="verso"></div>'.repeat(qtd);
       const alerta = qtd === 1 ? '<div class="alerta-uma">⚠️ Só 1 carta!</div>' : '';
       const daVez = p.vez === i && e.computadorJogando ? 'da-vez' : '';
-      return `<div class="adversario ${daVez}" data-jogador="${i}"><span class="nome">${j.nome}</span><div class="versos">${versos}</div>${alerta}</div>`;
+      return `<div class="adversario ${daVez}" data-jogador="${i}"><span class="nome"><span class="nome-longo">${j.nome}</span><span class="nome-curto">${j.nome.replace('Adversário', 'Adv.')}</span> (${qtd})</span><div class="versos">${versos}</div>${alerta}</div>`;
     })
     .join('');
-  return `<div class="topo">
+  return `<div class="topo ${p.jogadores.length > 3 ? 'muitos' : ''}">
     ${e.online ? '' : '<button class="botao-ajustes botao-sair" data-acao="pedirPausa" aria-label="Sair da partida">⏸<span class="nome-ajustes"> Sair</span></button>'}
     ${adversarios}
     <div class="espaco"></div>
@@ -356,7 +356,7 @@ export function htmlRetrospecto(r: Resumo, email: string | null): string {
     `<tr class="${classe}"><th>${nome}</th><td>${c.jogadas}</td><td>${c.vitorias}</td><td>${c.derrotas}</td><td>${c.empates}</td></tr>`;
   const quando = (em: number) =>
     new Date(em).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', '');
-  const frase = { v: '🏆 Você ganhou', d: '😊 Computador ganhou', e: '🤝 Empate' };
+  const frase = { v: '🏆 Você ganhou', d: '😊 Adversário ganhou', e: '🤝 Empate' };
   const ultimas = r.ultimas.length
     ? `<ul class="ultimas">${r.ultimas
         .map((u) => `<li><b>${frase[u.r]}</b><span>${NOME_NIVEL[u.nivel] ?? ''}${u.motivo === 'monteAcabou' ? ' · monte acabou' : ''} · ${quando(u.em)}</span></li>`)
@@ -393,7 +393,7 @@ export function htmlComoJogar(a: Ajustes): string {
     <div class="corpo-ajustes">
       <div class="ajuste"><div class="nome-ajuste">Jogo</div>
         ${opcoes('modo', a.modo, [['casual', 'Casual'], ['campeonato', 'Até 100 pontos']])}</div>
-      <div class="ajuste"><div class="nome-ajuste">Computador</div>
+      <div class="ajuste"><div class="nome-ajuste">Adversário</div>
         ${opcoes('nivel', a.nivel, [['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']])}</div>
       <div class="ajuste"><div class="nome-ajuste">Adversários</div>
         ${opcoes('adversarios', String(a.adversarios), [['1', '1'], ['2', '2'], ['3', '3']])}</div>
@@ -430,7 +430,7 @@ export function htmlAjustes(a: Ajustes, emJogo: boolean, online: Online | null =
       ${opcoes('modo', a.modo, [['casual', 'Casual'], ['campeonato', 'Até 100 pontos']])}</div>`;
   const computador = online
     ? ''
-    : `<div class="ajuste"><div class="nome-ajuste">Computador</div>
+    : `<div class="ajuste"><div class="nome-ajuste">Adversário</div>
       ${opcoes('nivel', a.nivel, [['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']])}</div>
     <div class="ajuste"><div class="nome-ajuste">Velocidade do computador</div>
       ${opcoes('velocidade', a.velocidade, [['devagar', 'Devagar'], ['normal', 'Normal']])}</div>`;
@@ -446,7 +446,7 @@ export function htmlAjustes(a: Ajustes, emJogo: boolean, online: Online | null =
     <div class="corpo-ajustes">
       ${soSozinho}
       <div class="ajuste"><div class="nome-ajuste">Visual</div>
-        ${opcoes('visual', a.visual, [['idade', 'Melhor idade'], ['bonito', 'Bonito']])}</div>
+        ${opcoes('visual', a.visual, [['idade', 'Melhor idade'], ['bonito', 'Normal']])}</div>
       ${computador}
       <div class="ajuste"><div class="nome-ajuste">Cores dos naipes</div>
         ${opcoes('quatroCores', String(a.quatroCores), [['false', '2 cores'], ['true', '4 cores']])}</div>
