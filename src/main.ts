@@ -405,7 +405,7 @@ function botaoBaixar() {
 }
 
 function botaoDica() {
-  if (!minhaVez()) return;
+  if (!minhaVez() || e.online) return; // sem dica no jogo online
   limparMensagens();
   // Mostra que está procurando antes de pensar (a busca pode levar até 2 segundos).
   avisar('💡 Procurando uma jogada…', 'normal');
@@ -917,7 +917,7 @@ if (import.meta.env.DEV) Object.assign(window, { __e: e, __desenhar: () => desen
 if (localStorage.getItem(CHAVE_TELA) === 'jogo' && e.partida) e.tela = 'jogo';
 desenhar();
 if (e.tela === 'jogo') void continuarJogo(400);
-if (codigoConvite) {
+if (codigoConvite && codigoConvite !== localStorage.getItem('mexe-mexe:sala')) {
   e.janela = 'online'; // veio por um convite: pede o nome e entra
   desenhar();
 } else void online.retomar();

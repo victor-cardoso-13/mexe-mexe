@@ -54,7 +54,7 @@ export function htmlJogo(e: Estado, a: Ajustes): string {
     ${htmlAviso(e, p, minhaVez)}
     ${htmlMesa(e, p)}
     ${htmlMao(e, p)}
-    ${htmlBotoes(p, minhaVez)}
+    ${htmlBotoes(p, minhaVez, !!e.online)}
   </div>${e.menuOrdenar ? htmlOrdenar(e) : ''}`;
 }
 
@@ -199,7 +199,7 @@ const ICONES = Object.fromEntries(
   Object.entries(TRACOS).map(([nome, traco]) => [nome, `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${traco}</svg>`]),
 ) as Record<keyof typeof TRACOS, string>;
 
-function htmlBotoes(p: Partida, minhaVez: boolean): string {
+function htmlBotoes(p: Partida, minhaVez: boolean, online = false): string {
   const off = minhaVez ? '' : 'disabled';
   const podeDesfazer = minhaVez && mexeuNaVez(p) ? '' : 'disabled';
   const pronto = minhaVez && conferirJogada(p).ok;
@@ -210,7 +210,7 @@ function htmlBotoes(p: Partida, minhaVez: boolean): string {
     ${b('desfazer', ICONES.desfazer, 'Desfazer', podeDesfazer)}
     ${b('desfazerTudo', ICONES.tudo, 'Desfazer tudo', podeDesfazer)}
     <div class="ordenar">${b('menuOrdenar', ICONES.ordenar, 'Ordenar')}</div>
-    ${b('dica', ICONES.dica, 'Dica', off)}
+    ${online ? '' : b('dica', ICONES.dica, 'Dica', off)}
     ${b('comprar', ICONES.comprar, 'Comprar e passar', `class="comprar ${minhaVez && mexeuNaVez(p) && !mesaMexidaEstaCerta(p) ? 'apagado' : ''}" ${off}`)}
     ${b('baixar', ICONES.passar, 'Passar a vez', `class="baixar ${pronto ? '' : 'apagado'}" ${off}`)}
   </div>`;
@@ -370,30 +370,43 @@ function opcoes(chave: string, atual: string, lista: Array<[string, string]>): s
 }
 
 export function htmlAjustes(a: Ajustes, emJogo: boolean, online: Online | null = null): string {
-  return `<div class="fundo-janela"><div class="janela">
-    <h2>⚙️ Ajustes</h2>
-    <div class="ajuste"><div class="nome-ajuste">Jogo<small>vale na próxima partida</small></div>
-      ${opcoes('modo', a.modo, [['casual', 'Casual'], ['campeonato', 'Até 100 pontos']])}</div>
-    <div class="ajuste"><div class="nome-ajuste">Visual</div>
-      ${opcoes('visual', a.visual, [['idade', 'Melhor idade'], ['bonito', 'Bonito']])}</div>
-    <div class="ajuste"><div class="nome-ajuste">Computador</div>
+  // Online, o computador e as regras da partida não valem (quem manda é a sala).
+  const soSozinho = online
+    ? ''
+    : `<div class="ajuste"><div class="nome-ajuste">Jogo<small>vale na próxima partida</small></div>
+      ${opcoes('modo', a.modo, [['casual', 'Casual'], ['campeonato', 'Até 100 pontos']])}</div>`;
+  const computador = online
+    ? ''
+    : `<div class="ajuste"><div class="nome-ajuste">Computador</div>
       ${opcoes('nivel', a.nivel, [['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']])}</div>
     <div class="ajuste"><div class="nome-ajuste">Velocidade do computador</div>
-      ${opcoes('velocidade', a.velocidade, [['devagar', 'Devagar'], ['normal', 'Normal']])}</div>
-    <div class="ajuste"><div class="nome-ajuste">Cores dos naipes</div>
-      ${opcoes('quatroCores', String(a.quatroCores), [['false', '2 cores'], ['true', '4 cores']])}</div>
-    <div class="ajuste"><div class="nome-ajuste">Curinga<small>vale na próxima partida</small></div>
+      ${opcoes('velocidade', a.velocidade, [['devagar', 'Devagar'], ['normal', 'Normal']])}</div>`;
+  const regras = online
+    ? ''
+    : `<div class="ajuste"><div class="nome-ajuste">Curinga<small>vale na próxima partida</small></div>
       ${opcoes('curinga', String(a.curinga), [['false', 'Sem'], ['true', 'Com']])}</div>
     <div class="ajuste"><div class="nome-ajuste">Adversários<small>vale na próxima partida</small></div>
-      ${opcoes('adversarios', String(a.adversarios), [['1', '1'], ['2', '2'], ['3', '3']])}</div>
-    <div class="linha-botoes">
-      <button class="grande secundario" data-acao="abrirTutorial">❓ Como jogar</button>
-      <button class="grande secundario" data-acao="abrirRetrospecto">📊 Retrospecto</button>
-      <button class="grande secundario" data-acao="abrirMenuConta">☁️ Conta</button>
+      ${opcoes('adversarios', String(a.adversarios), [['1', '1'], ['2', '2'], ['3', '3']])}</div>`;
+  // Título e botões ficam FIXOS; só o meio rola (o que não cabe no celular).
+  return `<div class="fundo-janela"><div class="janela janela-ajustes">
+    <h2>⚙️ Ajustes</h2>
+    <div class="corpo-ajustes">
+      ${soSozinho}
+      <div class="ajuste"><div class="nome-ajuste">Visual</div>
+        ${opcoes('visual', a.visual, [['idade', 'Melhor idade'], ['bonito', 'Bonito']])}</div>
+      ${computador}
+      <div class="ajuste"><div class="nome-ajuste">Cores dos naipes</div>
+        ${opcoes('quatroCores', String(a.quatroCores), [['false', '2 cores'], ['true', '4 cores']])}</div>
+      ${regras}
+      ${online ? htmlTirarJogadores(online) : ''}
+      <div class="linha-botoes">
+        <button class="grande secundario" data-acao="abrirTutorial">❓ Como jogar</button>
+        <button class="grande secundario" data-acao="abrirRetrospecto">📊 Retrospecto</button>
+        <button class="grande secundario" data-acao="abrirMenuConta">☁️ Conta</button>
+      </div>
+      <button class="link-diario" data-acao="baixarDiario">📋 Baixar o diário do jogo (para o Claude investigar um problema)</button>
     </div>
-    <button class="link-diario" data-acao="baixarDiario">📋 Baixar o diário do jogo (para o Claude investigar um problema)</button>
-    ${online ? htmlTirarJogadores(online) : ''}
-    <div class="linha-botoes">
+    <div class="rodape-ajustes">
       <button class="grande" data-acao="fecharJanela">Pronto</button>
       ${online ? '<button class="grande secundario" data-acao="onlineSair">Sair da sala</button>' : emJogo ? '<button class="grande secundario" data-acao="pedirNova">Começar partida nova</button>' : ''}
     </div>

@@ -8,9 +8,9 @@
  *   salas/{codigo}/pendentes/{uid} → cartas que o jogo comprou por quem demorou (a pessoa pega ao voltar)
  */
 import {
-  collection, deleteDoc, doc, getDoc, onSnapshot, runTransaction, setDoc, writeBatch, type DocumentReference,
+  collection, deleteDoc, doc, getDoc, onSnapshot, runTransaction, setDoc, updateDoc, writeBatch, type DocumentReference,
 } from 'firebase/firestore';
-import { banco, garantirUid } from '../nuvem/conta';
+import { auth, banco, garantirUid } from '../nuvem/conta';
 import type { Carta } from '../motor/cartas';
 import {
   aoAcabarOTempo, aoRemover, distribuir, finalizarRodada, indiceDe, lerCartas, MAX_JOGADORES, novoCodigo, passouOTempo,
@@ -18,6 +18,9 @@ import {
 } from './logica';
 
 export { garantirUid };
+
+// Só para os testes no computador (não existe no jogo publicado).
+if (import.meta.env.DEV) Object.assign(window, { __fs: { banco, auth, doc, getDoc, setDoc, updateDoc, deleteDoc } });
 
 const sala = (codigo: string) => doc(banco, 'salas', codigo) as DocumentReference<Sala>;
 const mao = (codigo: string, uid: string) => doc(banco, 'salas', codigo, 'maos', uid);

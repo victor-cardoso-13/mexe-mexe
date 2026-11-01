@@ -6,7 +6,7 @@ import type { Partida } from '../motor/partida';
 import type { Estado, Online } from '../ui/estado';
 import {
   aoTerminarVez, campeonatoLocal, codigoDoLink, codigoValido, indiceDe, linkDaSala, partidaDoFim, partidaLocal,
-  passouOTempo, LIMITE_PADRAO_SEG, type ConfigSala, type Sala,
+  passouOTempo, todosRevelaram, LIMITE_PADRAO_SEG, type ConfigSala, type Sala,
 } from './logica';
 
 type Sala$ = typeof import('./sala');
@@ -83,6 +83,7 @@ export function criarOnline(ctx: Contexto) {
       s.observarReveladas(codigo, () => e.online?.sala?.rodada ?? 0, (r) => {
         if (!e.online) return;
         e.online.reveladas = r;
+        if (e.online.sala?.fase === 'fim') void aoMudarSala(e.online.sala); // as mãos chegaram: mostra o resultado
         void talvezContar();
       }),
     ];
@@ -124,6 +125,7 @@ export function criarOnline(ctx: Contexto) {
     if (!e.online) return;
     const eu = e.online;
     if (!sala) return sumiu('Essa sala não existe mais.');
+    const antes = eu.sala;
     eu.sala = sala;
     eu.eu = indiceDe(sala, eu.uid);
     if (eu.eu === -1) return sumiu('Você não está mais nessa sala.');
@@ -140,7 +142,7 @@ export function criarOnline(ctx: Contexto) {
         e.computadorJogando = sala.vez !== eu.eu || enviando;
         return ctx.desenhar(); // só mudou algo que não é jogada (ex.: alguém saiu)
       }
-      return reconstruir(meuPasso);
+      return reconstruir(meuPasso, antes);
     }
     if (sala.fase === 'contando') {
       e.computadorJogando = true;
@@ -148,8 +150,8 @@ export function criarOnline(ctx: Contexto) {
       await revelarMinhaMao(sala);
       return ctx.desenhar();
     }
-    // fim da rodada: mostra o resultado com as mãos de todo mundo
-    if (!todos(sala)) return ctx.desenhar();
+    // fim da rodada: mostra o resultado com as mãos de todo mundo (espera as mãos chegarem)
+    if (sala.motivoFim !== null && !todosRevelaram(sala, eu.reveladas)) return ctx.desenhar();
     const final = partidaDoFim(sala, eu.eu, eu.reveladas);
     e.partida = final;
     e.campeonato = campeonatoLocal(sala, eu.eu);
@@ -159,19 +161,17 @@ export function criarOnline(ctx: Contexto) {
     ctx.desenhar();
   }
 
-  const todos = (sala: Sala) => sala.resultado !== null && (sala.resultado.pontos.length > 0);
-
   /** Monta a partida da tela com a sala de agora e a minha mão (do banco). */
-  async function reconstruir(meuPasso: number) {
+  async function reconstruir(meuPasso: number, antes: Sala | null = null) {
     const dados = e.online;
     if (!dados?.sala || !api) return;
     const sala = dados.sala;
     await api.juntarPendentes(dados.codigo, dados.uid).catch(() => false);
     const minha = await api.lerMinhaMao(dados.codigo, dados.uid);
     if (meuPasso !== passo || !e.online) return;
-    const antes = new Set(e.partida?.mesa.flatMap((j) => j.cartas.map((c) => c.id)) ?? []);
-    const vezAntes = e.online.sala && e.partida ? e.partida.vez : 0;
-    const eraMinhaVez = e.tela === 'jogo' && e.partida?.vez === 0 && !e.computadorJogando && !enviando;
+    const idsAntes = new Set(e.partida?.mesa.flatMap((j) => j.cartas.map((c) => c.id)) ?? []);
+    // perdi a vez porque o tempo acabou (e não por uma jogada minha)?
+    const perdiAVez = !!antes && antes.fase === 'jogando' && antes.rodada === sala.rodada && antes.vez === dados.eu && sala.vez !== dados.eu && !enviando;
     const nova: Partida = partidaLocal(sala, dados.eu, minha);
     const jaTinhaPartida = !!e.partida && e.tela === 'jogo' && e.janela !== 'fim';
     e.partida = nova;
@@ -187,9 +187,9 @@ export function criarOnline(ctx: Contexto) {
     if (e.janela === 'fim' || e.janela === 'online') e.janela = null;
     e.computadorJogando = sala.vez !== dados.eu;
     // cartas que os outros acabaram de baixar ficam com o selo "NOVA"
-    e.baixadasPeloComputador = jaTinhaPartida ? nova.mesa.flatMap((j) => j.cartas.map((c) => c.id)).filter((id) => !antes.has(id)) : [];
+    e.baixadasPeloComputador = jaTinhaPartida ? nova.mesa.flatMap((j) => j.cartas.map((c) => c.id)).filter((id) => !idsAntes.has(id)) : [];
     e.chegaram = [];
-    e.aviso = eraMinhaVez && sala.vez !== dados.eu && vezAntes === 0
+    e.aviso = perdiAVez
       ? { texto: 'Acabou o seu tempo: o jogo comprou uma carta por você.', tipo: 'problema' }
       : null;
     ctx.desenhar();
@@ -233,7 +233,7 @@ export function criarOnline(ctx: Contexto) {
       enviando = false;
       e.aviso = { texto: 'A sala mudou enquanto você jogava. Atualizando…', tipo: 'problema' };
       dados.versaoLocal = -1;
-      if (dados.sala) void reconstruir(++passo);
+      if (dados.sala) void reconstruir(++passo, null);
     }
   }
 
