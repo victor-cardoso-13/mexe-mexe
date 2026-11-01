@@ -6,6 +6,7 @@
  * Assim, duas pessoas no mesmo celular nunca misturam partida nem retrospecto.
  * (Os ajustes valem para o aparelho, não para a conta.)
  */
+import type { Campeonato } from '../motor/campeonato';
 import type { Partida } from '../motor/partida';
 import type { NivelIA } from '../motor/regras';
 import { AJUSTES_PADRAO, type Ajustes, type Ordenacao } from './estado';
@@ -25,6 +26,8 @@ export interface Salvo {
   ordemManual: string[];
   novaCartaId: string | null;
   baixadasPeloComputador?: string[];
+  /** Campeonato até 100 pontos (ausente = casual). */
+  campeonato?: Campeonato | null;
 }
 
 /** Uma partida terminada, no retrospecto. */

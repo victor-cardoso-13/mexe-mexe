@@ -3,7 +3,9 @@
  * Aqui só se DESENHA; quem decide o que acontece é o src/main.ts.
  */
 import { ehVermelha, nomeDoValor, SIMBOLO_NAIPE, type Carta, type CartaNormal } from '../motor/cartas';
-import { conferirJogada, mexeuNaVez, type Partida } from '../motor/partida';
+import { conferirJogada, mesaMexidaEstaCerta, mexeuNaVez, ondeEstaCarta, type Partida } from '../motor/partida';
+import { pontosDaRodada, situacaoDoCampeonato, type Campeonato } from '../motor/campeonato';
+import { pontosDaMao } from '../motor/cartas';
 import { ordemDaTrinca, ordemParaMostrar, validarJogo } from '../motor/validacao';
 import type { NivelIA } from '../motor/regras';
 import type { Ajustes, Aviso, Estado } from './estado';
@@ -44,6 +46,7 @@ export function htmlJogo(e: Estado, a: Ajustes): string {
     a.quatroCores ? 'quatro-cores' : '',
     e.selecionadas.length ? 'tem-selecao' : '',
     e.computadorJogando ? 'computador-jogando' : '',
+    e.campeonato ? 'campeonato' : '',
   ];
   return `<div class="${classes.join(' ')}">
     ${htmlTopo(e, p)}
@@ -52,6 +55,12 @@ export function htmlJogo(e: Estado, a: Ajustes): string {
     ${htmlMao(e, p)}
     ${htmlBotoes(p, minhaVez)}
   </div>${e.menuOrdenar ? htmlOrdenar(e) : ''}`;
+}
+
+/** Pílula do campeonato: "Rodada 2 · Você 35 · Computador 60 (até 100)". */
+function htmlPlacar(c: Campeonato, p: Partida): string {
+  const nomes = p.jogadores.map((j, i) => `${i === 0 ? 'Você' : j.nome.replace('Computador', 'Comp.')} <b>${c.totais[i]}</b>`).join(' · ');
+  return `<div class="placar-camp">Rodada ${c.rodada} · ${nomes} <span class="ate">/${c.alvo}</span></div>`;
 }
 
 function htmlTopo(e: Estado, p: Partida): string {
@@ -68,6 +77,7 @@ function htmlTopo(e: Estado, p: Partida): string {
   return `<div class="topo">
     ${adversarios}
     <div class="espaco"></div>
+    ${e.campeonato ? htmlPlacar(e.campeonato, p) : ''}
     <div class="monte"><div class="verso"></div> Monte: ${p.monte.length}</div>
     <button class="botao-ajustes" data-acao="abrirAjustes" aria-label="Ajustes">⚙️<span class="nome-ajustes"> Ajustes</span></button>
   </div>`;
@@ -79,7 +89,10 @@ function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: 
   if (p.resultado) return { texto: 'A partida acabou.', tipo: 'normal', acao: '<button class="acao" data-acao="novaPartida">Jogar de novo</button>' };
   if (!minhaVez) return { texto: 'Vez do computador…', tipo: 'computador' };
   if (e.dica) return { texto: e.dica.texto, tipo: 'normal', acao: '<button class="acao" data-acao="fazerDica">Fazer para mim</button>' };
-  if (e.selecionadas.length) return { texto: TEXTOS.escolheuCartas, tipo: 'normal' };
+  if (e.selecionadas.length) {
+    const daMesa = e.selecionadas.some((id) => ondeEstaCarta(p, id) !== 'mao');
+    return { texto: daMesa ? TEXTOS.escolheuDaMesa : TEXTOS.escolheuCartas, tipo: 'normal' };
+  }
   if (!mexeuNaVez(p)) {
     // Só aparece se existir mesmo um lugar para o curinga.
     const curinga = e.lugarCuringa ? '<button class="acao" data-acao="curingaSolto">🃏 Deixar o curinga solto</button>' : '';
@@ -87,7 +100,8 @@ function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: 
   }
   const c = conferirJogada(p);
   if (c.ok) return { texto: TEXTOS.tudoCerto, tipo: 'normal' };
-  if (c.jogosInvalidos.length) return { texto: TEXTOS.mesaComProblema, tipo: 'problema' };
+  if (mesaMexidaEstaCerta(p)) return { texto: TEXTOS.mesaArrumada, tipo: 'normal' };
+  if (c.jogosInvalidos.length) return { texto: c.problemas[0] ?? TEXTOS.mesaComProblema, tipo: 'problema' };
   return { texto: c.problemas[0], tipo: 'problema' };
 }
 
@@ -110,25 +124,30 @@ function htmlMesa(e: Estado, p: Partida): string {
           chegaram.has(c.id) ? 'chegou' : '',
           doComputador.has(c.id) ? 'do-computador' : '',
         ].join(' '));
+      // Cartas do mesmo número que ainda não formam trinca (ex.: sobraram A-A) ficam lado a lado, como numa trinca.
+      const parecidaComTrinca = !r.valido && j.cartas.length >= 2 && j.cartas.every((c) => !c.curinga && c.valor === (j.cartas[0] as CartaNormal).valor);
       let cartas: string;
-      if (r.valido && r.tipo === 'trinca') {
+      if ((r.valido && r.tipo === 'trinca') || parecidaComTrinca) {
         // Trinca: um naipe ao lado do outro; cartas repetidas empilhadas na vertical.
-        const { colunas, base } = arrumarTrinca(r.ordem as CartaNormal[]);
+        const { colunas, base } = arrumarTrinca((r.valido ? r.ordem : j.cartas) as CartaNormal[]);
         cartas =
           `<div class="colunas">${colunas.map((col) => `<div class="coluna">${col.map(carta).join('')}</div>`).join('')}</div>` +
           (base.length ? `<div class="base">${base.map(carta).join('')}</div>` : '');
       } else {
         cartas = ordemParaMostrar(j.cartas, p.regras).map(carta).join('');
       }
-      const tipo = r.valido ? r.tipo : '';
+      const tipo = r.valido ? r.tipo : parecidaComTrinca ? 'trinca' : '';
       const classes = ['jogo', tipo, r.valido ? '' : 'invalido', e.destaques.includes(j.id) ? 'destaque' : ''].join(' ');
-      const erro = r.valido ? '' : `<div class="erro">${r.motivo}</div>`;
-      return `<div class="${classes}" data-destino="jogo:${j.id}">${cartas}${erro}</div>`;
+      // Só um "!" no jogo: o motivo aparece na faixa de aviso (um texto comprido aqui empurrava a mesa e encolhia as cartas).
+      const erro = r.valido ? '' : '<div class="erro" aria-hidden="true">!</div>';
+      const mais = selecionadas.size ? '<div class="mais-aqui" aria-hidden="true">+</div>' : '';
+      return `<div class="${classes}" data-destino="jogo:${j.id}">${cartas}${erro}${mais}</div>`;
     })
     .join('');
   // Espaço vazio pontilhado: aparece com carta escolhida (ou arrastando) e cria um jogo novo.
   const vazio = `<div class="vazio" data-destino="novo"><div>+ jogo novo<small>toque ou solte aqui</small></div></div>`;
-  return `<div class="mesa"><div class="jogos">${jogos}${vazio}</div></div>`;
+  // O fundo da mesa também é "jogo novo" para quem arrasta cartas (soltar em qualquer lugar vazio).
+  return `<div class="mesa" data-destino="novo"><div class="jogos">${jogos}${vazio}</div></div>`;
 }
 
 function htmlMao(e: Estado, p: Partida): string {
@@ -145,10 +164,14 @@ function htmlMao(e: Estado, p: Partida): string {
       return htmlCarta(c, classes.join(' '));
     })
     .join('');
-  // "Baixar jogo" fica sempre no mesmo lugar (na linha "Suas cartas"); só aparece quando vale.
-  const baixar = podeBaixarJogo(p, e.selecionadas) && !e.computadorJogando
-    ? `<button class="baixar-jogo" data-acao="baixarJogo"><span class="icone-baixar">${ICONES.baixar}</span>Baixar jogo</button>`
-    : '';
+  // Botão no lugar fixo da linha "Suas cartas": com 3 cartas da mão que formam jogo é "Baixar jogo";
+  // com qualquer outra escolha é "Novo jogo" (coloca as cartas escolhidas num jogo novo).
+  const botaoJogo = e.computadorJogando || !e.selecionadas.length
+    ? ''
+    : podeBaixarJogo(p, e.selecionadas)
+      ? `<button class="baixar-jogo" data-acao="baixarJogo"><span class="icone-baixar">${ICONES.baixar}</span>Baixar jogo</button>`
+      : `<button class="baixar-jogo novo" data-acao="baixarJogo"><span class="icone-baixar">${ICONES.novo}</span>Novo jogo</button>`;
+  const baixar = botaoJogo;
   return `<div class="area-mao" data-destino="mao">
     <div class="rotulo-mao"><span>Suas cartas (${mao.length})</span><span class="dica-arrastar">· arraste para mudar a ordem</span><div class="espaco-baixar">${baixar}</div></div>
     <div class="linha-mao">
@@ -165,7 +188,9 @@ const TRACOS = {
   dica: '<path d="M9 18h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.6V16h6v-.1c0-.6.3-1.2.8-1.6A6.5 6.5 0 0 0 12 2.5z"/>',
   comprar: '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M12 8v8"/><path d="M8 12h8"/>',
   passar: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
-  baixar: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
+  // três cartas em leque com a seta para CIMA (da mão para a mesa) — não é "download"
+  baixar: '<rect x="3" y="9" width="8" height="11" rx="1.5" transform="rotate(-12 7 14.5)"/><rect x="8" y="8" width="8" height="11" rx="1.5"/><rect x="13" y="9" width="8" height="11" rx="1.5" transform="rotate(12 17 14.5)"/><path d="M12 1.5v4"/><path d="m10 3.5 2-2 2 2"/>',
+  novo: '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M12 8v8"/><path d="M8 12h8"/>',
 };
 const ICONES = Object.fromEntries(
   Object.entries(TRACOS).map(([nome, traco]) => [nome, `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${traco}</svg>`]),
@@ -183,7 +208,7 @@ function htmlBotoes(p: Partida, minhaVez: boolean): string {
     ${b('desfazerTudo', ICONES.tudo, 'Desfazer tudo', podeDesfazer)}
     <div class="ordenar">${b('menuOrdenar', ICONES.ordenar, 'Ordenar')}</div>
     ${b('dica', ICONES.dica, 'Dica', off)}
-    ${b('comprar', ICONES.comprar, 'Comprar e passar', `class="comprar ${minhaVez && mexeuNaVez(p) ? 'apagado' : ''}" ${off}`)}
+    ${b('comprar', ICONES.comprar, 'Comprar e passar', `class="comprar ${minhaVez && mexeuNaVez(p) && !mesaMexidaEstaCerta(p) ? 'apagado' : ''}" ${off}`)}
     ${b('baixar', ICONES.passar, 'Passar a vez', `class="baixar ${pronto ? '' : 'apagado'}" ${off}`)}
   </div>`;
 }
@@ -343,6 +368,8 @@ function opcoes(chave: string, atual: string, lista: Array<[string, string]>): s
 export function htmlAjustes(a: Ajustes, emJogo: boolean): string {
   return `<div class="fundo-janela"><div class="janela">
     <h2>⚙️ Ajustes</h2>
+    <div class="ajuste"><div class="nome-ajuste">Jogo<small>vale na próxima partida</small></div>
+      ${opcoes('modo', a.modo, [['casual', 'Casual'], ['campeonato', 'Até 100 pontos']])}</div>
     <div class="ajuste"><div class="nome-ajuste">Visual</div>
       ${opcoes('visual', a.visual, [['idade', 'Melhor idade'], ['bonito', 'Bonito']])}</div>
     <div class="ajuste"><div class="nome-ajuste">Computador</div>
@@ -368,32 +395,49 @@ export function htmlAjustes(a: Ajustes, emJogo: boolean): string {
   </div></div>`;
 }
 
-export function htmlFim(p: Partida): string {
+export function htmlFim(p: Partida, camp: Campeonato | null = null): string {
   const r = p.resultado!;
+  const sit = camp ? situacaoDoCampeonato(camp) : null;
   let titulo: string;
   let emoji: string;
-  if (r.vencedor === 0) {
+  if (sit?.acabou) {
+    emoji = sit.campeao === 0 ? '🎉🏆🎉' : '😊';
+    titulo = sit.campeao === 0 ? 'Você ganhou o campeonato!' : `${p.jogadores[sit.campeao!].nome} ganhou o campeonato.`;
+  } else if (r.vencedor === 0) {
     emoji = '🎉🏆🎉';
-    titulo = 'Parabéns! Você ganhou!';
+    titulo = camp ? 'Você ganhou a rodada!' : 'Parabéns! Você ganhou!';
   } else if (r.vencedor === null) {
     emoji = '🤝';
     titulo = 'Deu empate!';
   } else {
     emoji = '😊';
-    titulo = `${p.jogadores[r.vencedor].nome} ganhou desta vez.`;
+    titulo = `${p.jogadores[r.vencedor].nome} ganhou ${camp ? 'a rodada' : 'desta vez'}.`;
   }
   const explicacao =
     r.motivo === 'bateu'
-      ? r.vencedor === 0
-        ? '<p>Você acabou com todas as suas cartas!</p>'
-        : '<p>Ele acabou com as cartas dele. Vamos de novo?</p>'
-      : `<p>O monte acabou. Ganha quem tem menos pontos na mão:</p>
-         <div class="placar">${p.jogadores.map((j, i) => `<div>${j.nome}: <b>${r.pontos[i]} pontos</b> (${j.mao.length} cartas)</div>`).join('')}</div>`;
-  return `<div class="fundo-janela"><div class="janela">
+      ? `<p>${r.vencedor === 0 ? 'Você acabou com todas as suas cartas!' : 'Ele acabou com as cartas dele.'}</p>`
+      : '<p>O monte acabou. Ganha quem tem menos pontos na mão.</p>';
+  // As cartas que sobraram na mão de cada um (também a do computador).
+  const rodada = pontosDaRodada(r);
+  const maos = p.jogadores
+    .map((j, i) => {
+      const cartas = j.mao.length ? j.mao.map((c) => htmlCarta(c).replace(/ data-carta="[^"]*"/, '')).join('') : '<span class="sem-cartas">sem cartas 🎉</span>';
+      const pontos = pontosDaMao(j.mao, p.regras);
+      const soma = camp ? ` · total <b>${camp.totais[i]}</b>${rodada[i] ? ` (+${rodada[i]})` : ''}` : '';
+      return `<div class="mao-final"><div class="nome-final">${i === 0 ? 'Você' : j.nome}: <b>${pontos} pontos</b> (${j.mao.length} cartas)${soma}</div><div class="cartas-finais">${cartas}</div></div>`;
+    })
+    .join('');
+  const campanha = camp && !sit?.acabou ? `<p class="nota-camp">Rodada ${camp.rodada} · o campeonato acaba quando alguém chegar a ${camp.alvo} pontos.</p>` : '';
+  const botao = camp && !sit?.acabou
+    ? '<button class="grande" data-acao="proximaRodada">Próxima rodada</button>'
+    : `<button class="grande" data-acao="novaPartida">${camp ? 'Novo campeonato' : 'Jogar de novo'}</button>`;
+  return `<div class="fundo-janela"><div class="janela janela-fim">
     <div class="emoji">${emoji}</div>
     <h2>${titulo}</h2>
     ${explicacao}
-    <button class="grande" data-acao="novaPartida">Jogar de novo</button>
+    <div class="maos-finais">${maos}</div>
+    ${campanha}
+    ${botao}
     <button class="grande secundario" data-acao="fecharJanela">Ver a mesa</button>
   </div></div>`;
 }
