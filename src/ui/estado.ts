@@ -5,6 +5,8 @@
 import type { Foto, Jogo, Partida } from '../motor/partida';
 import type { NivelIA } from '../motor/regras';
 import type { Campeonato } from '../motor/campeonato';
+import type { Carta } from '../motor/cartas';
+import type { Sala } from '../online/logica';
 
 export type Ordenacao = 'naipe' | 'asBaixo' | 'asAlto' | 'manual';
 
@@ -45,9 +47,24 @@ export const AJUSTES_PADRAO: Ajustes = {
   modo: 'casual',
 };
 
+/** Sala online em que a pessoa está (null = jogando sozinha contra o computador). */
+export interface Online {
+  codigo: string;
+  uid: string;
+  nome: string;
+  sala: Sala | null;
+  /** Posição de "você" na lista de jogadores da sala. */
+  eu: number;
+  /** Versão da sala com que a partida da tela foi montada. */
+  versaoLocal: number;
+  reveladas: Record<string, Carta[]>;
+  /** Mensagem de erro/aviso da janela do jogo online. */
+  erro: string;
+}
+
 export interface Estado {
-  tela: 'inicio' | 'jogo';
-  janela: null | 'ajustes' | 'fim' | 'confirmarNova' | 'conta' | 'retrospecto' | 'mensagem' | 'tutorial';
+  tela: 'inicio' | 'jogo' | 'sala';
+  janela: null | 'ajustes' | 'fim' | 'confirmarNova' | 'conta' | 'retrospecto' | 'mensagem' | 'tutorial' | 'online';
   /** Para onde o botão "Voltar" das janelas de conta e retrospecto leva. */
   voltarPara: null | 'ajustes';
   /** Passo do tutorial que está na tela (0 a 6). */
@@ -57,6 +74,7 @@ export interface Estado {
   partidaId: string;
   /** Campeonato em andamento (null = modo casual). */
   campeonato: Campeonato | null;
+  online: Online | null;
   /** Cartas tocadas (escolhidas) pela jogadora. */
   selecionadas: string[];
   ordenacao: Ordenacao;
@@ -92,6 +110,7 @@ export function estadoInicial(): Estado {
     partida: null,
     partidaId: '',
     campeonato: null,
+    online: null,
     selecionadas: [],
     ordenacao: 'naipe',
     ordemManual: [],

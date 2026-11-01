@@ -13,8 +13,9 @@ import { novoCampeonato, proximaRodada, somarRodada } from './motor/campeonato';
 import { escolherJogada, jogadaDoCuringa, ultimaBusca } from './ia';
 import { anotar, baixarDiario, textoCartas, textoMesa } from './ui/diario';
 import { estadoInicial, type Ajustes, type Ordenacao } from './ui/estado';
-import { escapar, htmlAjustes, htmlConfirmarNova, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlRetrospecto, htmlTutorial, type Mensagem } from './ui/desenho';
+import { escapar, htmlAjustes, htmlConfirmarNova, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlTutorial, type Mensagem } from './ui/desenho';
 import { encaixar } from './ui/encaixe';
+import { codigoNoLink, criarOnline, linkDaSalaAtual, nomeSalvo, LIMITE_PADRAO_SEG } from './online/controle';
 import { carregarAjustes, carregarGaveta, salvarAjustes, salvarGaveta, type Gaveta } from './ui/salvar';
 import { resultadoDaPartida, resumir } from './ui/retrospecto';
 import {
@@ -79,19 +80,21 @@ abrirGaveta();
 function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms: number }) {
   const antes = movimento ? capturarPosicoes(app) : null;
   const rolagem = app.querySelector('.mesa')?.scrollTop ?? 0;
-  localStorage.setItem(CHAVE_TELA, e.tela);
+  localStorage.setItem(CHAVE_TELA, e.online ? 'inicio' : e.tela);
   document.body.classList.toggle('idade', ajustes.visual === 'idade');
   document.body.classList.toggle('bonito', ajustes.visual === 'bonito');
   let html = '';
   if (e.partida && e.tela === 'jogo') html += htmlJogo(e, ajustes);
+  if (e.tela === 'sala' && e.online?.sala) html += htmlSala(e.online, linkDaSalaAtual(e.online.codigo));
+  if (e.janela === 'online') html += htmlMenuOnline(nomeSalvo(), codigoConvite, '', false);
   if (e.tela === 'inicio' && !e.janela) html += htmlInicio(!!e.partida && !e.partida.resultado, usuarioAtual()?.email ?? null);
-  if (e.janela === 'ajustes') html += htmlAjustes(ajustes, e.tela === 'jogo');
+  if (e.janela === 'ajustes') html += htmlAjustes(ajustes, e.tela === 'jogo', e.online);
   if (e.janela === 'retrospecto') html += htmlRetrospecto(resumir(gaveta.resultados), usuarioAtual()?.email ?? null);
   if (e.janela === 'conta') html += htmlConta();
   if (e.janela === 'mensagem' && mensagem) html += htmlMensagem(mensagem);
   if (e.janela === 'tutorial') html += htmlTutorial(e.tutorialPasso);
   if (e.janela === 'confirmarNova') html += htmlConfirmarNova();
-  if (e.janela === 'fim' && e.partida) html += htmlFim(e.partida, e.campeonato);
+  if (e.janela === 'fim' && e.partida) html += htmlFim(e.partida, e.campeonato, e.online);
   app.innerHTML = html;
   encaixar(chaveDoEncaixe());
   // Se a mesa rola (celular), ela fica onde estava (não volta para o topo a cada toque).
@@ -119,7 +122,7 @@ function chaveDoEncaixe(): string {
 }
 
 function salvar() {
-  if (!e.partida) return;
+  if (!e.partida || e.online) return; // a partida online fica na sala, não no aparelho
   gaveta.jogo = {
     id: e.partidaId,
     partida: e.partida,
@@ -368,7 +371,8 @@ function botaoComprar() {
   if (e.novaCartaId) avisar(`Você comprou: ${nomeDaCarta(minhaMao[minhaMao.length - 1])}`, 'normal');
   salvar();
   desenhar();
-  continuarJogo(900); // tempo de ver qual carta comprou
+  if (e.online) void online.enviarVez();
+  else continuarJogo(900); // tempo de ver qual carta comprou
 }
 
 function botaoBaixar() {
@@ -396,7 +400,8 @@ function botaoBaixar() {
   e.selecionadas = [];
   salvar();
   desenhar();
-  continuarJogo(150);
+  if (e.online) void online.enviarVez();
+  else continuarJogo(150);
 }
 
 function botaoDica() {
@@ -445,6 +450,7 @@ function fazerDica() {
 // ---------------------------------------------------------------------------
 
 async function continuarJogo(pausaInicial: number) {
+  if (e.online) return; // online, quem joga são as pessoas
   if (e.computadorJogando || !e.partida) return;
   if (e.partida.resultado) return mostrarFim();
   if (e.partida.vez === 0) return;
@@ -740,6 +746,20 @@ app.addEventListener('click', (ev) => {
         if (minhaVez() && e.selecionadas.length) mover(e.selecionadas, { tipo: 'novoJogo' });
         return;
       case 'proximaRodada': return comecarPartida(true);
+      case 'abrirOnline':
+        e.janela = 'online';
+        return desenhar();
+      case 'onlineEntrar': return void entrarOnline(false);
+      case 'onlineCriar': return void entrarOnline(true);
+      case 'onlineComecar': return void online.comecar();
+      case 'onlineProxima': return void online.proximaRodada();
+      case 'onlineSair':
+        e.janela = null;
+        return void online.sair();
+      case 'onlineConfig': return void online.mudarConfig(botao.dataset.chave!, botao.dataset.valor!);
+      case 'onlineTirar': return void online.tirar(Number(botao.dataset.idx));
+      case 'onlineCopiar': return void copiarLink(false);
+      case 'onlineCompartilhar': return void copiarLink(true);
       case 'abrirTutorial': return abrirTutorial();
       case 'tutorialPular': return fecharTutorial();
       case 'tutorialProximo':
@@ -831,10 +851,76 @@ app.addEventListener('submit', (ev) => {
 window.addEventListener('resize', () => encaixar());
 window.addEventListener('orientationchange', () => setTimeout(encaixar, 300));
 
+// ---------------------------------------------------------------------------
+// Jogo online (a sala e as outras pessoas ficam em src/online)
+// ---------------------------------------------------------------------------
+
+/** Código que veio no link (#sala=ABCDE): já aparece preenchido na janela "Jogar online". */
+let codigoConvite = codigoNoLink() ?? '';
+
+const online = criarOnline({
+  e,
+  desenhar: () => desenhar(),
+  voltarAoInicio: () => {
+    abrirGaveta();
+    e.tela = 'inicio';
+    e.janela = null;
+    desenhar();
+  },
+  mensagem: (m) => {
+    abrirGaveta();
+    e.tela = 'inicio';
+    mostrarMensagem({ ...m, botoes: [{ acao: 'voltar', rotulo: 'Ok' }] });
+  },
+});
+
+async function entrarOnline(criar: boolean) {
+  const nome = app.querySelector<HTMLInputElement>('#nome-online')?.value ?? '';
+  const codigo = app.querySelector<HTMLInputElement>('#codigo-online')?.value ?? '';
+  const erro = app.querySelector<HTMLElement>('#erro-online');
+  const botoes = [...app.querySelectorAll<HTMLButtonElement>('.janela button')];
+  botoes.forEach((b) => (b.disabled = true));
+  if (erro) erro.textContent = 'Conectando…';
+  const problema = await online.entrar(nome, codigo, criar ? { curinga: ajustes.curinga, modo: ajustes.modo, limiteSeg: LIMITE_PADRAO_SEG } : undefined);
+  if (problema) {
+    if (erro) erro.textContent = problema;
+    botoes.forEach((b) => (b.disabled = false));
+    return;
+  }
+  codigoConvite = '';
+  e.janela = null;
+  desenhar();
+}
+
+/** Copia o link da sala (ou abre o "Compartilhar" do celular). */
+async function copiarLink(compartilhar: boolean) {
+  const codigo = e.online?.codigo;
+  if (!codigo) return;
+  const link = linkDaSalaAtual(codigo);
+  try {
+    if (compartilhar && navigator.share) {
+      await navigator.share({ title: 'Mexe-Mexe', text: `Vem jogar Mexe-Mexe comigo! Sala ${codigo}`, url: link });
+    } else {
+      await navigator.clipboard.writeText(link);
+      const b = app.querySelector<HTMLElement>('[data-acao="onlineCopiar"]');
+      if (b) b.textContent = '✔ Link copiado';
+    }
+  } catch {
+    /* a pessoa fechou o "Compartilhar": tudo bem */
+  }
+}
+
+// Só para tirar prints no computador (não existe no jogo publicado).
+if (import.meta.env.DEV) Object.assign(window, { __e: e, __desenhar: () => desenhar() });
+
 // Se o navegador recarregou a página no meio de uma partida, volta direto para ela.
 if (localStorage.getItem(CHAVE_TELA) === 'jogo' && e.partida) e.tela = 'jogo';
 desenhar();
 if (e.tela === 'jogo') void continuarJogo(400);
+if (codigoConvite) {
+  e.janela = 'online'; // veio por um convite: pede o nome e entra
+  desenhar();
+} else void online.retomar();
 
 let sincronizouAoAbrir = false;
 void iniciarNuvem({

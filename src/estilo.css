@@ -755,3 +755,23 @@ body.idade .placar-camp { border: 2px solid var(--tinta); box-shadow: none; font
   .campeonato .topo .espaco { flex: 1 1 0; min-width: 0; }
   body.idade .campeonato .topo .adversario, body.idade .campeonato .topo .monte { font-size: 14px; }
 }
+
+/* ---------- Jogo online ---------- */
+.tempo-vez { background: #fff; border-radius: 99px; padding: 4px 12px; font-size: 15px; font-weight: 800; box-shadow: 0 2px 8px #3b2f2a14; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tempo-vez.acabando { background: #ffe1e1; color: #8a0f1f; }
+body.idade .tempo-vez { border: 2px solid var(--tinta); box-shadow: none; font-size: 17px; }
+.janela-sala { width: min(560px, 100%); }
+.janela-sala .codigo { letter-spacing: 6px; background: #fff3d1; border-radius: 12px; padding: 0 12px; }
+.janela-sala h3 { margin: 12px 0 4px; text-align: left; font-size: 20px; }
+.link-sala { background: #fff; border-radius: 12px; padding: 8px 12px; font-size: 15px; word-break: break-all; margin: 8px 0; user-select: text; -webkit-user-select: text; }
+.lista-sala { list-style: none; margin: 0 0 6px; padding: 0; text-align: left; }
+.lista-sala li { display: flex; align-items: center; justify-content: space-between; background: #f0e8dc; border-radius: 12px; padding: 8px 14px; margin: 4px 0; font-size: 19px; }
+.lista-sala small { opacity: .6; font-size: 14px; }
+.lista-sala .tirar { border: 0; border-radius: 10px; background: #fff; padding: 6px 12px; font: inherit; font-size: 15px; font-weight: 800; color: #8a0f1f; }
+.so-ver { flex: 2; font-size: 19px; font-weight: 800; text-align: center; }
+.janela .grande:disabled { opacity: .5; }
+@media (max-height: 500px) {
+  .janela-sala .emoji, .janela-sala > p:first-of-type { display: none; }
+  .lista-sala li { padding: 4px 10px; font-size: 16px; }
+  .tempo-vez { font-size: 12px; padding: 3px 8px; }
+}

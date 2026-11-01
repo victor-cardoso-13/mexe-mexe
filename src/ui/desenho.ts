@@ -3,16 +3,17 @@
  * Aqui só se DESENHA; quem decide o que acontece é o src/main.ts.
  */
 import { ehVermelha, nomeDoValor, SIMBOLO_NAIPE, type Carta, type CartaNormal } from '../motor/cartas';
-import { conferirJogada, mesaMexidaEstaCerta, mexeuNaVez, ondeEstaCarta, type Partida } from '../motor/partida';
+import { conferirJogada, jogadorDaVez, mesaMexidaEstaCerta, mexeuNaVez, ondeEstaCarta, type Partida } from '../motor/partida';
 import { pontosDaRodada, situacaoDoCampeonato, type Campeonato } from '../motor/campeonato';
 import { pontosDaMao } from '../motor/cartas';
 import { ordemDaTrinca, ordemParaMostrar, validarJogo } from '../motor/validacao';
 import type { NivelIA } from '../motor/regras';
-import type { Ajustes, Aviso, Estado } from './estado';
+import type { Ajustes, Aviso, Estado, Online } from './estado';
 import type { Contagem, Resumo } from './retrospecto';
 import { podeBaixarJogo } from './baixarJogo';
 import { NOMES_ORDENACAO, ordenarMao, TEXTOS } from './textos';
 import { passosDoTutorial } from './tutorial';
+import { ativos, MAX_JOGADORES, MIN_JOGADORES } from '../online/logica';
 
 // ---------------------------------------------------------------------------
 // Carta
@@ -77,6 +78,7 @@ function htmlTopo(e: Estado, p: Partida): string {
   return `<div class="topo">
     ${adversarios}
     <div class="espaco"></div>
+    ${e.online?.sala?.fase === 'jogando' ? '<div class="tempo-vez" id="tempo">⏱</div>' : ''}
     ${e.campeonato ? htmlPlacar(e.campeonato, p) : ''}
     <div class="monte"><div class="verso"></div> Monte: ${p.monte.length}</div>
     <button class="botao-ajustes" data-acao="abrirAjustes" aria-label="Ajustes">⚙️<span class="nome-ajustes"> Ajustes</span></button>
@@ -87,7 +89,8 @@ function htmlTopo(e: Estado, p: Partida): string {
 function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: string } {
   if (e.aviso) return e.aviso;
   if (p.resultado) return { texto: 'A partida acabou.', tipo: 'normal', acao: '<button class="acao" data-acao="novaPartida">Jogar de novo</button>' };
-  if (!minhaVez) return { texto: 'Vez do computador…', tipo: 'computador' };
+  if (e.online && p.resultado === null && e.online.sala?.fase === 'contando') return { texto: 'Contando os pontos…', tipo: 'computador' };
+  if (!minhaVez) return { texto: e.online ? `Vez de ${jogadorDaVez(p).nome}…` : 'Vez do computador…', tipo: 'computador' };
   if (e.dica) return { texto: e.dica.texto, tipo: 'normal', acao: '<button class="acao" data-acao="fazerDica">Fazer para mim</button>' };
   if (e.selecionadas.length) {
     const daMesa = e.selecionadas.some((id) => ondeEstaCarta(p, id) !== 'mao');
@@ -275,6 +278,7 @@ export function htmlInicio(temPartida: boolean, email: string | null): string {
     <p>Faça sequências do mesmo naipe ou trincas de naipes diferentes. Quem acabar com as cartas primeiro, ganha!</p>
     ${temPartida ? '<button class="grande" data-acao="continuar">▶ Continuar partida</button>' : ''}
     <button class="grande ${temPartida ? 'secundario' : ''}" data-acao="pedirNova">${temPartida ? 'Começar partida nova' : '▶ Começar a jogar'}</button>
+    <button class="grande secundario" data-acao="abrirOnline">🌐 Jogar online com amigos</button>
     <div class="linha-botoes linha-inicio">
       <button class="grande secundario" data-acao="abrirAjustes">⚙️ Ajustes</button>
       <button class="grande secundario" data-acao="abrirRetrospecto">📊 Retrospecto</button>
@@ -365,7 +369,7 @@ function opcoes(chave: string, atual: string, lista: Array<[string, string]>): s
     .join('')}</div>`;
 }
 
-export function htmlAjustes(a: Ajustes, emJogo: boolean): string {
+export function htmlAjustes(a: Ajustes, emJogo: boolean, online: Online | null = null): string {
   return `<div class="fundo-janela"><div class="janela">
     <h2>⚙️ Ajustes</h2>
     <div class="ajuste"><div class="nome-ajuste">Jogo<small>vale na próxima partida</small></div>
@@ -388,14 +392,15 @@ export function htmlAjustes(a: Ajustes, emJogo: boolean): string {
       <button class="grande secundario" data-acao="abrirMenuConta">☁️ Conta</button>
     </div>
     <button class="link-diario" data-acao="baixarDiario">📋 Baixar o diário do jogo (para o Claude investigar um problema)</button>
+    ${online ? htmlTirarJogadores(online) : ''}
     <div class="linha-botoes">
       <button class="grande" data-acao="fecharJanela">Pronto</button>
-      ${emJogo ? '<button class="grande secundario" data-acao="pedirNova">Começar partida nova</button>' : ''}
+      ${online ? '<button class="grande secundario" data-acao="onlineSair">Sair da sala</button>' : emJogo ? '<button class="grande secundario" data-acao="pedirNova">Começar partida nova</button>' : ''}
     </div>
   </div></div>`;
 }
 
-export function htmlFim(p: Partida, camp: Campeonato | null = null): string {
+export function htmlFim(p: Partida, camp: Campeonato | null = null, online: Online | null = null): string {
   const r = p.resultado!;
   const sit = camp ? situacaoDoCampeonato(camp) : null;
   let titulo: string;
@@ -428,9 +433,14 @@ export function htmlFim(p: Partida, camp: Campeonato | null = null): string {
     })
     .join('');
   const campanha = camp && !sit?.acabou ? `<p class="nota-camp">Rodada ${camp.rodada} · o campeonato acaba quando alguém chegar a ${camp.alvo} pontos.</p>` : '';
-  const botao = camp && !sit?.acabou
-    ? '<button class="grande" data-acao="proximaRodada">Próxima rodada</button>'
-    : `<button class="grande" data-acao="novaPartida">${camp ? 'Novo campeonato' : 'Jogar de novo'}</button>`;
+  const euDono = !!online?.sala && online.sala.dono === online.uid;
+  const botao = online
+    ? euDono
+      ? `<button class="grande" data-acao="onlineProxima">${camp && sit?.acabou ? 'Novo campeonato' : 'Próxima rodada'}</button>`
+      : '<p class="nota-camp">Esperando o criador da sala começar a próxima rodada…</p>'
+    : camp && !sit?.acabou
+      ? '<button class="grande" data-acao="proximaRodada">Próxima rodada</button>'
+      : `<button class="grande" data-acao="novaPartida">${camp ? 'Novo campeonato' : 'Jogar de novo'}</button>`;
   return `<div class="fundo-janela"><div class="janela janela-fim">
     <div class="emoji">${emoji}</div>
     <h2>${titulo}</h2>
@@ -439,6 +449,7 @@ export function htmlFim(p: Partida, camp: Campeonato | null = null): string {
     ${campanha}
     ${botao}
     <button class="grande secundario" data-acao="fecharJanela">Ver a mesa</button>
+    ${online ? '<button class="link-diario" data-acao="onlineSair">Sair da sala</button>' : ''}
   </div></div>`;
 }
 
@@ -459,4 +470,77 @@ export function htmlTutorial(passo: number): string {
       <button data-acao="${ultimo ? 'tutorialPular' : 'tutorialProximo'}">${ultimo ? 'Começar' : 'Próximo'}</button>
     </div>
   </div></div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Jogo online
+// ---------------------------------------------------------------------------
+
+/** Janela "Jogar online": nome + código da sala (ou criar uma sala nova). */
+export function htmlMenuOnline(nome: string, codigo: string, erro: string, ocupado: boolean): string {
+  return `<div class="fundo-janela"><div class="janela formulario">
+    <div class="emoji">🌐</div>
+    <h2>Jogar online</h2>
+    <p>De 2 a ${MAX_JOGADORES} pessoas, cada uma no seu aparelho. Você só vê quantas cartas cada um tem.</p>
+    <input id="nome-online" type="text" maxlength="16" placeholder="Seu nome" value="${escapar(nome)}" autocomplete="nickname" />
+    <input id="codigo-online" type="text" maxlength="5" placeholder="Código da sala (se alguém te passou)" value="${escapar(codigo)}" autocapitalize="characters" autocomplete="off" spellcheck="false" />
+    <div class="erro" id="erro-online">${escapar(erro)}</div>
+    <button class="grande" data-acao="onlineEntrar" ${ocupado ? 'disabled' : ''}>Entrar na sala</button>
+    <button class="grande secundario" data-acao="onlineCriar" ${ocupado ? 'disabled' : ''}>Criar sala nova</button>
+    <div class="linha-links"><button class="link-diario" data-acao="fecharJanela">Voltar</button></div>
+  </div></div>`;
+}
+
+/** Sala de espera: código, link, quem já entrou e o botão de começar (só do criador). */
+export function htmlSala(o: Online, link: string): string {
+  const s = o.sala!;
+  const euDono = s.dono === o.uid;
+  const lista = ativos(s)
+    .map((i) => {
+      const j = s.jogadores[i];
+      const tirar = euDono && j.uid !== o.uid ? `<button class="tirar" data-acao="onlineTirar" data-idx="${i}">Tirar</button>` : '';
+      return `<li><span>${escapar(j.nome)}${j.uid === s.dono ? ' <small>(criador)</small>' : ''}${j.uid === o.uid ? ' <small>(você)</small>' : ''}</span>${tirar}</li>`;
+    })
+    .join('');
+  const qtd = ativos(s).length;
+  const opc = (chave: string, atual: string, lista: Array<[string, string]>) =>
+    euDono
+      ? opcoesOnline(chave, atual, lista)
+      : `<div class="so-ver">${lista.find(([v]) => v === atual)?.[1] ?? ''}</div>`;
+  return `<div class="fundo-janela"><div class="janela janela-sala">
+    <div class="emoji">🃏</div>
+    <h2>Sala <span class="codigo">${o.codigo}</span></h2>
+    <p>Chame quem vai jogar: mande o link (ou só o código).</p>
+    <div class="link-sala">${escapar(link)}</div>
+    <div class="linha-botoes">
+      <button class="grande secundario" data-acao="onlineCopiar">📋 Copiar link</button>
+      <button class="grande secundario" data-acao="onlineCompartilhar">📤 Compartilhar</button>
+    </div>
+    <h3>Na sala (${qtd} de ${MAX_JOGADORES})</h3>
+    <ul class="lista-sala">${lista}</ul>
+    ${euDono
+      ? `<button class="grande" data-acao="onlineComecar" ${qtd < MIN_JOGADORES ? 'disabled' : ''}>${qtd < MIN_JOGADORES ? 'Esperando mais gente…' : '▶ Começar o jogo'}</button>`
+      : '<p class="nota-camp">Esperando o criador da sala começar…</p>'}
+    <div class="ajuste"><div class="nome-ajuste">Jogo</div>${opc('modo', s.config.modo, [['casual', 'Casual'], ['campeonato', 'Até 100 pontos']])}</div>
+    <div class="ajuste"><div class="nome-ajuste">Curinga</div>${opc('curinga', String(s.config.curinga), [['false', 'Sem'], ['true', 'Com']])}</div>
+    <div class="ajuste"><div class="nome-ajuste">Tempo por vez</div>${opc('limiteSeg', String(s.config.limiteSeg), [['120', '2 min'], ['180', '3 min'], ['300', '5 min']])}</div>
+    <button class="link-diario" data-acao="onlineSair">Sair da sala</button>
+  </div></div>`;
+}
+
+function opcoesOnline(chave: string, atual: string, lista: Array<[string, string]>): string {
+  return `<div class="opcoes">${lista
+    .map(([valor, rotulo]) => `<button data-acao="onlineConfig" data-chave="${chave}" data-valor="${valor}" class="${valor === atual ? 'atual' : ''}">${rotulo}</button>`)
+    .join('')}</div>`;
+}
+
+/** Nos Ajustes (durante o jogo): o criador pode tirar quem sumiu. */
+function htmlTirarJogadores(o: Online): string {
+  const s = o.sala;
+  if (!s || s.dono !== o.uid || s.fase === 'espera') return '';
+  const outros = ativos(s).filter((i) => s.jogadores[i].uid !== o.uid);
+  if (!outros.length) return '';
+  return `<div class="ajuste"><div class="nome-ajuste">Tirar da sala<small>quem sumiu ou saiu</small></div><div class="opcoes">${outros
+    .map((i) => `<button data-acao="onlineTirar" data-idx="${i}">${escapar(s.jogadores[i].nome)}</button>`)
+    .join('')}</div></div>`;
 }
