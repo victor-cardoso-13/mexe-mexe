@@ -836,3 +836,21 @@ body.idade .tempo-vez { border: 2px solid var(--tinta); box-shadow: none; font-s
   .rodape-fim { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .rodape-fim .grande { flex: 1; margin-top: 4px; padding: 8px; font-size: 17px; }
 }
+
+/* ---------- Faixa de aviso com altura FIXA ----------
+   A narração do computador ("O Computador colocou 5♣ no jogo…") muda a toda hora. Se a faixa crescesse
+   e encolhesse com o tamanho do texto, a mesa e a mão pulariam junto. Agora a faixa tem sempre a mesma
+   altura (1 linha; no celular em pé, 2) e o texto que não couber termina em "…". */
+.tela-jogo .aviso { box-sizing: border-box; height: 50px; min-height: 0; overflow: hidden; display: flex; align-items: center; }
+.tela-jogo .aviso > span { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; line-height: 1.2; }
+@media (max-width: 600px) and (min-height: 501px) {
+  .tela-jogo .aviso { height: 62px; }
+  .tela-jogo .aviso > span { -webkit-line-clamp: 2; }
+}
+@media (max-height: 500px) {
+  .tela-jogo .aviso { height: 32px; }
+}
+
+/* Barra de cima: os "chips" nunca quebram o texto em 2 linhas (o aviso "Só 1 carta!" fazia a barra crescer). */
+.topo .adversario, .topo .monte, .topo .alerta-uma { white-space: nowrap; }
+.topo .alerta-uma { flex: none; }

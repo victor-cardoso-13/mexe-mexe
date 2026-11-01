@@ -4,15 +4,15 @@ import { MOTIVOS, validarJogo } from '../src/motor/validacao';
 import { nomeDaCarta } from '../src/motor/cartas';
 import { cs } from './ajuda';
 
-const semCuringa = criarRegras();
-const comCuringa = criarRegras({ curinga: { ...criarRegras().curinga, ativo: true } });
+const semCoringa = criarRegras();
+const comCoringa = criarRegras({ curinga: { ...criarRegras().curinga, ativo: true } });
 
-const vale = (txt: string, r = semCuringa) => validarJogo(cs(txt), r).valido;
-const motivo = (txt: string, r = semCuringa) => {
+const vale = (txt: string, r = semCoringa) => validarJogo(cs(txt), r).valido;
+const motivo = (txt: string, r = semCoringa) => {
   const res = validarJogo(cs(txt), r);
   return res.valido ? null : res.motivo;
 };
-const ordem = (txt: string, r = semCuringa) => {
+const ordem = (txt: string, r = semCoringa) => {
   const res = validarJogo(cs(txt), r);
   return res.valido ? res.ordem.map(nomeDaCarta).join(' ') : null;
 };
@@ -85,39 +85,39 @@ describe('curinga (regra da casa)', () => {
     expect(motivo('2c * 4c')).toBe(MOTIVOS.curingaDesligado);
   });
   it('2-🃏-4 vale', () => {
-    expect(ordem('4c * 2c', comCuringa)).toBe('2♥ Curinga 4♥');
+    expect(ordem('4c * 2c', comCoringa)).toBe('2♥ Coringa 4♥');
   });
   it('🃏-3-4 e 2-3-🃏 não valem (curinga na ponta)', () => {
-    expect(motivo('* 3c 4c', comCuringa)).toBe(MOTIVOS.curingaNaPonta);
-    expect(motivo('2c 3c *', comCuringa)).toBe(MOTIVOS.curingaNaPonta);
-    expect(motivo('2c 3c 4c *', comCuringa)).toBe(MOTIVOS.curingaNaPonta);
+    expect(motivo('* 3c 4c', comCoringa)).toBe(MOTIVOS.curingaNaPonta);
+    expect(motivo('2c 3c *', comCoringa)).toBe(MOTIVOS.curingaNaPonta);
+    expect(motivo('2c 3c 4c *', comCoringa)).toBe(MOTIVOS.curingaNaPonta);
   });
   it('2-2-🃏 não vale (curinga não entra em trinca)', () => {
-    expect(motivo('2c 2e *', comCuringa)).toBe(MOTIVOS.curingaEmTrinca);
+    expect(motivo('2c 2e *', comCoringa)).toBe(MOTIVOS.curingaEmTrinca);
   });
   it('vários curingas intercalados valem: 2-🃏-4-🃏-6', () => {
-    expect(ordem('6c * 2c * 4c', comCuringa)).toBe('2♥ Curinga 4♥ Curinga 6♥');
+    expect(ordem('6c * 2c * 4c', comCoringa)).toBe('2♥ Coringa 4♥ Coringa 6♥');
   });
   it('dois curingas lado a lado não valem: 2-3-🃏-🃏-6', () => {
-    expect(motivo('2c 3c * * 6c', comCuringa)).toBe(MOTIVOS.curingasJuntos);
-    expect(motivo('2c * * 5c', comCuringa)).toBe(MOTIVOS.curingasJuntos);
+    expect(motivo('2c 3c * * 6c', comCoringa)).toBe(MOTIVOS.curingasJuntos);
+    expect(motivo('2c * * 5c', comCoringa)).toBe(MOTIVOS.curingasJuntos);
   });
   it('lado a lado pode, se a regra permitir', () => {
-    const r = criarRegras({ curinga: { ...comCuringa.curinga, permitirLadoALado: true } });
-    expect(ordem('2c * * 5c', r)).toBe('2♥ Curinga Curinga 5♥');
+    const r = criarRegras({ curinga: { ...comCoringa.curinga, permitirLadoALado: true } });
+    expect(ordem('2c * * 5c', r)).toBe('2♥ Coringa Coringa 5♥');
   });
   it('limite de curingas por jogo', () => {
-    const umSo = criarRegras({ curinga: { ...comCuringa.curinga, maximoPorJogo: 1 } });
+    const umSo = criarRegras({ curinga: { ...comCoringa.curinga, maximoPorJogo: 1 } });
     expect(motivo('2c * 4c * 6c', umSo)).toBe(MOTIVOS.curingasDemais);
   });
   it('curinga com Ás alto: Q-🃏-A', () => {
-    expect(ordem('Ac * Qc', comCuringa)).toBe('Q♥ Curinga A♥');
+    expect(ordem('Ac * Qc', comCoringa)).toBe('Q♥ Coringa A♥');
   });
   it('curinga não faz a volta: K-🃏-2 não vale', () => {
-    expect(vale('Kc * 2c', comCuringa)).toBe(false);
+    expect(vale('Kc * 2c', comCoringa)).toBe(false);
   });
   it('só curingas, ou um natural com curingas, não vale', () => {
-    expect(vale('* * *', comCuringa)).toBe(false);
-    expect(vale('5c * *', comCuringa)).toBe(false);
+    expect(vale('* * *', comCoringa)).toBe(false);
+    expect(vale('5c * *', comCoringa)).toBe(false);
   });
 });

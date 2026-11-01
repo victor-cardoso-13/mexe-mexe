@@ -115,6 +115,21 @@ for (const [w, h] of [[1180, 820], [820, 1180]]) {
   confere(antes.w === depois.w && antes.jogos === depois.jogos, `${w}×${h}: escolher carta não muda o tamanho nem a fileira dos jogos (cartas ${antes.w})`);
   await ctx.close();
 }
+// 5) A mão se reordena sempre que muda; arrastar dentro da mão vale como ordem manual só até a próxima mudança
+{
+  const { ctx, pg } = await abrir(440, 800, false);
+  await pg.evaluate(() => { window.__e.ordenacao = 'manual'; window.__e.ordemManual = window.__e.partida.jogadores[0].mao.map((c) => c.id).reverse(); window.__desenhar(); });
+  const ordem = () => pg.evaluate(() => [...document.querySelectorAll('.mao .carta')].map((c) => c.dataset.carta).join(','));
+  const manual = await ordem();
+  await tocar(pg, pg.locator('.mao .carta').nth(1)); // só escolher não muda nada
+  confere((await pg.evaluate(() => window.__e.ordenacao)) === 'manual' && (await ordem()) === manual, 'só escolher uma carta não mexe na ordem manual');
+  await tocar(pg, pg.locator('.mao .carta').nth(1)); // tira a escolha
+  await pg.locator('[data-acao="comprar"]').click(); // a mão muda (carta nova)
+  await pg.waitForTimeout(500);
+  const depois = await pg.evaluate(() => ({ o: window.__e.ordenacao, m: window.__e.ordemManual.length }));
+  confere(depois.o === 'naipe' && depois.m === 0, 'mudou a mão (comprou): voltou para a ordem automática (por naipe)');
+  await ctx.close();
+}
 await b.close();
 console.log(falhas ? `\n${falhas} FALHA(S)` : '\nTudo certo.');
 process.exit(falhas ? 1 : 0);

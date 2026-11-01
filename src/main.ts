@@ -14,7 +14,7 @@ import { escolherJogada, jogadaDoCuringa, ultimaBusca } from './ia';
 import { anotar, baixarDiario, textoCartas, textoMesa } from './ui/diario';
 import { estadoInicial, type Ajustes, type Ordenacao } from './ui/estado';
 import { escapar, htmlAjustes, htmlConfirmarNova, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlTutorial, type Mensagem } from './ui/desenho';
-import { encaixar } from './ui/encaixe';
+import { encaixar, reiniciarEncaixe } from './ui/encaixe';
 import { codigoNoLink, criarOnline, linkDaSalaAtual, nomeSalvo, LIMITE_PADRAO_SEG } from './online/controle';
 import { carregarAjustes, carregarGaveta, salvarAjustes, salvarGaveta, type Gaveta } from './ui/salvar';
 import { resultadoDaPartida, resumir } from './ui/retrospecto';
@@ -37,11 +37,16 @@ let gaveta: Gaveta = carregarGaveta();
 /** Muda a cada troca de gaveta: a jogada do computador que estava no meio para. */
 let geracao = 0;
 let mensagem: Mensagem | null = null;
+/** Quais cartas estavam na mão no último desenho, e qual foi a última ordem automática escolhida. */
+let maoVista = '';
+let ordemAutomatica: Ordenacao = 'naipe';
 
 /** Abre a partida guardada na gaveta (se houver). */
 function abrirGaveta() {
   geracao++;
+  maoVista = '';
   e.computadorJogando = false;
+  reiniciarEncaixe();
   e.mesaExibida = e.cartasExibidas = null;
   e.selecionadas = [];
   e.lugarCuringaVez = '';
@@ -77,7 +82,24 @@ abrirGaveta();
  * Redesenha a tela. Com "movimento", as cartas deslizam da posição antiga
  * para a nova (usado na jogada do computador).
  */
+/**
+ * A mão se reordena SEMPRE que muda (comprou, baixou, desfez...): volta para a ordem automática escolhida
+ * (naipe ou valor). Só arrastar uma carta dentro da própria mão vale como ordem manual, até a próxima mudança.
+ */
+function reordenarMaoSeMudou() {
+  const p = e.partida;
+  if (!p || e.tela !== 'jogo') return;
+  if (e.ordenacao !== 'manual') ordemAutomatica = e.ordenacao;
+  const assinatura = p.jogadores[0].mao.map((c) => c.id).sort().join(',');
+  if (maoVista && assinatura !== maoVista && e.ordenacao === 'manual') {
+    e.ordenacao = ordemAutomatica;
+    e.ordemManual = [];
+  }
+  maoVista = assinatura;
+}
+
 function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms: number }) {
+  reordenarMaoSeMudou();
   const antes = movimento ? capturarPosicoes(app) : null;
   const rolagem = app.querySelector('.mesa')?.scrollTop ?? 0;
   localStorage.setItem(CHAVE_TELA, e.online ? 'inicio' : e.tela);
@@ -96,7 +118,7 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   if (e.janela === 'confirmarNova') html += htmlConfirmarNova();
   if (e.janela === 'fim' && e.partida) html += htmlFim(e.partida, e.campeonato, e.online);
   app.innerHTML = html;
-  encaixar(chaveDoEncaixe());
+  encaixar(chaveDoEncaixe(), podeCrescerAsCartas(), e.computadorJogando);
   // Se a mesa rola (celular), ela fica onde estava (não volta para o topo a cada toque).
   const mesaEl = app.querySelector<HTMLElement>('.mesa');
   if (mesaEl && rolagem) mesaEl.scrollTop = rolagem;
@@ -112,12 +134,18 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   }
 }
 
+/** As cartas só voltam a crescer no começo da sua vez (nunca no meio da jogada de ninguém). */
+function podeCrescerAsCartas(): boolean {
+  const p = e.partida;
+  return !p || (!e.computadorJogando && p.vez === 0 && p.historico.length === 0);
+}
+
 /** O que muda o tamanho das cartas: os jogos da mesa (e o tamanho de cada um) e a mão. */
 function chaveDoEncaixe(): string {
   const p = e.partida;
   if (!p || e.tela !== 'jogo') return '';
   const mesa = (e.mesaExibida ?? p.mesa).map((j) => j.cartas.map((c) => c.id).sort().join(',')).join(';');
-  return `${mesa}#${p.jogadores[0].mao.length}#${e.cartasExibidas?.join(',') ?? ''}#${e.aviso?.texto.length ?? 0}#${ajustes.visual}`;
+  return `${mesa}#${p.jogadores[0].mao.length}#${e.cartasExibidas?.join(',') ?? ''}#${ajustes.visual}#${podeCrescerAsCartas() ? 'g' : ''}`;
 }
 
 function salvar() {
@@ -191,6 +219,8 @@ function comecarPartida(proxima = false) {
     nivelIA: ajustes.nivel,
     curinga: { ...criarRegras().curinga, ativo: ajustes.curinga },
   });
+  reiniciarEncaixe();
+  maoVista = '';
   const semente = Math.floor(Math.random() * 2 ** 31);
   e.partida = novaPartida(regras, semente);
   e.partidaId = `${Date.now().toString(36)}-${semente.toString(36)}`;
@@ -334,10 +364,10 @@ function prepararCuringa() {
   }, 150);
 }
 
-/** Botão "Deixar o curinga solto": o jogo coloca o curinga no lugar achado e passa a vez. */
+/** Botão "Deixar o coringa solto": o jogo coloca o curinga no lugar achado e passa a vez. */
 function curingaSolto() {
   if (!minhaVez() || !e.lugarCuringa || mexeuNaVez(e.partida!)) return;
-  anotar('curinga solto', { mesaAntes: textoMesa(e.partida!.mesa), mesaDepois: textoMesa(e.lugarCuringa.mesa) });
+  anotar('coringa solto', { mesaAntes: textoMesa(e.partida!.mesa), mesaDepois: textoMesa(e.lugarCuringa.mesa) });
   e.partida = definirFoto(e.partida!, e.lugarCuringa);
   e.lugarCuringa = null;
   botaoBaixar();

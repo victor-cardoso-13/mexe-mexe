@@ -24,7 +24,7 @@ export function htmlCarta(c: Carta, classes = ''): string {
     return `<div class="carta curinga ${classes}" data-carta="${c.id}">
       <div class="canto"><span class="valor">★</span></div>
       <div class="estrela">★</div>
-      <div class="rotulo-curinga">CURINGA</div>
+      <div class="rotulo-curinga">CORINGA</div>
     </div>`;
   }
   const simbolo = SIMBOLO_NAIPE[c.naipe];
@@ -118,8 +118,8 @@ function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: 
     return { texto: daMesa ? TEXTOS.escolheuDaMesa : TEXTOS.escolheuCartas, tipo: 'normal' };
   }
   if (!mexeuNaVez(p)) {
-    // Só aparece se existir mesmo um lugar para o curinga.
-    const curinga = e.lugarCuringa ? '<button class="acao" data-acao="curingaSolto">🃏 Deixar o curinga solto</button>' : '';
+    // Só aparece se existir mesmo um lugar para o coringa.
+    const curinga = e.lugarCuringa ? '<button class="acao" data-acao="curingaSolto">🃏 Deixar o coringa solto</button>' : '';
     return { texto: TEXTOS.suaVez, tipo: 'normal', acao: curinga };
   }
   const c = conferirJogada(p);
@@ -405,7 +405,7 @@ export function htmlAjustes(a: Ajustes, emJogo: boolean, online: Online | null =
       ${opcoes('velocidade', a.velocidade, [['devagar', 'Devagar'], ['normal', 'Normal']])}</div>`;
   const regras = online
     ? ''
-    : `<div class="ajuste"><div class="nome-ajuste">Curinga<small>vale na próxima partida</small></div>
+    : `<div class="ajuste"><div class="nome-ajuste">Coringa<small>vale na próxima partida</small></div>
       ${opcoes('curinga', String(a.curinga), [['false', 'Sem'], ['true', 'Com']])}</div>
     <div class="ajuste"><div class="nome-ajuste">Adversários<small>vale na próxima partida</small></div>
       ${opcoes('adversarios', String(a.adversarios), [['1', '1'], ['2', '2'], ['3', '3']])}</div>`;
@@ -562,7 +562,7 @@ export function htmlSala(o: Online, link: string): string {
       ? `<button class="grande" data-acao="onlineComecar" ${qtd < MIN_JOGADORES ? 'disabled' : ''}>${qtd < MIN_JOGADORES ? 'Esperando mais gente…' : '▶ Começar o jogo'}</button>`
       : '<p class="nota-camp">Esperando o criador da sala começar…</p>'}
     <div class="ajuste"><div class="nome-ajuste">Jogo</div>${opc('modo', s.config.modo, [['casual', 'Casual'], ['campeonato', 'Até 100 pontos']])}</div>
-    <div class="ajuste"><div class="nome-ajuste">Curinga</div>${opc('curinga', String(s.config.curinga), [['false', 'Sem'], ['true', 'Com']])}</div>
+    <div class="ajuste"><div class="nome-ajuste">Coringa</div>${opc('curinga', String(s.config.curinga), [['false', 'Sem'], ['true', 'Com']])}</div>
     <div class="ajuste"><div class="nome-ajuste">Tempo por vez</div>${opc('limiteSeg', String(s.config.limiteSeg), [['120', '2 min'], ['180', '3 min'], ['300', '5 min']])}</div>
     <button class="link-diario" data-acao="onlineSair">Sair da sala</button>
   </div></div>`;
