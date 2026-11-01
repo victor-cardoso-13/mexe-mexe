@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { criarRegras } from '../src/motor/regras';
 import { comprarEPassar, mesaMexidaEstaCerta, moverCarta, moverCartas, novaPartida, type Jogo, type Partida, type RespostaAcao } from '../src/motor/partida';
 import { separarEmJogos, validarJogo } from '../src/motor/validacao';
-import { novoCampeonato, pontosDaRodada, situacaoDoCampeonato, somarRodada } from '../src/motor/campeonato';
+import { novoCampeonato, ordemDoPlacar, pontosDaRodada, situacaoDoCampeonato, somarRodada } from '../src/motor/campeonato';
 import type { Carta } from '../src/motor/cartas';
+import { htmlFim } from '../src/ui/desenho';
 import { cs } from './ajuda';
 
 const regras = criarRegras();
@@ -98,5 +99,42 @@ describe('campeonato até 100 pontos', () => {
   it('empate no menor total: joga mais uma rodada', () => {
     const c = { ...novoCampeonato(2), totais: [100, 100] };
     expect(situacaoDoCampeonato(c).acabou).toBe(false);
+  });
+});
+
+describe('placar do campeonato em ordem', () => {
+  it('põe quem tem menos pontos na frente (1, 2, 3...)', () => {
+    const o = ordemDoPlacar([35, 60, 18, 82]);
+    expect(o.map((l) => l.jogador)).toEqual([2, 0, 1, 3]);
+    expect(o.map((l) => l.posicao)).toEqual([1, 2, 3, 4]);
+  });
+  it('empatados dividem a posição e o próximo pula (1, 1, 3)', () => {
+    const o = ordemDoPlacar([20, 20, 50]);
+    expect(o.map((l) => l.posicao)).toEqual([1, 1, 3]);
+    expect(o.map((l) => l.jogador)).toEqual([0, 1, 2]);
+  });
+  it('no começo (todos com 0) ninguém muda de lugar', () => {
+    expect(ordemDoPlacar([0, 0, 0]).map((l) => l.jogador)).toEqual([0, 1, 2]);
+  });
+});
+
+describe('janela de fim de rodada', () => {
+  const comResultado = (n: number): Partida => {
+    const p0 = novaPartida(criarRegras({ adversarios: n - 1 }), 1);
+    return { ...p0, resultado: { vencedor: 1, pontos: p0.jogadores.map(() => 10), motivo: 'bateu' } } as Partida;
+  };
+  it('2 jogadores: dois números grandes lado a lado', () => {
+    const p = comResultado(2);
+    const html = htmlFim(p, { ...novoCampeonato(2), totais: [35, 60], rodada: 2 });
+    expect(html).toContain('class="dupla"');
+    expect(html).not.toContain('class="lin"');
+  });
+  it.each([3, 4])('%i jogadores: uma linha por jogador, com a coroa em quem está ganhando', (n) => {
+    const p = comResultado(n);
+    const totais = [35, 60, 18, 82].slice(0, n);
+    const html = htmlFim(p, { ...novoCampeonato(n), totais, rodada: 2 });
+    expect(html.match(/class="lin"/g)).toHaveLength(n);
+    expect(html.match(/👑/g)).toHaveLength(1);
+    expect(html.indexOf('>18<') === -1 ? true : html.indexOf('>18<') < html.indexOf('>35<')).toBe(true);
   });
 });

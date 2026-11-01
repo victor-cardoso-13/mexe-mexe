@@ -4,7 +4,7 @@
  */
 import { ehVermelha, nomeDoValor, SIMBOLO_NAIPE, type Carta, type CartaNormal } from '../motor/cartas';
 import { conferirJogada, jogadorDaVez, mesaMexidaEstaCerta, mexeuNaVez, ondeEstaCarta, type Partida } from '../motor/partida';
-import { pontosDaRodada, situacaoDoCampeonato, type Campeonato } from '../motor/campeonato';
+import { ordemDoPlacar, pontosDaRodada, situacaoDoCampeonato, type Campeonato } from '../motor/campeonato';
 import { pontosDaMao } from '../motor/cartas';
 import { ordemDaTrinca, ordemParaMostrar, validarJogo } from '../motor/validacao';
 import type { NivelIA } from '../motor/regras';
@@ -58,10 +58,31 @@ export function htmlJogo(e: Estado, a: Ajustes): string {
   </div>${e.menuOrdenar ? htmlOrdenar(e) : ''}`;
 }
 
-/** Pílula do campeonato: "Rodada 2 · Você 35 · Computador 60 (até 100)". */
+/** Pílula do campeonato, em ordem de quem está ganhando: "Rodada 2 · 1 Você 35 · 2 Comp. 60 /100". */
 function htmlPlacar(c: Campeonato, p: Partida): string {
-  const nomes = p.jogadores.map((j, i) => `${i === 0 ? 'Você' : j.nome.replace('Computador', 'Comp.')} <b>${c.totais[i]}</b>`).join(' · ');
+  const nomes = ordemDoPlacar(c.totais)
+    .map((l) => `<span class="pos">${l.posicao}</span> ${l.jogador === 0 ? 'Você' : p.jogadores[l.jogador].nome.replace('Computador', 'Comp.')} <b>${l.pontos}</b>`)
+    .join(' · ');
   return `<div class="placar-camp">Rodada ${c.rodada} · ${nomes} <span class="ate">/${c.alvo}</span></div>`;
+}
+
+/** Placar grande do fim da rodada: 2 jogadores = dois números lado a lado; 3 ou 4 = uma linha por jogador. */
+function htmlPlacarFim(c: Campeonato, p: Partida, rodada: number[]): string {
+  const nome = (i: number) => (i === 0 ? 'Você' : p.jogadores[i].nome);
+  const barra = (pontos: number) => {
+    const pct = Math.min(100, Math.round((pontos / c.alvo) * 100));
+    return `<div class="barra"><i class="${pct >= 80 ? 'perigo' : pct >= 60 ? 'alta' : ''}" style="width:${pct}%"></i></div>`;
+  };
+  const delta = (i: number) => `<span class="delta ${rodada[i] ? '' : 'zero'}">+${rodada[i]}</span>`;
+  const linhas = ordemDoPlacar(c.totais);
+  if (p.jogadores.length === 2) {
+    const lado = (i: number) => `<div class="lado"><span class="nome">${nome(i)}</span><span class="total">${c.totais[i]}</span>${delta(i)} nesta rodada${barra(c.totais[i])}</div>`;
+    return `<div class="placar-fim"><div class="dupla">${lado(0)}<div class="meio"><span>RODADA ${c.rodada}</span><span>até ${c.alvo}</span></div>${lado(1)}</div></div>`;
+  }
+  const lin = linhas
+    .map((l) => `<div class="lin"><span class="quem">${l.posicao === 1 ? '👑 ' : ''}${nome(l.jogador).replace('Computador', 'Comp.')}</span><span class="total">${l.pontos}</span>${barra(l.pontos)}${delta(l.jogador)}</div>`)
+    .join('');
+  return `<div class="placar-fim"><div class="lista">${lin}</div></div>`;
 }
 
 function htmlTopo(e: Estado, p: Partida): string {
@@ -147,7 +168,7 @@ function htmlMesa(e: Estado, p: Partida): string {
       return `<div class="${classes}" data-destino="jogo:${j.id}">${cartas}${erro}${mais}</div>`;
     })
     .join('');
-  // Espaço vazio pontilhado: aparece com carta escolhida (ou arrastando) e cria um jogo novo.
+  // Espaço vazio pontilhado: cria um jogo novo. Está sempre na mesa (o lugar fica guardado); só aparece com carta escolhida ou arrastando.
   const vazio = `<div class="vazio" data-destino="novo"><div>+ jogo novo<small>toque ou solte aqui</small></div></div>`;
   // O fundo da mesa também é "jogo novo" para quem arrasta cartas (soltar em qualquer lugar vazio).
   return `<div class="mesa" data-destino="novo"><div class="jogos">${jogos}${vazio}</div></div>`;
@@ -169,8 +190,9 @@ function htmlMao(e: Estado, p: Partida): string {
     .join('');
   // Botão no lugar fixo da linha "Suas cartas": com 3 cartas da mão que formam jogo é "Baixar jogo";
   // com qualquer outra escolha é "Novo jogo" (coloca as cartas escolhidas num jogo novo).
+  // Sem escolha, um botão invisível guarda o lugar (escolher uma carta não pode mexer na altura da tela).
   const botaoJogo = e.computadorJogando || !e.selecionadas.length
-    ? ''
+    ? `<button class="baixar-jogo novo reservado" tabindex="-1" aria-hidden="true" disabled><span class="icone-baixar">${ICONES.novo}</span>Novo jogo</button>`
     : podeBaixarJogo(p, e.selecionadas)
       ? `<button class="baixar-jogo" data-acao="baixarJogo"><span class="icone-baixar">${ICONES.baixar}</span>Baixar jogo</button>`
       : `<button class="baixar-jogo novo" data-acao="baixarJogo"><span class="icone-baixar">${ICONES.novo}</span>Novo jogo</button>`;
@@ -455,14 +477,19 @@ export function htmlFim(p: Partida, camp: Campeonato | null = null, online: Onli
       ? '<button class="grande" data-acao="proximaRodada">Próxima rodada</button>'
       : `<button class="grande" data-acao="novaPartida">${camp ? 'Novo campeonato' : 'Jogar de novo'}</button>`;
   return `<div class="fundo-janela"><div class="janela janela-fim">
-    <div class="emoji">${emoji}</div>
-    <h2>${titulo}</h2>
-    ${explicacao}
-    <div class="maos-finais">${maos}</div>
-    ${campanha}
-    ${botao}
-    <button class="grande secundario" data-acao="fecharJanela">Ver a mesa</button>
-    ${online ? '<button class="link-diario" data-acao="onlineSair">Sair da sala</button>' : ''}
+    <div class="corpo-fim">
+      <div class="emoji">${emoji}</div>
+      <h2>${titulo}</h2>
+      ${explicacao}
+      ${camp ? htmlPlacarFim(camp, p, rodada) : ''}
+      <div class="maos-finais">${maos}</div>
+      ${campanha}
+    </div>
+    <div class="rodape-fim">
+      ${botao}
+      <button class="grande secundario" data-acao="fecharJanela">Ver a mesa</button>
+      ${online ? '<button class="link-diario" data-acao="onlineSair">Sair da sala</button>' : ''}
+    </div>
   </div></div>`;
 }
 

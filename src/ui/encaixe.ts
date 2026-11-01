@@ -10,6 +10,8 @@ function definir(variavel: string, px: number) {
 }
 
 let ultimaChave = '';
+/** A mesa é refeita a cada desenho. Se o cálculo é pulado, ela precisa receber de volta a marca de "rolável". */
+let ultimaRolavel = false;
 
 /**
  * "chave" resume o que muda o tamanho (jogos da mesa, quantas cartas na mão, tamanho da tela).
@@ -20,9 +22,16 @@ export function encaixar(chave = '') {
   const mao = document.querySelector<HTMLElement>('.mao');
   if (!mesa || !mao) return;
   const chaveCompleta = `${chave}|${window.innerWidth}x${window.innerHeight}`;
-  if (chave && chaveCompleta === ultimaChave) return;
+  if (chave && chaveCompleta === ultimaChave) {
+    mesa.classList.toggle('rolavel', ultimaRolavel);
+    return;
+  }
   ultimaChave = chaveCompleta;
+  encaixarTudo(mesa, mao);
+  ultimaRolavel = mesa.classList.contains('rolavel');
+}
 
+function encaixarTudo(mesa: HTMLElement, mao: HTMLElement) {
   const largura = window.innerWidth;
   const altura = window.innerHeight;
 

@@ -40,7 +40,7 @@ for (const visual of ['idade', 'bonito']) {
       await pg.goto(URL + (cheia ? '#cheia' : '#'));
       await pg.evaluate(MONTAR);
       await pg.reload();
-      await pg.getByText('Continuar partida').click();
+      await pg.getByText('Continuar partida').click({ timeout: 2000 }).catch(() => {}); // se a página já abriu direto no jogo, não há botão
       await pg.waitForTimeout(500);
       const sufixo = cheia ? '-cheia' : '';
       await foto(`1-jogo${sufixo}`);
