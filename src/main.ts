@@ -22,7 +22,7 @@ import {
   carregarConta, enviarAgora, iniciarNuvem, levarProgressoSemConta, progressoSemConta, sairDaConta,
   sincronizar, situacaoAtual, trocarGaveta, usuarioAtual, type Situacao,
 } from './nuvem/sincronia';
-import { descreverPasso, ordenarMao, TEXTOS } from './ui/textos';
+import { descreverPasso, ordenarMao, resumoDoPasso, TEXTOS } from './ui/textos';
 import { ligarToque } from './ui/toque';
 import { animarMovimento, capturarPosicoes, movimentosUmAUm } from './ui/animacao';
 
@@ -548,7 +548,7 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
   while (e.partida && !e.partida.resultado && e.partida.vez !== 0) {
     const p: Partida = e.partida;
     const quem = jogadorDaVez(p).nome;
-    e.aviso = { texto: `Vez do ${quem}… pensando`, tipo: 'computador' };
+    e.aviso = { texto: `Vez do ${quem}… pensando`, tipo: 'computador', curto: 'pensando…' };
     desenhar();
     await esperar(tempo.pensando);
 
@@ -567,7 +567,7 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
       let mesaAnterior = p.mesa;
       for (const passo of jogada.passos) {
         // 1) Primeiro diz o que vai fazer...
-        e.aviso = { texto: descreverPasso(passo, `O ${quem}`, p.regras), tipo: 'computador' };
+        e.aviso = { texto: descreverPasso(passo, `O ${quem}`, p.regras), tipo: 'computador', curto: resumoDoPasso(passo) };
         e.destaques = passo.jogoIds;
         e.mesaExibida = mesaAnterior;
         desenhar();
@@ -597,7 +597,7 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
     } else {
       const compra = comprarEPassar(p);
       if (compra.ok) e.partida = compra.partida;
-      e.aviso = { texto: `O ${quem} não tinha jogo e comprou uma carta.`, tipo: 'computador' };
+      e.aviso = { texto: `O ${quem} não tinha jogo e comprou uma carta.`, tipo: 'computador', curto: 'comprou uma carta' };
       desenhar();
       await esperar(tempo.compra);
     }

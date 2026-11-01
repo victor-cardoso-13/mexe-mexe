@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Mock — barra de frases</title>
+<style>
+body{font-family:Nunito,system-ui,sans-serif;background:#e9e2d6;margin:0;padding:16px;color:#3b2f2a}
+h1{font-size:22px;margin:0 0 4px} p.sub{margin:0 0 14px;font-size:15px}
+.opcao{margin-bottom:34px} .opcao h2{font-size:19px;margin:0 0 2px} .opcao .desc{font-size:14px;margin:0 0 10px;max-width:900px}
+.linha{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.tel{width:240px;height:520px;background:#f6efe3;border-radius:22px;border:3px solid #3b2f2a;position:relative;overflow:hidden;display:flex;flex-direction:column;font-size:11px}
+.tel .rot{position:absolute;top:-1px;left:0;right:0;font-size:10px;background:#3b2f2a;color:#fff;text-align:center;padding:1px;z-index:9}
+.topo{display:flex;gap:4px;padding:18px 6px 4px;align-items:center}
+.pil{background:#fff;border:2px solid #3b2f2a;border-radius:99px;padding:2px 7px;font-weight:800;font-size:11px}
+.pil.vez{background:#dfefff}
+.mesa{margin:4px 6px;background:#1f5a3d;border-radius:12px;flex:1;position:relative;padding:8px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}
+.jogo{border:2px solid #4fc98a;border-radius:7px;padding:2px;display:flex}
+.c{width:20px;height:28px;background:#fff;border-radius:3px;border:1px solid #3b2f2a;margin-left:-8px;font-weight:900;font-size:10px;padding:1px}
+.c:first-child{margin-left:0} .r{color:#c00}
+.ml{padding:2px 8px;font-weight:800;font-size:12px;display:flex;justify-content:space-between;align-items:center;height:20px}
+.mao{margin:0 6px 4px;padding:6px;display:flex;gap:3px;border-radius:12px;height:70px;align-items:flex-start}
+.mao .c{width:30px;height:44px;margin:0;font-size:12px}
+.mao.aro{box-shadow:inset 0 0 0 3px #e8a317}
+.bot{display:flex;gap:4px;padding:0 6px 8px} .bot div{flex:1;background:#fff;border:2px solid #3b2f2a;border-radius:8px;font-size:10px;font-weight:800;text-align:center;padding:5px 0} .bot .ouro{background:#f4cf6f}
+.barra{margin:2px 6px;background:#e8f0ff;color:#0c2d57;border-radius:99px;padding:6px 10px;font-weight:800;font-size:12px;min-height:30px;display:flex;align-items:center;gap:6px}
+.barra.p{background:#ffe1e1;color:#8a0f1f} .barra.d{background:#fff8d6;color:#3a2e00}
+.barra .b{margin-left:auto;background:#3b2f2a;color:#fff;border-radius:99px;padding:3px 8px;font-size:10px;white-space:nowrap}
+.chip{position:absolute;left:8px;right:8px;top:6px;background:#e8f0ff;color:#0c2d57;border-radius:12px;padding:6px 9px;font-weight:800;font-size:11.5px;box-shadow:0 3px 10px #0005;display:flex;gap:6px;align-items:center;z-index:5}
+.chip.p{background:#ffe1e1;color:#8a0f1f} .chip.d{background:#fff8d6;color:#3a2e00}
+.chip .b{margin-left:auto;background:#3b2f2a;color:#fff;border-radius:99px;padding:3px 8px;font-size:10px;white-space:nowrap}
+.chip .x{margin-left:auto;font-size:13px}
+.nota{font-size:11px;color:#6b5d56;margin-top:4px;max-width:240px}
+</style>
+<h1>Barra de frases — 3 jeitos</h1>
+<p class="sub">Cada celular mostra um momento do jogo (da esquerda para a direita): <b>sua vez · adversário jogou · problema · dica</b>. Mock só para escolher; nada disso está no jogo ainda.</p>
+<div id="app"></div>
+<script>
+const jogos='<div class="jogo"><div class="c">7</div><div class="c">8</div><div class="c">9</div></div><div class="jogo"><div class="c">K</div><div class="c r">K</div><div class="c">K</div></div><div class="jogo"><div class="c r">3</div><div class="c r">4</div><div class="c r">5</div><div class="c r">6</div></div><div class="jogo"><div class="c">9</div><div class="c r">9</div><div class="c">9</div></div>';
+const mao=(aro)=>`<div class="mao ${aro?'aro':''}">${'2 5 7 Q J K 3 9'.split(' ').map((v,i)=>`<div class="c ${i%3==1?'r':''}">${v}</div>`).join('')}</div>`;
+const bot='<div class="bot"><div>Desfazer</div><div>Ordenar</div><div>Dica</div><div class="ouro">Comprar</div></div>';
+const topo=(vez)=>`<div class="topo"><div class="pil">⏸</div><div class="pil ${vez?'vez':''}">Adv. (9)</div><div style="flex:1"></div><div class="pil">Monte: 63</div><div class="pil">⚙</div></div>`;
+const maoLinha=(txt)=>`<div class="ml"><span>Suas cartas (9)</span><span>${txt||''}</span></div>`;
+const tel=(rot,conteudo)=>`<div class="tel"><div class="rot">${rot}</div>${conteudo}</div>`;
+const estados=['Sua vez','Adversário jogou','Problema','Dica'];
+const textos={a:'O Adversário colocou K♣ no jogo K♠ K♦ K♣.',p:'Um jogo precisa de pelo menos 3 cartas.',d:'💡 Ponha o 5♥ no jogo 3-4-5-6♥'};
+// A: chip flutuante sobre a mesa
+const A=[
+ tel('Sua vez',topo(0)+`<div class="mesa">${jogos}</div>`+maoLinha()+mao(1)+bot),
+ tel('Adversário jogou',topo(1)+`<div class="mesa">${jogos}<div class="chip">${textos.a}</div></div>`+maoLinha()+mao(0)+bot),
+ tel('Problema',topo(0)+`<div class="mesa">${jogos}<div class="chip p">${textos.p}</div></div>`+maoLinha()+mao(1)+bot),
+ tel('Dica',topo(0)+`<div class="mesa">${jogos}<div class="chip d">${textos.d}<span class="b">Fazer para mim</span></div></div>`+maoLinha()+mao(1)+bot),
+];
+// B: tudo no topo / linha da mão
+const B=[
+ tel('Sua vez',topo(0)+`<div class="mesa">${jogos}</div>`+maoLinha('✋ Sua vez')+mao(1)+bot),
+ tel('Adversário jogou',topo(1).replace('Adv. (9)','Adv. (8) · pôs K♣')+`<div class="mesa">${jogos}</div>`+maoLinha()+mao(0)+bot),
+ tel('Problema',topo(0)+`<div class="mesa">${jogos}</div>`+maoLinha('⚠ Falta carta no jogo')+mao(1)+bot),
+ tel('Dica',topo(0)+`<div class="mesa">${jogos}</div>`+maoLinha('💡 Fazer para mim ▸')+mao(1)+bot),
+];
+// C: barra só quando há mensagem (hoje é sempre)
+const C=[
+ tel('Sua vez',topo(0)+`<div class="mesa">${jogos}</div>`+maoLinha()+mao(1)+bot),
+ tel('Adversário jogou',topo(1)+`<div class="barra">${textos.a}</div><div class="mesa">${jogos}</div>`+maoLinha()+mao(0)+bot),
+ tel('Problema',topo(0)+`<div class="barra p">${textos.p}</div><div class="mesa">${jogos}</div>`+maoLinha()+mao(1)+bot),
+ tel('Dica',topo(0)+`<div class="barra d">${textos.d}<span class="b">Fazer para mim</span></div><div class="mesa">${jogos}</div>`+maoLinha()+mao(1)+bot),
+];
+const op=(t,d,l)=>`<div class="opcao"><h2>${t}</h2><p class="desc">${d}</p><div class="linha">${l.join('')}</div></div>`;
+app.innerHTML=
+ op('A) Aviso flutuante sobre a mesa (minha sugestão)','Não ocupa linha nenhuma: aparece como uma etiqueta em cima da mesa só quando há o que dizer. "Sua vez" não precisa de texto, o aro dourado na mão já avisa. Frases do adversário somem sozinhas depois de uns segundos; problema e dica ficam até você resolver. A mesa ganha a linha inteira de volta (~55 px no celular). Risco: a etiqueta cobre um pouquinho a primeira fileira de jogos.',A)+
+ op('B) Sem barra: frase dentro de linhas que já existem','"Sua vez / problema / dica" na linha "Suas cartas (9)"; o que o adversário fez aparece na pílula dele, lá em cima. Nada cobre a mesa, mas as frases ficam bem curtas e o botão "Fazer para mim" fica miúdo.',B)+
+ op('C) Barra só quando há mensagem','Igual a hoje, mas a barra some quando não tem nada a dizer. Simples, porém a mesa e as cartas pulam de tamanho a cada mensagem (era o problema que corrigimos antes). Só para comparar.',C);
+</script>

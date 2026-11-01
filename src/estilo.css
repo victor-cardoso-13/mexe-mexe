@@ -50,7 +50,7 @@ button {
 .tela-jogo {
   height: 100%;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   grid-template-columns: minmax(0, 1fr); /* nada pode deixar a tela mais larga que o aparelho */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
@@ -868,7 +868,7 @@ body.idade .tempo-vez { border: 2px solid var(--tinta); box-shadow: none; font-s
 @media (max-width: 600px), (max-height: 500px) {
   .nome-longo { display: none; }
   .nome-curto { display: inline; }
-  .topo .adversario .versos { display: none; }
+  .topo.varios .adversario .versos { display: none; }
 }
 /* 3 adversários: sem as cartinhas viradas, para o topo caber (o número já diz quantas cartas têm). */
 .topo.muitos .adversario .versos { display: none; }
@@ -888,3 +888,30 @@ body.idade .tempo-vez { border: 2px solid var(--tinta); box-shadow: none; font-s
   body.idade .topo .adversario, body.bonito .topo .adversario { padding: 3px 5px; }
   body.idade .topo .adversario .nome, body.bonito .topo .adversario .nome { font-size: 12px; }
 }
+
+/* Sua vez: um aro âmbar em volta da mão (é desenhado por dentro, então nada muda de tamanho). */
+.area-mao { border-radius: 20px; transition: box-shadow .25s; }
+.area-mao.sua-vez { box-shadow: inset 0 0 0 4px #e8a317, 0 0 14px #e8a31766; }
+
+/* ---------- Frase do momento: dentro da linha "Suas cartas" (e na pílula do adversário) ---------- */
+.rotulo-mao { gap: 8px; }
+.rotulo-mao .msg-mao {
+  flex: 1; min-width: 0; font-size: 14px; font-weight: 800; line-height: 1.15; color: #0c2d57;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.rotulo-mao .msg-mao.problema { color: #8a0f1f; }
+.rotulo-mao .msg-mao.computador { color: #0c2d57; }
+.espaco-baixar .acao {
+  background: var(--tinta); color: #fff; border: 0; border-radius: 99px; padding: 9px 16px;
+  font-size: 16px; font-weight: 800; white-space: nowrap;
+}
+.topo .adversario .fala { font-size: .8em; font-weight: 700; color: #0c2d57; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw; }
+.topo .adversario.da-vez { background: #dfefff; }
+/* O botão escondido só guarda a altura da linha; não precisa guardar a largura (a frase usa o espaço). */
+.baixar-jogo.reservado { width: 0; padding-left: 0; padding-right: 0; border-width: 0; overflow: hidden; }
+@media (max-width: 600px), (max-height: 500px) {
+  .topo.varios .adversario .fala { max-width: 20vw; }
+}
+/* Altura FIXA da linha "Suas cartas": a frase (1 ou 2 linhas) não pode mexer no tamanho da mesa nem da mão. */
+.tela-jogo .rotulo-mao { box-sizing: border-box; height: 46px; min-height: 0; overflow: hidden; }
+@media (max-height: 500px) { .tela-jogo .rotulo-mao { height: 36px; } }
