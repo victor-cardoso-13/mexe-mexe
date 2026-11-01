@@ -66,7 +66,7 @@ export type RespostaAcao = { ok: true; partida: Partida } | { ok: false; motivo:
 
 export function novaPartida(regras: Regras, semente: number, nomes?: string[]): Partida {
   const qtdAdversarios = Math.min(3, Math.max(1, regras.adversarios));
-  const nomesPadrao = ['Você', 'Computador', 'Computador 2', 'Computador 3'];
+  const nomesPadrao = ['Você', 'Adversário', 'Adversário 2', 'Adversário 3'];
 
   const { lista: monte, semente: s } = embaralhar(criarMonte(regras), semente);
 
