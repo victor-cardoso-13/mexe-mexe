@@ -51,3 +51,19 @@ export function situacaoDoCampeonato(c: Campeonato): Situacao {
 export function proximaRodada(c: Campeonato): Campeonato {
   return { ...c, rodada: c.rodada + 1 };
 }
+
+export interface LinhaDoPlacar {
+  /** Índice do jogador (0 = você). */
+  jogador: number;
+  pontos: number;
+  /** 1 = quem está ganhando (menos pontos). Empatados dividem a mesma posição. */
+  posicao: number;
+}
+
+/** O placar em ordem: do campeão até o momento (menos pontos) ao último. */
+export function ordemDoPlacar(totais: number[]): LinhaDoPlacar[] {
+  const ordem = totais.map((pontos, jogador) => ({ jogador, pontos })).sort((a, b) => a.pontos - b.pontos || a.jogador - b.jogador);
+  const linhas: LinhaDoPlacar[] = [];
+  ordem.forEach((l, k) => linhas.push({ ...l, posicao: k > 0 && ordem[k - 1].pontos === l.pontos ? linhas[k - 1].posicao : k + 1 }));
+  return linhas;
+}

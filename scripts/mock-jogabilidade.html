@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock — jogabilidade do Mexe-Mexe (botão +, rolagem, vez do computador)</title>
+<style>
+  :root { --tinta:#3b2f2a; --mesa:#1f5a3d; --azul:#0057d9; --creme:#f7f0e4; --verde:#3fbf6a; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px; background:var(--creme); color:var(--tinta); font:17px/1.4 system-ui, sans-serif; }
+  h1 { font-size:26px; margin:0 0 4px; }
+  h2 { font-size:22px; margin:34px 0 6px; border-top:3px solid var(--tinta); padding-top:14px; }
+  p.nota { max-width:760px; margin:4px 0 12px; }
+  .linha { display:flex; flex-wrap:wrap; gap:22px; align-items:flex-start; }
+  figure { margin:0; }
+  figcaption { font-weight:800; margin-bottom:6px; }
+  figcaption small { display:block; font-weight:600; opacity:.8; }
+  .ruim figcaption { color:#b3261e; } .bom figcaption { color:#1b7a3a; }
+
+  /* --- carta e jogo (parecidos com os do jogo, em tamanho de iPhone) --- */
+  .mesa { background:var(--mesa); border-radius:16px; padding:18px 14px 14px; display:flex; flex-wrap:wrap; gap:26px 18px; align-items:flex-start; }
+  .jogo { position:relative; display:flex; padding:4px; border:3px solid var(--verde); border-radius:10px; background:#ffffff1a; }
+  .carta { width:40px; height:56px; background:#fff; border-radius:5px; box-shadow:0 2px 4px #0006; font-weight:800; font-size:15px; padding:3px 4px; color:#111; flex:none; }
+  .carta.v { color:#c62828; }
+  .jogo > .carta + .carta { margin-left:-17px; }
+  .toque { position:absolute; border:2px dashed #ffd400; background:#ffd40030; border-radius:8px; pointer-events:none; }
+  .toque::after { content:"área de toque"; position:absolute; left:2px; bottom:-15px; font:700 10px/1 system-ui; color:#ffd400; white-space:nowrap; }
+
+  /* Hoje: bolinha de 30px em cima da última carta */
+  .hoje .mais { position:absolute; right:-6px; top:-10px; width:30px; height:30px; border-radius:50%; background:var(--azul); border:2px solid #fff; color:#fff; font:800 22px/26px system-ui; text-align:center; }
+
+  /* Proposta A: botão grande ENCOSTADO no lado do jogo, fora das cartas */
+  .A .jogo { padding-right:4px; }
+  .A .mais { align-self:stretch; width:50px; margin-left:8px; margin-right:-2px; border-radius:10px; background:var(--azul); border:2px solid #fff; color:#fff; font:800 30px/1 system-ui; display:grid; place-items:center; min-height:56px; }
+
+  /* Proposta B: bolinha grande SOBRE a borda de cima, afastada das cartas */
+  .B .mesa { padding-top:34px; }
+  .B .mais { position:absolute; right:-4px; top:-30px; width:48px; height:48px; border-radius:50%; background:var(--azul); border:3px solid #fff; color:#fff; font:800 30px/42px system-ui; text-align:center; }
+
+  /* --- celular --- */
+  .cel { width:300px; border:6px solid #222; border-radius:30px; background:var(--creme); padding:8px; position:relative; overflow:hidden; height:560px; display:flex; flex-direction:column; gap:6px; }
+  .topo { display:flex; justify-content:space-between; font-weight:800; font-size:13px; }
+  .topo span { background:#fff; border-radius:99px; padding:3px 10px; }
+  .aviso { background:#fff; border-radius:99px; text-align:center; font-weight:800; font-size:13px; padding:5px 8px; }
+  .aviso.pc { background:#ffe8b0; }
+  .cel .mesa { flex:1; min-height:0; overflow:hidden; position:relative; padding:12px 8px; gap:18px 10px; align-content:flex-start; }
+  .cel .carta { width:30px; height:42px; font-size:12px; }
+  .cel .jogo > .carta + .carta { margin-left:-13px; }
+  .cel .jogo { border-width:2px; padding:3px; }
+  .cel .mao { display:flex; gap:4px; flex-wrap:wrap; height:94px; }
+  .cel .mao .carta { width:34px; height:48px; }
+  .rotulo { font-weight:800; font-size:13px; }
+  .voa { position:absolute; z-index:9; box-shadow:0 0 0 4px #ffd400, 0 8px 18px #0008; }
+  .cobre { background:#ffd400; color:#000; font:800 11px/1.2 system-ui; padding:2px 6px; border-radius:6px; position:absolute; z-index:10; }
+  .escondido { opacity:.25; }
+  table.med { border-collapse:collapse; max-width:900px; font-size:15px; margin:6px 0; }
+  table.med th, table.med td { border:2px solid var(--tinta); padding:6px 9px; text-align:left; vertical-align:top; background:#fff; }
+  table.med th { background:#ecdcc4; }
+  td.r { background:#ffe3e0 !important; } td.g { background:#dff3e4 !important; }
+  .pilula { background:#fff; border-radius:99px; padding:3px 9px; font-size:11px; font-weight:800; border:2px solid var(--tinta); }
+  .pilula i { opacity:.55; font-style:normal; }
+  .placar2 { display:flex; align-items:stretch; gap:6px; background:#fff; border:3px solid var(--tinta); border-radius:14px; padding:6px 8px; }
+  .placar2 .lado { flex:1; text-align:center; }
+  .placar2 .lado small { display:block; font-size:10px; font-weight:800; letter-spacing:.06em; }
+  .placar2 .lado b { font-size:32px; line-height:1; display:block; }
+  .placar2 .lado b.perigo { color:#b3261e; }
+  .placar2 .meio { display:flex; flex-direction:column; justify-content:center; text-align:center; opacity:.75; }
+  .placar2 .meio small { font-size:10px; font-weight:800; }
+  .barra { height:7px; border-radius:9px; background:#e6dccd; margin-top:4px; overflow:hidden; } .barra i { display:block; height:100%; background:#1d6b40; }
+  .delta { display:inline-block; margin-top:3px; font-size:11px; font-weight:800; background:#ffe3e0; color:#b3261e; border-radius:9px; padding:1px 6px; } .delta.zero { background:#dff3e4; color:#1b7a3a; }
+  .jan { background:#fff7ea; color:var(--tinta); border-radius:18px; padding:12px 10px; display:flex; flex-direction:column; gap:8px; margin-top:30px; }
+  .jan .placar2 { border-width:2px; }
+  .nota-mini { font-size:11px; text-align:center; opacity:.8; }
+  .botao-fake { background:#1d6b40; color:#fff; border-radius:12px; padding:9px; text-align:center; font-weight:800; font-size:14px; } .botao-fake.sec { background:#fff; color:var(--tinta); border:2px solid var(--tinta); }
+  .zona { position:absolute; right:-17px; top:-21px; width:48px; height:48px; border:2px dashed #ffd400; background:#ffd40040; border-radius:10px; }
+  .C .mais { position:absolute; right:-6px; top:-10px; width:30px; height:30px; border-radius:50%; background:var(--azul); border:2px solid #fff; color:#fff; font:800 22px/26px system-ui; text-align:center; z-index:3; }
+  .C .jogo .carta:last-of-type { box-shadow:0 2px 4px #0006; }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; font-weight:800; font-size:11px; }
+  .chips span { background:#fff; border-radius:99px; padding:3px 8px; border:2px solid var(--tinta); }
+  .chips span b { font-weight:800; } .chips .alto { background:#ffe8b0; } .chips .eu { background:#dff3e4; }
+  .rotulo2 { font-weight:800; font-size:13px; } .rotulo2 small { font-size:12px; opacity:.8; font-weight:700; }
+  .lista { display:flex; flex-direction:column; gap:5px; background:#fff; border:2px solid var(--tinta); border-radius:12px; padding:6px 8px; }
+  .lista .lin { display:grid; grid-template-columns:78px 30px 1fr 62px; align-items:center; gap:6px; font-size:12px; font-weight:800; }
+  .lista .lin b { font-size:22px; line-height:1; text-align:right; }
+  .lista .lin .barra { margin:0; height:9px; }
+  .lista .lin.lider i { background:#1d6b40; } .lista .lin .d { font-size:10px; text-align:center; border-radius:8px; padding:1px 3px; background:#ffe3e0; color:#b3261e; } .lista .lin .d.z { background:#dff3e4; color:#1b7a3a; }
+  .seta { position:absolute; z-index:11; font:800 12px/1.2 system-ui; background:#ffd400; color:#000; padding:3px 8px; border-radius:99px; left:50%; transform:translateX(-50%); }
+</style>
+</head>
+<body>
+
+<h1>Mexe-Mexe — 3 melhorias de jogabilidade (MOCK)</h1>
+<p class="nota">Isto é só um desenho para aprovar. O jogo ainda <b>não</b> foi mexido. Cada item mostra "hoje" e "proposta".</p>
+
+<!-- ============================ 1 ============================ -->
+<h2>1) Botão “+” difícil de acertar</h2>
+<p class="nota"><b>Por que erra hoje:</b> a bolinha “+” tem só 30 px, fica <b>por cima do canto da última carta</b> e “não recebe toque” (o toque passa direto para a carta embaixo). Se você já escolheu uma carta da mesa, tocar na carta só escolhe mais uma — por isso parece que o “+” não funciona.</p>
+<div class="linha">
+  <figure class="ruim hoje">
+    <figcaption>Hoje <small>30 px, em cima da carta</small></figcaption>
+    <div class="mesa"><div class="jogo"><div class="carta">7<br>♣</div><div class="carta v">8<br>♥</div><div class="carta">9<br>♣</div><div class="carta">10<br>♣</div><div class="mais">+</div></div></div>
+  </figure>
+  <figure class="bom A">
+    <figcaption>Proposta A (recomendo) <small>botão de 50 px ao LADO do jogo, sem tocar nas cartas</small></figcaption>
+    <div class="mesa"><div class="jogo"><div class="carta">7<br>♣</div><div class="carta v">8<br>♥</div><div class="carta">9<br>♣</div><div class="carta">10<br>♣</div><div class="mais">+</div></div></div>
+  </figure>
+  <figure class="bom B">
+    <figcaption>Proposta B <small>bolinha de 48 px acima do canto, afastada</small></figcaption>
+    <div class="mesa"><div class="jogo"><div class="carta">7<br>♣</div><div class="carta v">8<br>♥</div><div class="carta">9<br>♣</div><div class="carta">10<br>♣</div><div class="mais">+</div></div></div>
+  </figure>
+</div>
+<p class="nota">Nas duas propostas o “+” vira um <b>botão de verdade</b> (recebe o toque sozinho) e o dedo nunca cai na carta por engano. A fica mais fácil de acertar (alvo largo e na altura da carta); B gasta menos largura, mas fica perto da borda do jogo de cima.</p>
+
+<h3 style="margin:18px 0 4px">1b) Medi o que o “+” ao lado faz com as fileiras (mesa de teste com 10 jogos)</h3>
+<p class="nota">Seu receio está certo: se o “+” só aparecesse ao escolher a carta, os jogos <b>pulariam de fileira</b> a cada toque. Por isso o espaço do “+” precisa existir o tempo todo. Medi nos aparelhos:</p>
+<table class="med">
+  <tr><th>Aparelho</th><th>Hoje</th><th>A: “+” ao lado (50 px sempre reservados)</th><th>B: “+” em cima, numa faixa livre entre fileiras</th></tr>
+  <tr><td>iPad deitado</td><td>cartas 70 px · 2 fileiras</td><td class="r">cartas <b>60 px</b> · 3 fileiras</td><td class="g">cartas 70 px · 2 fileiras (igual)</td></tr>
+  <tr><td>iPad em pé</td><td>cartas 84 px</td><td class="r">cartas <b>70 px</b></td><td class="r">cartas <b>69 px</b> (fileiras 3-3-3-1)</td></tr>
+  <tr><td>iPhone 440×800</td><td>4 fileiras</td><td class="r"><b>5 fileiras</b> (2 jogos por fileira)</td><td class="g">4 fileiras (igual)</td></tr>
+  <tr><td>iPhone 390×844</td><td>5 fileiras</td><td class="r"><b>6 fileiras</b></td><td class="g">5 fileiras (igual)</td></tr>
+  <tr><td>iPhone deitado</td><td>7 + 3</td><td class="r">5 + 5</td><td class="g">7 + 3 (igual)</td></tr>
+</table>
+<p class="nota"><b>Atualização, pela sua resposta:</b> fica o “+” como está hoje (bolinha por cima do canto) — <b>nada muda em largura nem em fileiras</b>, então nenhum jogo pula. O que muda é a <b>área de toque</b>: ela cresce de 30 para ~48 px e passa a valer também sobre a parte de cima da última carta. Para tocar na carta, o dedo precisa ir mais para baixo.</p>
+<div class="linha">
+  <figure class="ruim hoje"><figcaption>Hoje <small>área de toque = só a bolinha, e o toque passa para a carta</small></figcaption>
+    <div class="mesa"><div class="jogo"><div class="carta">7<br>♣</div><div class="carta v">8<br>♥</div><div class="carta">9<br>♣</div><div class="carta">10<br>♣</div><div class="mais">+</div><div class="toque" style="right:-6px;top:-10px;width:30px;height:30px;border-radius:50%"></div></div></div></figure>
+  <figure class="bom C"><figcaption>Proposta <small>mesma bolinha, área de toque 48 px (amarelo tracejado)</small></figcaption>
+    <div class="mesa"><div class="jogo"><div class="carta">7<br>♣</div><div class="carta v">8<br>♥</div><div class="carta">9<br>♣</div><div class="carta">10<br>♣</div><div class="mais">+</div><div class="zona"></div></div></div></figure>
+</div>
+<p class="nota">A área amarela é <b>invisível</b> no jogo. Ela vai um pouco para cima e para fora (sem invadir as cartas dos vizinhos) e ~30 px para baixo/esquerda, por cima do canto de cima da última carta. Para quem já escolheu uma carta da mão, tocar em qualquer parte do jogo continua mandando a carta para lá; a mudança ajuda sobretudo quando a carta escolhida é da mesa.</p>
+
+<!-- ============================ 2 ============================ -->
+<h2>2) Escolher uma carta da mão não pode mexer na rolagem</h2>
+<p class="nota"><b>Causa encontrada (reproduzida no simulador):</b> o jogo só recalcula o encaixe quando o tamanho muda; nos toques seguintes ele <b>pula o cálculo</b>, mas a mesa é redesenhada do zero e perde a marca “pode rolar”. Resultado no iPhone: ao escolher a <b>1ª carta</b> da mão tudo bem; ao escolher a <b>2ª</b> a mesa vira “travada” (<code>overflow: hidden</code>) e a rolagem some/volta para cima. Por isso acontecia “sempre que seleciono carta com a rolagem lá embaixo”. Além disso, o botão “Novo jogo” aparece e a mesa encolhe 8 px e o quadrado pontilhado cresce o conteúdo 18 px.</p>
+<p class="nota"><b>Como vou resolver (sem desenho novo):</b></p>
+<ul class="nota">
+  <li><b>Principal:</b> a marca “pode rolar” é reposta em todo redesenho, mesmo quando o cálculo é pulado.</li>
+  <li>O quadrado “jogo novo” e a faixa de aviso passam a ocupar o espaço <b>o tempo todo</b> (só ficam invisíveis quando não há carta escolhida). Assim, escolher uma carta <b>não muda a altura de nada</b>.</li>
+  <li>A posição da rolagem é guardada antes e devolvida depois de cada redesenho (inclusive no quadro seguinte), e só a vez do computador pode rolar a mesa.</li>
+  <li>Vou provar com teste automático: rola até embaixo, escolhe a carta e confere que a mesa <b>não andou nem 1 pixel</b>. (Não consegui reproduzir o pulo no simulador do Mac, então peço que você confirme no seu iPhone depois.)</li>
+</ul>
+
+<!-- ============================ 3 ============================ -->
+<h2>3) Vez do computador fora da área visível</h2>
+<p class="nota"><b>Causa achada:</b> durante a jogada dele, o código libera a mesa para “vazar” (<code>overflow: visible</code>) para a carta que voa poder passar por cima de tudo. Só que isso também faz os jogos que estavam escondidos pela rolagem aparecerem <b>por cima da sua mão</b>, e a mesa pula para o topo. Além disso, o jogo onde ele joga pode estar fora da tela e ninguém vê.</p>
+<div class="linha">
+  <figure class="ruim">
+    <figcaption>Hoje <small>cartas passam por cima da mão</small></figcaption>
+    <div class="cel">
+      <div class="topo"><span>Computador ▮▮▮▮</span><span>Monte: 12</span></div>
+      <div class="aviso pc">O Computador vai baixar 3 cartas…</div>
+      <div class="mesa" style="overflow:visible">
+        <div class="jogo"><div class="carta">3<br>♠</div><div class="carta">4<br>♠</div><div class="carta">5<br>♠</div></div>
+        <div class="jogo"><div class="carta">9<br>♥</div><div class="carta">9<br>♣</div><div class="carta">9<br>♦</div></div>
+        <div class="jogo"><div class="carta">J<br>♦</div><div class="carta v">Q<br>♦</div><div class="carta">K<br>♦</div></div>
+        <div class="jogo"><div class="carta">2<br>♣</div><div class="carta">3<br>♣</div><div class="carta">4<br>♣</div></div>
+        <div class="jogo"><div class="carta">8<br>♥</div><div class="carta">8<br>♠</div><div class="carta">8<br>♦</div></div>
+        <div class="jogo"><div class="carta">5<br>♦</div><div class="carta">6<br>♦</div><div class="carta">7<br>♦</div></div>
+        <div class="jogo" style="position:relative;top:70px"><div class="carta">A<br>♠</div><div class="carta">2<br>♠</div><div class="carta v voa" style="position:relative;left:-6px;box-shadow:0 0 0 4px #ffd400">3<br>♠</div></div>
+      </div>
+      <div class="rotulo">Suas cartas (9)</div>
+      <div class="mao"><div class="carta v">2<br>♥</div><div class="carta v">5<br>♥</div><div class="carta v">6<br>♥</div><div class="carta v">7<br>♥</div><div class="carta">8<br>♠</div><div class="carta v">A<br>♦</div></div>
+      <span class="cobre" style="left:90px;top:405px">← jogo do computador por cima da sua mão</span>
+    </div>
+  </figure>
+
+  <figure class="bom">
+    <figcaption>Proposta <small>a mesa rola SOZINHA até o jogo, e nada passa da borda verde</small></figcaption>
+    <div class="cel">
+      <div class="topo"><span>Computador ▮▮▮▮</span><span>Monte: 12</span></div>
+      <div class="aviso pc">O Computador baixa 3 ♠ no jogo A♠ 2♠ ↓</div>
+      <div class="mesa">
+        <div class="jogo"><div class="carta">8<br>♥</div><div class="carta">8<br>♠</div><div class="carta">8<br>♦</div></div>
+        <div class="jogo"><div class="carta">5<br>♦</div><div class="carta">6<br>♦</div><div class="carta">7<br>♦</div></div>
+        <div class="jogo" style="box-shadow:0 0 0 4px #ffd400"><div class="carta">A<br>♠</div><div class="carta">2<br>♠</div><div class="carta v voa" style="position:relative;left:0;box-shadow:0 0 0 4px #ffd400">3<br>♠</div></div>
+        <span class="seta" style="bottom:6px">▲ jogos de cima: role para ver</span>
+      </div>
+      <div class="rotulo">Suas cartas (9)</div>
+      <div class="mao"><div class="carta v">2<br>♥</div><div class="carta v">5<br>♥</div><div class="carta v">6<br>♥</div><div class="carta v">7<br>♥</div><div class="carta">8<br>♠</div><div class="carta v">A<br>♦</div></div>
+    </div>
+  </figure>
+</div>
+<p class="nota">🎞️ <b>Veja o GIF:</b> <code>scripts/gif-vez-do-computador.gif</code> (hoje × proposta, lado a lado, iPhone 440×800, cenário real: o computador joga no último de 16 jogos). Nele também apareceu o mesmo defeito da “marca de rolagem” acima.</p>
+<p class="nota"><b>Como vou resolver:</b></p>
+<ul class="nota">
+  <li><b>A mesa nunca “vaza”:</b> tiro o <code>overflow: visible</code>. A carta que voa fica sempre dentro da moldura verde, <b>nunca por cima da sua mão</b>.</li>
+  <li><b>A jogada fica visível:</b> antes de cada carta se mexer, a mesa rola sozinha (suave) até o jogo que ele vai mexer, e o jogo fica com o brilho amarelo. O aviso diz qual jogo (“…no jogo A♠ 2♠”).</li>
+  <li>Se o jogo onde ele joga está em cima e a mesa está embaixo (ou o contrário), ele <b>espera a rolagem terminar</b> antes de deslizar a carta — por isso o movimento flui.</li>
+  <li>Durante a vez dele você não consegue rolar sem querer atrapalhar: a rolagem “por conta do jogo” tem prioridade; quando acaba, a mesa fica onde ele terminou.</li>
+  <li>No iPad (mesa sem rolagem) quase nada muda, só deixa de vazar.</li>
+</ul>
+
+<!-- ============================ 4 ============================ -->
+<h2>4) Placar do campeonato (“até 100 pontos”)</h2>
+<p class="nota"><b>Depois da partida:</b> você aprovou a janela com o placar grande. <b>Durante a partida:</b> mais discreto, <b>sem elemento novo na tela</b>. A ideia: tirar a pílula e pôr os pontos <b>dentro do que já existe</b> — o número de cada computador no chip dele, e o seu na linha “Suas cartas”. O chip fica âmbar quando alguém passa de 80.</p>
+<div class="linha">
+  <figure class="bom"><figcaption>Durante a partida — 2 jogadores</figcaption>
+    <div class="cel" style="height:auto;padding-bottom:12px;width:330px">
+      <div class="chips"><span>Computador ▮▮▮▮ · <b>60</b></span><span>Monte: 12</span></div>
+      <div class="aviso">Sua vez</div>
+      <div class="mesa" style="height:70px;flex:none"></div>
+      <div class="rotulo2">Suas cartas (9) <small>· 35 pts</small></div>
+    </div></figure>
+  <figure class="bom"><figcaption>Durante — 3 jogadores</figcaption>
+    <div class="cel" style="height:auto;padding-bottom:12px;width:330px">
+      <div class="chips"><span>Comp. ▮▮▮ · <b>60</b></span><span>Comp. 2 ▮▮▮▮ · <b>82</b></span><span class="alto" style="display:none"></span><span>Monte: 12</span></div>
+      <div class="chips" style="margin-top:-2px"><span class="alto" style="visibility:hidden">.</span></div>
+      <div class="aviso">Sua vez</div>
+      <div class="mesa" style="height:70px;flex:none"></div>
+      <div class="rotulo2">Suas cartas (9) <small>· 35 pts</small></div>
+    </div></figure>
+  <figure class="bom"><figcaption>Durante — 4 jogadores <small>(chip âmbar = passou de 80)</small></figcaption>
+    <div class="cel" style="height:auto;padding-bottom:12px;width:330px">
+      <div class="chips"><span>Comp. ▮▮▮ · <b>60</b></span><span class="alto">Comp. 2 ▮▮▮▮ · <b>82</b></span><span>Comp. 3 ▮▮ · <b>41</b></span></div>
+      <div class="chips"><span>Monte: 12</span></div>
+      <div class="aviso">Sua vez</div>
+      <div class="mesa" style="height:70px;flex:none"></div>
+      <div class="rotulo2">Suas cartas (9) <small>· 35 pts</small></div>
+    </div></figure>
+</div>
+<p class="nota">Observação: os chips dos computadores já ficam na mesma linha do “Monte” (no iPhone em pé, com 3 computadores eles passam para uma 2ª linha, como já acontece hoje).</p>
+
+<p class="nota"><b>Ao fim da rodada (a janela que você aprovou), com 2, 3 e 4 jogadores:</b> até 2 pessoas, os dois números grandes lado a lado; com 3 ou 4, vira uma <b>lista</b> (um jogador por linha: nome, pontos, barra até 100 e “+X nesta rodada”). 👑 marca quem está com menos pontos; a barra laranja marca quem está perto de 100.</p>
+<div class="linha">
+  <figure class="bom"><figcaption>Fim da rodada — 2 jogadores (aprovado)</figcaption>
+    <div class="cel" style="height:auto;padding-bottom:14px;background:#00000066;width:300px"><div class="jan" style="margin-top:6px">
+      <div style="text-align:center;font-weight:800;font-size:15px">Computador ganhou a rodada.</div>
+      <div class="placar2 claro"><div class="lado"><small>VOCÊ</small><b>35</b><span class="delta">+20</span><div class="barra"><i style="width:35%"></i></div></div><div class="meio"><small>RODADA 2</small><small>até 100</small></div><div class="lado"><small>COMPUTADOR</small><b>60</b><span class="delta zero">+0</span><div class="barra"><i style="width:60%;background:#e8a317"></i></div></div></div>
+    </div></div></figure>
+  <figure class="bom"><figcaption>Fim da rodada — 3 jogadores</figcaption>
+    <div class="cel" style="height:auto;padding-bottom:14px;background:#00000066;width:330px"><div class="jan" style="margin-top:6px">
+      <div style="text-align:center;font-weight:800;font-size:15px">Você ganhou a rodada!</div>
+      <div class="lista">
+        <div class="lin lider"><span>👑 Você</span><b>35</b><div class="barra"><i style="width:35%"></i></div><span class="d z">+0</span></div>
+        <div class="lin"><span>Comp.</span><b>60</b><div class="barra"><i style="width:60%;background:#e8a317"></i></div><span class="d">+12</span></div>
+        <div class="lin"><span>Comp. 2</span><b>82</b><div class="barra"><i style="width:82%;background:#d9541e"></i></div><span class="d">+31</span></div>
+      </div><div class="nota-mini">Até 100 pontos · rodada 2</div>
+    </div></div></figure>
+  <figure class="bom"><figcaption>Fim da rodada — 4 jogadores</figcaption>
+    <div class="cel" style="height:auto;padding-bottom:14px;background:#00000066;width:330px"><div class="jan" style="margin-top:6px">
+      <div style="text-align:center;font-weight:800;font-size:15px">Comp. 3 ganhou a rodada.</div>
+      <div class="lista">
+        <div class="lin"><span>Você</span><b>35</b><div class="barra"><i style="width:35%"></i></div><span class="d">+14</span></div>
+        <div class="lin"><span>Comp.</span><b>60</b><div class="barra"><i style="width:60%;background:#e8a317"></i></div><span class="d">+22</span></div>
+        <div class="lin"><span>Comp. 2</span><b>82</b><div class="barra"><i style="width:82%;background:#d9541e"></i></div><span class="d">+9</span></div>
+        <div class="lin lider"><span>👑 Comp. 3</span><b>18</b><div class="barra"><i style="width:18%"></i></div><span class="d z">+0</span></div>
+      </div><div class="nota-mini">Até 100 pontos · rodada 2</div>
+    </div></div></figure>
+</div>
+<p class="nota">Na janela, as mãos que sobraram (com as cartas) continuam logo abaixo do placar, como hoje; com 4 jogadores a janela rola só no meio (os botões “Próxima rodada” e “Ver a mesa” ficam fixos).</p>
+
+<h2>Depois do “pode seguir”</h2>
+<ol class="nota">
+  <li>Escrevo os testes (toque no “+”; rolagem parada ao escolher carta; carta do computador sempre dentro da mesa).</li>
+  <li>Prints no iPad (1180×820 e 820×1180) e iPhone (440×800, 390×844 e deitado 956×360).</li>
+  <li>Você confere os prints, eu abro PR, publico e te digo como testar no iPhone e no iPad.</li>
+</ol>
+
+</body>
+</html>

@@ -117,8 +117,7 @@ function chaveDoEncaixe(): string {
   const p = e.partida;
   if (!p || e.tela !== 'jogo') return '';
   const mesa = (e.mesaExibida ?? p.mesa).map((j) => j.cartas.map((c) => c.id).sort().join(',')).join(';');
-  const vazio = e.selecionadas.length > 0 ? 'v' : '';
-  return `${mesa}#${p.jogadores[0].mao.length}#${e.cartasExibidas?.join(',') ?? ''}#${e.aviso?.texto.length ?? 0}#${ajustes.visual}#${vazio}`;
+  return `${mesa}#${p.jogadores[0].mao.length}#${e.cartasExibidas?.join(',') ?? ''}#${e.aviso?.texto.length ?? 0}#${ajustes.visual}`;
 }
 
 function salvar() {
@@ -490,6 +489,24 @@ async function continuarJogo(pausaInicial: number) {
 
 const PAROU = Symbol('parou');
 
+/** Se a mesa rola (celular), leva a rolagem até o jogo, para a jogada do computador ficar sempre à vista. */
+async function mostrarNaMesa(jogoId: string | undefined, esperar: (ms: number) => Promise<void>) {
+  const mesaEl = app.querySelector<HTMLElement>('.mesa.rolavel');
+  if (!mesaEl) return;
+  const alvo = jogoId ? mesaEl.querySelector<HTMLElement>(`[data-destino="jogo:${jogoId}"]`) : null;
+  let topo: number;
+  if (alvo) {
+    const m = mesaEl.getBoundingClientRect();
+    const a = alvo.getBoundingClientRect();
+    if (a.top >= m.top && a.bottom <= m.bottom) return; // já está à vista
+    topo = mesaEl.scrollTop + (a.top - m.top) - (m.height - a.height) / 2;
+  } else {
+    topo = mesaEl.scrollHeight; // jogo novo: aparece no fim da mesa
+  }
+  mesaEl.scrollTo({ top: topo, behavior: 'smooth' });
+  await esperar(500); // a carta só desliza depois que a rolagem terminou
+}
+
 async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo: Record<string, number>) {
   while (e.partida && !e.partida.resultado && e.partida.vez !== 0) {
     const p: Partida = e.partida;
@@ -517,6 +534,7 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
         e.destaques = passo.jogoIds;
         e.mesaExibida = mesaAnterior;
         desenhar();
+        await mostrarNaMesa(passo.jogoIds[0], esperar);
         await esperar(tempo.frase);
         // 2) ...depois mexe uma carta de cada vez, deslizando pela tela.
         e.destaques = [];
@@ -526,6 +544,7 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
             e.cartasExibidas[p.vez] -= 1;
             e.baixadasPeloComputador.push(mov.cartaId);
           }
+          await mostrarNaMesa(mov.mesa.find((j) => j.cartas.some((c) => c.id === mov.cartaId))?.id, esperar);
           e.mesaExibida = mov.mesa;
           desenhar({ cartaId: mov.cartaId, deJogador: veioDaMao ? p.vez : null, ms: tempo.voo });
           await esperar(tempo.entreCartas);

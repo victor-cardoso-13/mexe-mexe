@@ -302,7 +302,7 @@ button {
 .computador-jogando .jogo .erro { display: none; }
 
 /* Jogada do computador: a carta que está "voando" fica por cima de tudo, com brilho. */
-.animando .mesa { overflow: visible; }
+.animando .mesa:not(.rolavel) { overflow: visible; }
 .carta.voando { z-index: 40; box-shadow: 0 0 0 5px var(--amarelo), 0 10px 24px rgba(0, 0, 0, .5); }
 
 .fantasma {
@@ -554,12 +554,13 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
 .jogo.invalido { border-color: var(--vermelho); }
 
 /* espaço vazio (E): só aparece com carta escolhida ou arrastando */
-.vazio { display: none; }
-.tem-selecao .vazio, .arrastando-cartas .vazio {
+.vazio {
+  visibility: hidden; /* o lugar fica reservado, para escolher uma carta não mexer em nada */
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
   min-width: calc(var(--mesa-w) * 2.4); height: calc(var(--mesa-w) * 1.4 + 22px); padding: 0 10px;
   border: 3px dashed #ffffffb8; border-radius: 14px; color: #fff; font-size: 15px; font-weight: 800; line-height: 1.2; cursor: pointer;
 }
+.tem-selecao .vazio, .arrastando-cartas .vazio { visibility: visible; }
 .vazio small { display: block; font-size: 12px; font-weight: 700; opacity: .85; }
 .vazio.alvo-arraste { background: #ffffff26; outline: none; border-color: var(--ambar-claro); }
 
@@ -617,7 +618,7 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
 .palco .ok { font-size: 15px; font-weight: 800; padding: 3px 10px; border-radius: 99px; background: #fff; color: #1d6b40; }
 .palco .seta { font-size: 24px; }
 .palco { flex: none; }
-.palco .vazio { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 110px; height: 80px; font-size: 14px; border: 3px dashed #ffffffb8; border-radius: 14px; padding: 0 10px; cursor: default; }
+.palco .vazio { visibility: visible; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 110px; height: 80px; font-size: 14px; border: 3px dashed #ffffffb8; border-radius: 14px; padding: 0 10px; cursor: default; }
 .pontos { display: flex; gap: 7px; justify-content: center; }
 .pontos i { width: 9px; height: 9px; border-radius: 50%; background: #3b2f2a33; }
 .pontos i.atual { background: var(--ambar); width: 24px; border-radius: 99px; }
@@ -684,7 +685,7 @@ body.idade .pontos i.atual { background: var(--tinta); }
   body.bonito .botoes .icone { font-size: 21px; }
   body.bonito .botoes .nome-botao { font-size: 11px; }
   body.bonito .botoes .baixar { flex-direction: column; gap: 3px; padding: 5px 2px; font-size: 11px; }
-  .tem-selecao .vazio, .arrastando-cartas .vazio { font-size: 13px; min-width: calc(var(--mesa-w) * 2.6); }
+  .vazio { font-size: 13px; min-width: calc(var(--mesa-w) * 2.6); }
   .vazio small { font-size: 11px; }
   .tutorial { padding: 14px 16px 16px; gap: 10px; }
   .tutorial h2 { font-size: 22px; }
@@ -719,13 +720,17 @@ body.idade .pontos i.atual { background: var(--tinta); }
 .mais-aqui {
   position: absolute; right: -6px; top: -10px; width: 30px; height: 30px; border-radius: 50%; z-index: 4;
   display: grid; place-items: center; background: var(--ambar); color: #fff; font-size: 22px; font-weight: 800; line-height: 1;
-  box-shadow: 0 2px 6px #0004; pointer-events: none; /* o toque vale para o jogo inteiro */
+  box-shadow: 0 2px 6px #0004; cursor: pointer;
 }
+/* Área de toque invisível de ~48 px (a bolinha tem 30): vale também sobre o canto de cima da última carta. */
+.mais-aqui::before { content: ""; position: absolute; inset: -12px; border-radius: 14px; }
 body.idade .mais-aqui { background: #0057d9; border: 2px solid #fff; }
 .baixar-jogo.novo { background: var(--tinta); box-shadow: none; }
+.baixar-jogo.reservado { visibility: hidden; animation: none; }
 body.idade .baixar-jogo.novo { background: #3b2f2a; border-color: #1d1a19; }
 .placar-camp { background: #fff; border-radius: 99px; padding: 4px 12px; font-size: 15px; font-weight: 800; box-shadow: 0 2px 8px #3b2f2a14; white-space: nowrap; }
 .placar-camp .ate { opacity: .55; }
+.placar-camp .pos { opacity: .55; margin-right: 1px; }
 body.idade .placar-camp { border: 2px solid var(--tinta); box-shadow: none; font-size: 17px; }
 .janela-fim { width: min(720px, 100%); }
 .maos-finais { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 4px; text-align: left; }
@@ -749,7 +754,7 @@ body.idade .placar-camp { border: 2px solid var(--tinta); box-shadow: none; font
 /* Campeonato no celular em pé: o placar ganha uma linha só dele, embaixo do topo */
 @media (max-width: 600px) {
   .campeonato .topo { flex-wrap: wrap; row-gap: 4px; font-size: 14px; }
-  .campeonato .placar-camp { order: 9; flex: 1 0 100%; text-align: center; }
+  .campeonato .placar-camp { order: 9; flex: 1 0 100%; text-align: center; white-space: normal; line-height: 1.25; border-radius: 14px; } /* com 3 ou 4 jogadores a pílula pode ter 2 linhas */
   .campeonato .topo .adversario, .campeonato .topo .monte { padding: 3px 8px; }
   .campeonato .versos .verso { width: 13px; height: 19px; margin-left: -6px; }
   .campeonato .topo .espaco { flex: 1 1 0; min-width: 0; }
@@ -789,4 +794,45 @@ body.idade .tempo-vez { border: 2px solid var(--tinta); box-shadow: none; font-s
   .rodape-ajustes .grande { padding: 12px 8px; font-size: 18px; }
   .corpo-ajustes .linha-botoes .grande { font-size: 15px; padding: 10px 4px; }
   .corpo-ajustes .ajuste { margin: 8px 0; }
+}
+
+/* ---------- Fim da rodada: placar do campeonato (2, 3 ou 4 jogadores) ---------- */
+.janela-fim { display: flex; flex-direction: column; overflow: hidden; height: auto; max-height: 100%; }
+.corpo-fim { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.rodape-fim { flex: none; padding-top: 6px; }
+.placar-fim { margin: 6px 0 10px; background: #fff; border: 3px solid var(--tinta); border-radius: 16px; padding: 10px 12px; color: var(--tinta); }
+.placar-fim .dupla { display: flex; align-items: stretch; gap: 10px; }
+.placar-fim .lado { flex: 1; text-align: center; }
+.placar-fim .lado .nome { display: block; font-size: 15px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.placar-fim .lado .total { display: block; font-size: 46px; font-weight: 800; line-height: 1.05; }
+.placar-fim .meio { display: flex; flex-direction: column; justify-content: center; text-align: center; font-size: 14px; font-weight: 800; opacity: .75; }
+.placar-fim .barra { height: 10px; border-radius: 9px; background: #e6dccd; margin-top: 6px; overflow: hidden; }
+.placar-fim .barra i { display: block; height: 100%; background: #1d6b40; }
+.placar-fim .barra i.alta { background: #e8a317; }
+.placar-fim .barra i.perigo { background: #d9541e; }
+.placar-fim .delta { display: inline-block; margin-top: 4px; font-size: 14px; font-weight: 800; border-radius: 10px; padding: 1px 8px; background: #ffe3e0; color: #b3261e; }
+.placar-fim .delta.zero { background: #dff3e4; color: #1b7a3a; }
+.placar-fim .lista { display: flex; flex-direction: column; gap: 8px; }
+.placar-fim .lin { display: grid; grid-template-columns: minmax(96px, 150px) 56px 1fr 72px; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; text-align: left; }
+.placar-fim .lin .quem { white-space: nowrap; }
+.placar-fim .lin .total { font-size: 32px; line-height: 1; text-align: right; }
+.placar-fim .lin .barra { margin: 0; height: 12px; }
+.placar-fim .lin .delta { margin: 0; text-align: center; font-size: 14px; }
+@media (max-width: 600px), (max-height: 500px) {
+  .placar-fim { padding: 6px 8px; margin: 4px 0 6px; border-width: 2px; }
+  .placar-fim .lado .nome { font-size: 12px; }
+  .placar-fim .lado .total { font-size: 34px; }
+  .placar-fim .lin { grid-template-columns: minmax(84px, 112px) 38px 1fr 50px; gap: 6px; font-size: 14px; }
+  .placar-fim .lin .total { font-size: 24px; }
+  .placar-fim .lin .delta, .placar-fim .delta { font-size: 12px; }
+  .placar-fim .lista { gap: 4px; }
+}
+/* Celular deitado: a janela de fim é baixa; sem o emoji e com os dois botões lado a lado sobra espaço para o placar */
+@media (max-height: 500px) {
+  .janela-fim { padding: 8px 14px 10px; }
+  .janela-fim .emoji { display: none; }
+  .janela-fim h2 { font-size: 20px; margin-bottom: 2px; }
+  .janela-fim .corpo-fim > p { font-size: 14px; margin: 2px 0; }
+  .rodape-fim { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .rodape-fim .grande { flex: 1; margin-top: 4px; padding: 8px; font-size: 17px; }
 }
