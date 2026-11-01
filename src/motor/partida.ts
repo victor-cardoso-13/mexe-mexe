@@ -441,7 +441,12 @@ export function moverCartas(p: Partida, cartaIds: string[], destino: Destino): R
   const baixadas = atual.inicioDaVez.mao.filter((c) => !naMao.has(c.id));
   const problema = travaDaMao(p, cartasBaixadasDaMao(p), cartasBaixadasDaMao(atual), baixadas);
   if (problema) return { ok: false, motivo: problema };
-  const arrumada = alvo.tipo === 'jogo' ? separarJogoQueNaoVale(atual, alvo.jogoId, baixadas) : atual;
+  let arrumada = alvo.tipo === 'jogo' ? separarJogoQueNaoVale(atual, alvo.jogoId, baixadas) : atual;
+  // O jogo de onde as cartas saíram também se arruma (ex.: tirar o 10 de 5-6-7-8-9-10-J-Q-K-A deixa 5-9 e J-A).
+  const movidas = new Set(cartaIds);
+  for (const origem of p.mesa.filter((j) => j.cartas.some((c) => movidas.has(c.id)))) {
+    arrumada = separarJogoQueNaoVale(arrumada, origem.id, baixadas);
+  }
   return { ok: true, partida: { ...arrumada, historico: [...p.historico, antes] } };
 }
 
