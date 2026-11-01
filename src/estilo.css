@@ -911,6 +911,3 @@ body.idade .tempo-vez { border: 2px solid var(--tinta); box-shadow: none; font-s
 /* Altura FIXA da linha "Suas cartas": a frase (1 ou 2 linhas) não pode mexer no tamanho da mesa nem da mão. */
 .tela-jogo .rotulo-mao { box-sizing: border-box; height: 46px; min-height: 0; overflow: hidden; }
 @media (max-height: 500px) { .tela-jogo .rotulo-mao { height: 36px; } }
-
-/* Com dica na tela, a frase (que pode ser longa) toma a largura toda: some o "Suas cartas (n)". */
-.area-mao.com-dica .rotulo-mao > span:first-child { display: none; }
