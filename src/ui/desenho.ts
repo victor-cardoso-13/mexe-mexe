@@ -198,8 +198,8 @@ function htmlMao(e: Estado, p: Partida, minhaVez: boolean): string {
   const naPilula = !e.online && !minhaVez && !p.resultado;
   const frase = naPilula ? '' : av.texto === TEXTOS.suaVez ? '✋ ' + av.texto : av.texto;
   const baixar = botaoJogo.includes('reservado') && av.acao && !naPilula ? av.acao : botaoJogo;
-  return `<div class="area-mao ${e.dica ? 'com-dica' : ''}" data-destino="mao">
-    <div class="rotulo-mao"><span>Suas cartas (${mao.length})</span><span class="msg-mao ${av.tipo}">${frase}</span><div class="espaco-baixar">${baixar}</div></div>
+  return `<div class="area-mao" data-destino="mao">
+    <div class="rotulo-mao"><span class="msg-mao ${av.tipo}">${frase}</span><div class="espaco-baixar">${baixar}</div></div>
     <div class="linha-mao">
       <div class="mao">${cartas}</div>
     </div>
