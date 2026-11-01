@@ -4,6 +4,7 @@
  */
 import type { Foto, Jogo, Partida } from '../motor/partida';
 import type { NivelIA } from '../motor/regras';
+import type { Campeonato } from '../motor/campeonato';
 
 export type Ordenacao = 'naipe' | 'asBaixo' | 'asAlto' | 'manual';
 
@@ -29,6 +30,8 @@ export interface Ajustes {
   visual: 'idade' | 'bonito';
   /** Já viu o tutorial (ele aparece sozinho só na primeira partida). */
   tutorialVisto: boolean;
+  /** Casual (uma partida) ou campeonato até 100 pontos (vale na próxima partida). */
+  modo: 'casual' | 'campeonato';
 }
 
 export const AJUSTES_PADRAO: Ajustes = {
@@ -39,6 +42,7 @@ export const AJUSTES_PADRAO: Ajustes = {
   velocidade: 'devagar',
   visual: 'idade',
   tutorialVisto: false,
+  modo: 'casual',
 };
 
 export interface Estado {
@@ -51,6 +55,8 @@ export interface Estado {
   partida: Partida | null;
   /** Identidade da partida (o retrospecto conta cada uma uma vez só). */
   partidaId: string;
+  /** Campeonato em andamento (null = modo casual). */
+  campeonato: Campeonato | null;
   /** Cartas tocadas (escolhidas) pela jogadora. */
   selecionadas: string[];
   ordenacao: Ordenacao;
@@ -85,6 +91,7 @@ export function estadoInicial(): Estado {
     tutorialPasso: 0,
     partida: null,
     partidaId: '',
+    campeonato: null,
     selecionadas: [],
     ordenacao: 'naipe',
     ordemManual: [],

@@ -7,7 +7,7 @@
  */
 import { criarMonte, embaralhar, pontosDaMao, type Carta } from './cartas';
 import type { Regras } from './regras';
-import { validarJogo } from './validacao';
+import { separarEmJogos, validarJogo } from './validacao';
 
 /** Um jogo na mesa (sequência ou trinca). */
 export interface Jogo {
@@ -286,6 +286,13 @@ function listaDeQuantidades(qtds: number[]): string {
   return qtds.map((n) => `${n} carta${n > 1 ? 's' : ''}`).join(' ou ');
 }
 
+/** Mexeu na mesa sem baixar nada da mão e todos os jogos valem? Então dá para comprar mantendo a mesa. */
+export function mesaMexidaEstaCerta(p: Partida): boolean {
+  if (!mexeuNaVez(p) || cartasBaixadasDaMao(p) !== 0) return false;
+  const c = conferirJogada(p);
+  return c.jogosInvalidos.length === 0 && !c.problemas.some((t) => t.startsWith('Cartas que já estavam'));
+}
+
 /** Passa a vez para o próximo jogador. */
 function passarAVez(p: Partida): Partida {
   const vez = (p.vez + 1) % p.jogadores.length;
@@ -314,13 +321,14 @@ export function terminarJogada(p: Partida): RespostaAcao {
 }
 
 /**
- * Compra 1 carta e passa a vez. Se a pessoa tinha mexido na mesa,
+ * Compra 1 carta e passa a vez. Se a pessoa tinha mexido na mesa e algo ficou errado,
  * tudo volta como estava no começo da vez antes de comprar.
  * Se o monte acabou, a partida termina (veja "fimDoMonte" nas regras).
  */
 export function comprarEPassar(p: Partida): RespostaAcao {
   if (p.resultado) return { ok: false, motivo: 'A partida já terminou.' };
-  const limpa = recomecarJogada(p);
+  // Mexeu só na mesa e ficou tudo certo: a mesa arrumada fica (só volta ao começo se tiver algo errado).
+  const limpa = mesaMexidaEstaCerta(p) ? { ...p, historico: [] } : recomecarJogada(p);
 
   if (limpa.monte.length === 0) {
     return { ok: true, partida: { ...limpa, resultado: resultadoPorMonteVazio(limpa) } };
@@ -395,6 +403,26 @@ function travaDaMao(p: Partida, antes: number, depois: number, baixadas: Carta[]
   return null;
 }
 
+/**
+ * Se o jogo onde as cartas caíram não vale mas dá para separar em jogos que valem
+ * (ex.: 3-4-5-2-A-3 → A-2-3 e 3-4-5), a mesa se arruma sozinha.
+ * Nunca separa as cartas baixadas da mão (elas têm que ficar juntas no mesmo jogo).
+ */
+function separarJogoQueNaoVale(p: Partida, jogoId: string, baixadas: Carta[]): Partida {
+  const jogo = p.mesa.find((j) => j.id === jogoId);
+  if (!jogo || validarJogo(jogo.cartas, p.regras).valido) return p;
+  const ids = new Set(baixadas.map((c) => c.id));
+  const grupos = separarEmJogos(jogo.cartas, p.regras, (g) => baixadas.length < 2 || g.filter((x) => x.some((c) => ids.has(c.id))).length <= 1);
+  if (!grupos) return p;
+  let proximo = p.proximoIdJogo;
+  const novos = grupos.slice(1).map((cartas) => {
+    while (p.mesa.some((j) => j.id === `j${proximo}`)) proximo++;
+    return { id: `j${proximo++}`, cartas };
+  });
+  const mesa = p.mesa.flatMap((j) => (j.id === jogoId ? [{ ...j, cartas: grupos[0] }, ...novos] : [j]));
+  return { ...p, mesa, proximoIdJogo: proximo };
+}
+
 export function moverCartas(p: Partida, cartaIds: string[], destino: Destino): RespostaAcao {
   if (cartaIds.length === 0) return { ok: true, partida: p };
   const antes = fotoAtual(p);
@@ -413,7 +441,8 @@ export function moverCartas(p: Partida, cartaIds: string[], destino: Destino): R
   const baixadas = atual.inicioDaVez.mao.filter((c) => !naMao.has(c.id));
   const problema = travaDaMao(p, cartasBaixadasDaMao(p), cartasBaixadasDaMao(atual), baixadas);
   if (problema) return { ok: false, motivo: problema };
-  return { ok: true, partida: { ...atual, historico: [...p.historico, antes] } };
+  const arrumada = alvo.tipo === 'jogo' ? separarJogoQueNaoVale(atual, alvo.jogoId, baixadas) : atual;
+  return { ok: true, partida: { ...arrumada, historico: [...p.historico, antes] } };
 }
 
 /** Troca mão e mesa de uma vez (usado pela "Dica: fazer para mim"). Conta como um movimento. */

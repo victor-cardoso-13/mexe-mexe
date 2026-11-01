@@ -38,7 +38,7 @@ export function passosDoTutorial(): PassoTutorial[] {
     {
       titulo: 'Da mão: 1 carta ou 3',
       texto: 'Na sua vez, tire da mão <b>1 carta</b> (para um jogo da mesa) ou <b>3 cartas</b> que formam um jogo sozinhas. Escolheu 3 que formam jogo? Aparece o botão <b>Baixar jogo</b>.',
-      desenho: `${linha(cartas('5c 6c 7c', 'selecionada'))}<div class="baixar-jogo exemplo">⬇ Baixar jogo</div>`,
+      desenho: `${linha(cartas('5c 6c 7c', 'selecionada'))}<div class="baixar-jogo exemplo">Baixar jogo</div>`,
     },
     {
       titulo: 'A mesa é de todos',
@@ -47,7 +47,7 @@ export function passosDoTutorial(): PassoTutorial[] {
     },
     {
       titulo: 'Tocar ou arrastar',
-      texto: '<b>Toque</b> numa carta e depois <b>toque</b> onde ela vai. Ou <b>arraste</b>. Para começar um jogo novo, toque ou solte num <b>espaço vazio</b> da mesa.',
+      texto: '<b>Toque</b> numa carta e depois <b>toque</b> onde ela vai. Ou <b>arraste</b>. Para começar um jogo novo, <b>arraste</b> para qualquer lugar vazio da mesa, ou toque no botão <b>Novo jogo</b>. Mexendo na mesa, escolha várias cartas e toque no <b>+</b> do jogo onde elas vão.',
       desenho: linha(`${carta('Ac', 'selecionada')}<span class="seta">👆 →</span><div class="vazio exemplo">jogo novo</div>`),
     },
     {

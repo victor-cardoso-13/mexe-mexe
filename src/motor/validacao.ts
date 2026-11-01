@@ -167,3 +167,30 @@ export function ordemParaMostrar(cartas: Carta[], regras: Regras): Carta[] {
   const r = validarJogo(cartas, regras);
   return r.valido ? r.ordem : cartas;
 }
+
+/**
+ * Tenta separar cartas (de um jogo que não vale) em jogos que valem, com o MENOR número de jogos.
+ * Ex.: 3-4-5-2-A-3 do mesmo naipe vira A-2-3 e 3-4-5. Devolve null se não houver jeito.
+ * "aceita" deixa quem chama recusar uma divisão (ex.: separar as 3 cartas baixadas da mão).
+ */
+export function separarEmJogos(cartas: Carta[], regras: Regras, aceita: (grupos: Carta[][]) => boolean = () => true): Carta[][] | null {
+  if (cartas.length < 6 || cartas.length > 14) return null;
+  let melhor: Carta[][] | null = null;
+  const busca = (restantes: Carta[], atuais: Carta[][]) => {
+    if (melhor && atuais.length >= melhor.length) return;
+    if (restantes.length === 0) {
+      if (atuais.length >= 2 && aceita(atuais)) melhor = atuais;
+      return;
+    }
+    const [primeira, ...resto] = restantes;
+    const n = resto.length;
+    // todos os grupos que começam pela primeira carta (tamanho mínimo 3)
+    for (let mascara = 0; mascara < 1 << n; mascara++) {
+      const grupo = [primeira, ...resto.filter((_, i) => mascara & (1 << i))];
+      if (grupo.length < 3 || !jogoValido(grupo, regras)) continue;
+      busca(resto.filter((_, i) => !(mascara & (1 << i))), [...atuais, grupo]);
+    }
+  };
+  busca(cartas, []);
+  return melhor;
+}

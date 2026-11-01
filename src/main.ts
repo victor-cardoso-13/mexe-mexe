@@ -5,15 +5,15 @@
 import './estilo.css';
 import { nomeDaCarta } from './motor/cartas';
 import {
-  comprarEPassar, conferirJogada, definirFoto, desfazer, jogadorDaVez, mexeuNaVez, moverCartas,
+  comprarEPassar, conferirJogada, definirFoto, desfazer, jogadorDaVez, mesaMexidaEstaCerta, mexeuNaVez, moverCartas,
   novaPartida, ondeEstaCarta, recomecarJogada, terminarJogada, aplicarJogada, type Destino, type Partida,
 } from './motor/partida';
 import { criarRegras, type NivelIA } from './motor/regras';
+import { novoCampeonato, proximaRodada, somarRodada } from './motor/campeonato';
 import { escolherJogada, jogadaDoCuringa, ultimaBusca } from './ia';
 import { anotar, baixarDiario, textoCartas, textoMesa } from './ui/diario';
 import { estadoInicial, type Ajustes, type Ordenacao } from './ui/estado';
 import { escapar, htmlAjustes, htmlConfirmarNova, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlRetrospecto, htmlTutorial, type Mensagem } from './ui/desenho';
-import { podeBaixarJogo } from './ui/baixarJogo';
 import { encaixar } from './ui/encaixe';
 import { carregarAjustes, carregarGaveta, salvarAjustes, salvarGaveta, type Gaveta } from './ui/salvar';
 import { resultadoDaPartida, resumir } from './ui/retrospecto';
@@ -26,6 +26,8 @@ import { ligarToque } from './ui/toque';
 import { animarMovimento, capturarPosicoes, movimentosUmAUm } from './ui/animacao';
 
 const app = document.getElementById('app')!;
+/** Em que tela estava (se o navegador recarregar a página, volta para o jogo, não para o início). */
+const CHAVE_TELA = 'mexe-mexe:tela';
 const e = estadoInicial();
 let ajustes: Ajustes = carregarAjustes();
 
@@ -45,7 +47,7 @@ function abrirGaveta() {
   limparMensagens();
   const salvo = gaveta.jogo;
   if (!salvo) {
-    Object.assign(e, { partida: null, partidaId: '', ordemManual: [], novaCartaId: null, baixadasPeloComputador: [] });
+    Object.assign(e, { partida: null, partidaId: '', campeonato: null, ordemManual: [], novaCartaId: null, baixadasPeloComputador: [] });
     return;
   }
   // A partida salva guarda as regras de quando começou. Para valer sempre a versão
@@ -62,6 +64,7 @@ function abrirGaveta() {
   e.ordemManual = salvo.ordemManual;
   e.novaCartaId = salvo.novaCartaId;
   e.baixadasPeloComputador = salvo.baixadasPeloComputador ?? [];
+  e.campeonato = salvo.campeonato ?? null;
 }
 abrirGaveta();
 
@@ -75,6 +78,8 @@ abrirGaveta();
  */
 function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms: number }) {
   const antes = movimento ? capturarPosicoes(app) : null;
+  const rolagem = app.querySelector('.mesa')?.scrollTop ?? 0;
+  localStorage.setItem(CHAVE_TELA, e.tela);
   document.body.classList.toggle('idade', ajustes.visual === 'idade');
   document.body.classList.toggle('bonito', ajustes.visual === 'bonito');
   let html = '';
@@ -86,9 +91,12 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   if (e.janela === 'mensagem' && mensagem) html += htmlMensagem(mensagem);
   if (e.janela === 'tutorial') html += htmlTutorial(e.tutorialPasso);
   if (e.janela === 'confirmarNova') html += htmlConfirmarNova();
-  if (e.janela === 'fim' && e.partida) html += htmlFim(e.partida);
+  if (e.janela === 'fim' && e.partida) html += htmlFim(e.partida, e.campeonato);
   app.innerHTML = html;
   encaixar(chaveDoEncaixe());
+  // Se a mesa rola (celular), ela fica onde estava (não volta para o topo a cada toque).
+  const mesaEl = app.querySelector<HTMLElement>('.mesa');
+  if (mesaEl && rolagem) mesaEl.scrollTop = rolagem;
   // Se a mesa rola (celular), mostra o jogo onde as cartas acabaram de chegar.
   const chegou = e.chegaram.length ? app.querySelector(`.mesa [data-carta="${e.chegaram[0]}"]`) : null;
   chegou?.closest('.jogo')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -119,9 +127,15 @@ function salvar() {
     ordemManual: e.ordemManual,
     novaCartaId: e.novaCartaId,
     baixadasPeloComputador: e.baixadasPeloComputador,
+    campeonato: e.campeonato,
   };
   gaveta.jogoEm = Date.now();
   // Partida terminada entra no retrospecto (uma vez só, pela identidade dela).
+  // Campeonato: os pontos da rodada que acabou são somados (uma vez só).
+  if (e.campeonato && e.partida.resultado) {
+    e.campeonato = somarRodada(e.campeonato, e.partida.resultado, e.partidaId);
+    gaveta.jogo.campeonato = e.campeonato;
+  }
   const r = resultadoDaPartida(e.partida);
   if (r && !gaveta.resultados[e.partidaId]) {
     gaveta.resultados[e.partidaId] = r;
@@ -168,7 +182,8 @@ function avisar(texto: string, tipo: 'normal' | 'problema' = 'problema') {
 // Começar partida
 // ---------------------------------------------------------------------------
 
-function comecarPartida() {
+/** Começa uma partida. Com "proxima", continua o campeonato (próxima rodada); senão começa do zero. */
+function comecarPartida(proxima = false) {
   const regras = criarRegras({
     adversarios: ajustes.adversarios,
     nivelIA: ajustes.nivel,
@@ -177,6 +192,8 @@ function comecarPartida() {
   const semente = Math.floor(Math.random() * 2 ** 31);
   e.partida = novaPartida(regras, semente);
   e.partidaId = `${Date.now().toString(36)}-${semente.toString(36)}`;
+  if (proxima && e.campeonato) e.campeonato = proximaRodada(e.campeonato);
+  else e.campeonato = ajustes.modo === 'campeonato' ? novoCampeonato(e.partida.jogadores.length) : null;
   Object.assign(e, { tela: 'jogo', janela: null, selecionadas: [], novaCartaId: null, ordemManual: [], baixadasPeloComputador: [] });
   limparMensagens();
   if (e.ordenacao === 'manual') e.ordenacao = 'naipe';
@@ -244,12 +261,13 @@ function tocarCarta(id: string) {
     e.selecionadas = sel.filter((s) => s !== id);
   } else if (onde === 'mao' || sel.length === 0) {
     e.selecionadas = [...sel, id];
+  } else if (sel.some((s) => ondeEstaCarta(p, s) !== 'mao')) {
+    // Já escolheu carta da MESA: tocar em outra carta da mesa só escolhe mais uma (nunca move).
+    // Para mover, toque no "+" do jogo (ou no espaço "jogo novo").
+    e.selecionadas = [...sel, id];
   } else {
-    // Tocou numa carta da mesa já tendo cartas escolhidas:
-    // se é do mesmo jogo de alguma escolhida, escolhe junto; senão, leva as escolhidas para esse jogo.
-    const mesmoJogo = sel.some((s) => ondeEstaCarta(p, s) === onde);
-    if (mesmoJogo) e.selecionadas = [...sel, id];
-    else return mover(sel, { tipo: 'jogo', jogoId: onde! });
+    // Só cartas da mão escolhidas: tocar numa carta da mesa leva as escolhidas para esse jogo.
+    return mover(sel, { tipo: 'jogo', jogoId: onde! });
   }
   desenhar();
 }
@@ -336,7 +354,7 @@ function botaoComprar() {
   if (!minhaVez()) return;
   limparMensagens();
   const p = e.partida!;
-  if (mexeuNaVez(p)) {
+  if (mexeuNaVez(p) && !mesaMexidaEstaCerta(p)) {
     avisar(TEXTOS.mexeuAntesDeComprar);
     return desenhar();
   }
@@ -544,6 +562,7 @@ function mudarAjuste(chave: string, valor: string) {
     // O nível vale na hora, até na partida em andamento.
     if (e.partida) e.partida = { ...e.partida, regras: { ...e.partida.regras, nivelIA: ajustes.nivel } };
   }
+  if (chave === 'modo') ajustes.modo = valor as Ajustes['modo'];
   if (chave === 'visual') ajustes.visual = valor as Ajustes['visual'];
   if (chave === 'velocidade') ajustes.velocidade = valor as Ajustes['velocidade'];
   if (chave === 'quatroCores') ajustes.quatroCores = valor === 'true';
@@ -718,8 +737,9 @@ app.addEventListener('click', (ev) => {
       case 'desfazer': return botaoDesfazer(false);
       case 'desfazerTudo': return botaoDesfazer(true);
       case 'baixarJogo':
-        if (minhaVez() && podeBaixarJogo(e.partida!, e.selecionadas)) mover(e.selecionadas, { tipo: 'novoJogo' });
+        if (minhaVez() && e.selecionadas.length) mover(e.selecionadas, { tipo: 'novoJogo' });
         return;
+      case 'proximaRodada': return comecarPartida(true);
       case 'abrirTutorial': return abrirTutorial();
       case 'tutorialPular': return fecharTutorial();
       case 'tutorialProximo':
@@ -790,6 +810,8 @@ app.addEventListener('click', (ev) => {
     return desenhar();
   }
   const destino = destinoDe(alvo);
+  // Tocar no fundo da mesa não faz nada (pode ser engano); jogo novo é pelo espaço pontilhado ou pelo botão.
+  if (destino?.tipo === 'novoJogo' && !alvo.closest('.vazio')) return;
   if (destino) tocarDestino(destino);
 });
 
@@ -809,7 +831,10 @@ app.addEventListener('submit', (ev) => {
 window.addEventListener('resize', () => encaixar());
 window.addEventListener('orientationchange', () => setTimeout(encaixar, 300));
 
+// Se o navegador recarregou a página no meio de uma partida, volta direto para ela.
+if (localStorage.getItem(CHAVE_TELA) === 'jogo' && e.partida) e.tela = 'jogo';
 desenhar();
+if (e.tela === 'jogo') void continuarJogo(400);
 
 let sincronizouAoAbrir = false;
 void iniciarNuvem({

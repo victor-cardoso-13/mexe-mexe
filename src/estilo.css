@@ -714,3 +714,44 @@ body.idade .pontos i.atual { background: var(--tinta); }
   .botoes-tutorial button, body.idade .botoes-tutorial button { padding: 8px; font-size: 16px; }
   .palco .vazio { height: 56px; }
 }
+
+/* ---------- Escolher cartas da mesa: "+" em cada jogo, botão Novo jogo, campeonato ---------- */
+.mais-aqui {
+  position: absolute; right: -6px; top: -10px; width: 30px; height: 30px; border-radius: 50%; z-index: 4;
+  display: grid; place-items: center; background: var(--ambar); color: #fff; font-size: 22px; font-weight: 800; line-height: 1;
+  box-shadow: 0 2px 6px #0004; pointer-events: none; /* o toque vale para o jogo inteiro */
+}
+body.idade .mais-aqui { background: #0057d9; border: 2px solid #fff; }
+.baixar-jogo.novo { background: var(--tinta); box-shadow: none; }
+body.idade .baixar-jogo.novo { background: #3b2f2a; border-color: #1d1a19; }
+.placar-camp { background: #fff; border-radius: 99px; padding: 4px 12px; font-size: 15px; font-weight: 800; box-shadow: 0 2px 8px #3b2f2a14; white-space: nowrap; }
+.placar-camp .ate { opacity: .55; }
+body.idade .placar-camp { border: 2px solid var(--tinta); box-shadow: none; font-size: 17px; }
+.janela-fim { width: min(720px, 100%); }
+.maos-finais { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 4px; text-align: left; }
+.mao-final { background: #f0e8dc; border-radius: 16px; padding: 8px 12px; }
+.nome-final { font-size: 18px; margin-bottom: 6px; }
+.cartas-finais { display: flex; flex-wrap: wrap; gap: 4px; }
+.cartas-finais .carta { --w: 40px; cursor: default; }
+.sem-cartas { font-size: 18px; }
+.nota-camp { font-size: 17px !important; opacity: .75; }
+@media (max-width: 600px), (max-height: 500px) {
+  .placar-camp { font-size: 12px; padding: 3px 8px; }
+  .cartas-finais .carta { --w: 30px; }
+  .nome-final { font-size: 15px; }
+  .mais-aqui { width: 26px; height: 26px; font-size: 19px; right: -4px; top: -9px; }
+}
+/* "!" no jogo que não vale (o motivo está na faixa de aviso) */
+.jogo .erro {
+  left: -6px; top: -10px; margin: 0; width: 24px; height: 24px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; font-size: 16px; font-weight: 800; white-space: normal;
+}
+/* Campeonato no celular em pé: o placar ganha uma linha só dele, embaixo do topo */
+@media (max-width: 600px) {
+  .campeonato .topo { flex-wrap: wrap; row-gap: 4px; font-size: 14px; }
+  .campeonato .placar-camp { order: 9; flex: 1 0 100%; text-align: center; }
+  .campeonato .topo .adversario, .campeonato .topo .monte { padding: 3px 8px; }
+  .campeonato .versos .verso { width: 13px; height: 19px; margin-left: -6px; }
+  .campeonato .topo .espaco { flex: 1 1 0; min-width: 0; }
+  body.idade .campeonato .topo .adversario, body.idade .campeonato .topo .monte { font-size: 14px; }
+}

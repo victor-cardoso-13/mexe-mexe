@@ -9,10 +9,12 @@ import type { Ordenacao } from './estado';
 
 export const TEXTOS = {
   suaVez: 'Sua vez',
+  escolheuDaMesa: 'Escolha mais cartas, ou toque no + do jogo',
+  mesaArrumada: 'Mesa arrumada! Pode comprar e passar.',
   escolheuCartas: 'Toque no jogo, ou no espaço vazio',
   tudoCerto: 'Tudo certo! Passando a vez…',
   mesaComProblema: 'Tem jogo que não vale (em vermelho)',
-  mexeuAntesDeComprar: 'Você mexeu na mesa. Antes de comprar, toque em Desfazer tudo.',
+  mexeuAntesDeComprar: 'A mesa ainda não está certa. Arrume, ou toque em Desfazer tudo.',
   semDica: 'Não achei jogada. Toque em Comprar e passar.',
   baixarSemNada: 'Você ainda não baixou carta. Baixe um jogo, ou compre e passe.',
 };
