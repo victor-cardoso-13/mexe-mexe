@@ -51,9 +51,8 @@ export function htmlJogo(e: Estado, a: Ajustes): string {
   ];
   return `<div class="${classes.join(' ')}">
     ${htmlTopo(e, p)}
-    ${htmlAviso(e, p, minhaVez)}
     ${htmlMesa(e, p)}
-    ${htmlMao(e, p)}
+    ${htmlMao(e, p, minhaVez)}
     ${htmlBotoes(p, minhaVez, !!e.online)}
   </div>${e.menuOrdenar ? htmlOrdenar(e) : ''}`;
 }
@@ -93,10 +92,11 @@ function htmlTopo(e: Estado, p: Partida): string {
       const versos = '<div class="verso"></div>'.repeat(qtd);
       const alerta = qtd === 1 ? '<div class="alerta-uma">⚠️ Só 1 carta!</div>' : '';
       const daVez = p.vez === i && e.computadorJogando ? 'da-vez' : '';
-      return `<div class="adversario ${daVez}" data-jogador="${i}"><span class="nome"><span class="nome-longo">${j.nome}</span><span class="nome-curto">${j.nome.replace('Adversário', 'Adv.')}</span> (${qtd})</span><div class="versos">${versos}</div>${alerta}</div>`;
+      const fala = daVez && !e.online && e.aviso?.curto ? `<span class="fala">· ${e.aviso.curto}</span>` : '';
+      return `<div class="adversario ${daVez}" data-jogador="${i}"><span class="nome"><span class="nome-longo">${j.nome}</span><span class="nome-curto">${j.nome.replace('Adversário', 'Adv.')}</span> (${qtd})</span>${fala}<div class="versos">${versos}</div>${alerta}</div>`;
     })
     .join('');
-  return `<div class="topo ${p.jogadores.length > 3 ? 'muitos' : ''}">
+  return `<div class="topo ${p.jogadores.length > 3 ? 'muitos' : ''} ${p.jogadores.length > 2 ? 'varios' : ''}">
     ${e.online ? '' : '<button class="botao-ajustes botao-sair" data-acao="pedirPausa" aria-label="Sair da partida">⏸<span class="nome-ajustes"> Sair</span></button>'}
     ${adversarios}
     <div class="espaco"></div>
@@ -128,11 +128,6 @@ function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: 
   if (mesaMexidaEstaCerta(p)) return { texto: TEXTOS.mesaArrumada, tipo: 'normal' };
   if (c.jogosInvalidos.length) return { texto: c.problemas[0] ?? TEXTOS.mesaComProblema, tipo: 'problema' };
   return { texto: c.problemas[0], tipo: 'problema' };
-}
-
-function htmlAviso(e: Estado, p: Partida, minhaVez: boolean): string {
-  const av = avisoAtual(e, p, minhaVez);
-  return `<div class="aviso ${av.tipo}"><span>${av.texto}</span>${av.acao ?? ''}</div>`;
 }
 
 function htmlMesa(e: Estado, p: Partida): string {
@@ -175,7 +170,7 @@ function htmlMesa(e: Estado, p: Partida): string {
   return `<div class="mesa" data-destino="novo"><div class="jogos">${jogos}${vazio}</div></div>`;
 }
 
-function htmlMao(e: Estado, p: Partida): string {
+function htmlMao(e: Estado, p: Partida, minhaVez: boolean): string {
   const mao = ordenarMao(p.jogadores[0].mao, e.ordenacao, e.ordemManual);
   const selecionadas = new Set(e.selecionadas);
   const daDica = new Set(e.dica?.cartas ?? []);
@@ -197,9 +192,15 @@ function htmlMao(e: Estado, p: Partida): string {
     : podeBaixarJogo(p, e.selecionadas)
       ? `<button class="baixar-jogo" data-acao="baixarJogo"><span class="icone-baixar">${ICONES.baixar}</span>Baixar jogo</button>`
       : `<button class="baixar-jogo novo" data-acao="baixarJogo"><span class="icone-baixar">${ICONES.novo}</span>Novo jogo</button>`;
-  const baixar = botaoJogo;
-  return `<div class="area-mao" data-destino="mao">
-    <div class="rotulo-mao"><span>Suas cartas (${mao.length})</span><span class="dica-arrastar">· arraste para mudar a ordem</span><div class="espaco-baixar">${baixar}</div></div>
+  // A frase do momento (antes numa barra) mora nesta linha. O botão da frase ("Fazer para mim"...) usa o lugar
+  // do botão "Novo jogo" quando ele está escondido. Na vez do computador a frase aparece na pílula dele.
+  const av = avisoAtual(e, p, minhaVez);
+  const naPilula = !e.online && !minhaVez && !p.resultado;
+  const frase = naPilula ? '' : av.texto === TEXTOS.suaVez ? '✋ ' + av.texto : av.texto;
+  const baixar = botaoJogo.includes('reservado') && av.acao && !naPilula ? av.acao : botaoJogo;
+  const suaVez = p.vez === 0 && !e.computadorJogando && !p.resultado;
+  return `<div class="area-mao ${suaVez ? 'sua-vez' : ''}" data-destino="mao">
+    <div class="rotulo-mao"><span>Suas cartas (${mao.length})</span><span class="msg-mao ${av.tipo}">${frase}</span><div class="espaco-baixar">${baixar}</div></div>
     <div class="linha-mao">
       <div class="mao">${cartas}</div>
     </div>

@@ -13,6 +13,8 @@ export type Ordenacao = 'naipe' | 'asBaixo' | 'asAlto' | 'manual';
 export interface Aviso {
   texto: string;
   tipo: 'normal' | 'problema' | 'computador';
+  /** Versão curta (vez do computador): aparece na pílula dele, lá no topo. */
+  curto?: string;
 }
 
 export interface Dica {

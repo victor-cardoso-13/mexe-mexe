@@ -29,6 +29,14 @@ export function listaDeCartas(cartas: Carta[]): string {
   return cartas.map(nomeDaCarta).join(' ');
 }
 
+/** Versão curta de um passo, para a pílula do adversário ("pôs 5♣"). */
+export function resumoDoPasso(passo: Passo): string {
+  const cartas = listaDeCartas(passo.cartasDaMao);
+  if (passo.tipo === 'baixou') return `baixou ${cartas}`;
+  if (passo.tipo === 'encostou') return `pôs ${cartas}`;
+  return 'rearrumou a mesa';
+}
+
 /** Frase sobre um passo da jogada ("O computador colocou 5♣ no jogo 2♣ 3♣ 4♣."). */
 export function descreverPasso(passo: Passo, quem: string, regras: Regras, comoDica = false): string {
   const cartas = listaDeCartas(passo.cartasDaMao);
