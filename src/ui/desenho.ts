@@ -97,6 +97,7 @@ function htmlTopo(e: Estado, p: Partida): string {
     })
     .join('');
   return `<div class="topo">
+    ${e.online ? '' : '<button class="botao-ajustes botao-sair" data-acao="pedirPausa" aria-label="Sair da partida">⏸<span class="nome-ajustes"> Sair</span></button>'}
     ${adversarios}
     <div class="espaco"></div>
     ${e.online?.sala?.fase === 'jogando' ? '<div class="tempo-vez" id="tempo">⏱</div>' : ''}
@@ -376,6 +377,36 @@ export function htmlRetrospecto(r: Resumo, email: string | null): string {
   </div></div>`;
 }
 
+export function htmlConfirmarSair(): string {
+  return `<div class="fundo-janela"><div class="janela">
+    <h2>Quer mesmo sair?</h2>
+    <p>A partida fica guardada: dá para continuar depois, na tela inicial.</p>
+    <button class="grande" data-acao="pausar">Sim, sair para o início</button>
+    <button class="grande secundario" data-acao="fecharJanela">Não, continuar jogando</button>
+  </div></div>`;
+}
+
+/** Antes de começar uma partida contra o computador: como vai ser. */
+export function htmlComoJogar(a: Ajustes): string {
+  return `<div class="fundo-janela"><div class="janela janela-ajustes">
+    <h2>🃏 Como vai ser?</h2>
+    <div class="corpo-ajustes">
+      <div class="ajuste"><div class="nome-ajuste">Jogo</div>
+        ${opcoes('modo', a.modo, [['casual', 'Casual'], ['campeonato', 'Até 100 pontos']])}</div>
+      <div class="ajuste"><div class="nome-ajuste">Computador</div>
+        ${opcoes('nivel', a.nivel, [['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']])}</div>
+      <div class="ajuste"><div class="nome-ajuste">Adversários</div>
+        ${opcoes('adversarios', String(a.adversarios), [['1', '1'], ['2', '2'], ['3', '3']])}</div>
+      <div class="ajuste"><div class="nome-ajuste">Coringa</div>
+        ${opcoes('curinga', String(a.curinga), [['false', 'Sem'], ['true', 'Com']])}</div>
+    </div>
+    <div class="rodape-ajustes">
+      <button class="grande" data-acao="comecarComoEscolhido">▶ Começar</button>
+      <button class="grande secundario" data-acao="fecharJanela">Voltar</button>
+    </div>
+  </div></div>`;
+}
+
 export function htmlConfirmarNova(): string {
   return `<div class="fundo-janela"><div class="janela">
     <h2>Começar outra partida?</h2>
@@ -437,7 +468,7 @@ export function htmlAjustes(a: Ajustes, emJogo: boolean, online: Online | null =
 
 export function htmlFim(p: Partida, camp: Campeonato | null = null, online: Online | null = null): string {
   const r = p.resultado!;
-  const sit = camp ? situacaoDoCampeonato(camp) : null;
+  const sit = camp ? situacaoDoCampeonato(camp, !online) : null;
   let titulo: string;
   let emoji: string;
   if (sit?.acabou) {
@@ -467,12 +498,17 @@ export function htmlFim(p: Partida, camp: Campeonato | null = null, online: Onli
       return `<div class="mao-final"><div class="nome-final">${i === 0 ? 'Você' : j.nome}: <b>${pontos} pontos</b> (${j.mao.length} cartas)${soma}</div><div class="cartas-finais">${cartas}</div></div>`;
     })
     .join('');
-  const campanha = camp && !sit?.acabou ? `<p class="nota-camp">Rodada ${camp.rodada} · o campeonato acaba quando alguém chegar a ${camp.alvo} pontos.</p>` : '';
+  const passaram = camp && sit?.podeContinuar ? p.jogadores.flatMap((j, i) => (camp.totais[i] >= camp.alvo ? [i === 0 ? 'Você' : j.nome] : [])) : [];
+  const aviso100 = passaram.length ? `<p class="nota-camp"><b>${passaram.join(' e ')}</b> chegou a ${camp!.alvo} pontos. Quer continuar só com quem ainda não chegou, ou terminar aqui? (Terminando, ganha quem tem menos pontos.)</p>` : '';
+  const campanha = aviso100 || (camp && !sit?.acabou ? `<p class="nota-camp">Rodada ${camp.rodada} · o campeonato acaba quando alguém chegar a ${camp.alvo} pontos.</p>` : '');
   const euDono = !!online?.sala && online.sala.dono === online.uid;
   const botao = online
     ? euDono
       ? `<button class="grande" data-acao="onlineProxima">${camp && sit?.acabou ? 'Novo campeonato' : 'Próxima rodada'}</button>`
       : '<p class="nota-camp">Esperando o criador da sala começar a próxima rodada…</p>'
+    : sit?.podeContinuar
+      ? `<button class="grande" data-acao="continuarSemEliminados">Continuar só com quem não chegou a ${camp!.alvo}</button>
+         <button class="grande secundario" data-acao="terminarCampeonato">Terminar aqui</button>`
     : camp && !sit?.acabou
       ? '<button class="grande" data-acao="proximaRodada">Próxima rodada</button>'
       : `<button class="grande" data-acao="novaPartida">${camp ? 'Novo campeonato' : 'Jogar de novo'}</button>`;

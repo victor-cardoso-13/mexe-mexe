@@ -9,11 +9,11 @@ import {
   novaPartida, ondeEstaCarta, recomecarJogada, terminarJogada, aplicarJogada, type Destino, type Partida,
 } from './motor/partida';
 import { criarRegras, type NivelIA } from './motor/regras';
-import { novoCampeonato, proximaRodada, somarRodada } from './motor/campeonato';
+import { novoCampeonato, proximaRodada, semOsEliminados, sobreviventes as sobreviventesDoCampeonato, somarRodada } from './motor/campeonato';
 import { escolherJogada, jogadaDoCuringa, ultimaBusca } from './ia';
 import { anotar, baixarDiario, textoCartas, textoMesa } from './ui/diario';
 import { estadoInicial, type Ajustes, type Ordenacao } from './ui/estado';
-import { escapar, htmlAjustes, htmlConfirmarNova, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlTutorial, type Mensagem } from './ui/desenho';
+import { escapar, htmlAjustes, htmlComoJogar, htmlConfirmarNova, htmlConfirmarSair, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlTutorial, type Mensagem } from './ui/desenho';
 import { encaixar, reiniciarEncaixe } from './ui/encaixe';
 import { codigoNoLink, criarOnline, linkDaSalaAtual, nomeSalvo, LIMITE_PADRAO_SEG } from './online/controle';
 import { carregarAjustes, carregarGaveta, salvarAjustes, salvarGaveta, type Gaveta } from './ui/salvar';
@@ -116,6 +116,8 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   if (e.janela === 'mensagem' && mensagem) html += htmlMensagem(mensagem);
   if (e.janela === 'tutorial') html += htmlTutorial(e.tutorialPasso);
   if (e.janela === 'confirmarNova') html += htmlConfirmarNova();
+  if (e.janela === 'confirmarSair') html += htmlConfirmarSair();
+  if (e.janela === 'comoJogar') html += htmlComoJogar(ajustes);
   if (e.janela === 'fim' && e.partida) html += htmlFim(e.partida, e.campeonato, e.online);
   app.innerHTML = html;
   encaixar(chaveDoEncaixe(), podeCrescerAsCartas(), e.computadorJogando);
@@ -213,18 +215,21 @@ function avisar(texto: string, tipo: 'normal' | 'problema' = 'problema') {
 // ---------------------------------------------------------------------------
 
 /** Começa uma partida. Com "proxima", continua o campeonato (próxima rodada); senão começa do zero. */
-function comecarPartida(proxima = false) {
+function comecarPartida(proxima = false, semEliminados = false) {
+  // Continuando só com quem não chegou ao alvo, a mesa tem menos jogadores (e eles guardam os nomes).
+  const nomesVivos = semEliminados && e.campeonato && e.partida ? sobreviventesDoCampeonato(e.campeonato).map((i) => e.partida!.jogadores[i].nome) : null;
   const regras = criarRegras({
-    adversarios: ajustes.adversarios,
+    adversarios: nomesVivos ? nomesVivos.length - 1 : ajustes.adversarios,
     nivelIA: ajustes.nivel,
     curinga: { ...criarRegras().curinga, ativo: ajustes.curinga },
   });
   reiniciarEncaixe();
   maoVista = '';
   const semente = Math.floor(Math.random() * 2 ** 31);
-  e.partida = novaPartida(regras, semente);
+  e.partida = novaPartida(regras, semente, nomesVivos ?? undefined);
   e.partidaId = `${Date.now().toString(36)}-${semente.toString(36)}`;
-  if (proxima && e.campeonato) e.campeonato = proximaRodada(e.campeonato);
+  if (nomesVivos) e.campeonato = semOsEliminados(e.campeonato!);
+  else if (proxima && e.campeonato) e.campeonato = proximaRodada(e.campeonato);
   else e.campeonato = ajustes.modo === 'campeonato' ? novoCampeonato(e.partida.jogadores.length) : null;
   Object.assign(e, { tela: 'jogo', janela: null, selecionadas: [], novaCartaId: null, ordemManual: [], baixadasPeloComputador: [] });
   limparMensagens();
@@ -615,7 +620,7 @@ function mudarAjuste(chave: string, valor: string) {
   if (chave === 'nivel') {
     ajustes.nivel = valor as NivelIA;
     // O nível vale na hora, até na partida em andamento.
-    if (e.partida) e.partida = { ...e.partida, regras: { ...e.partida.regras, nivelIA: ajustes.nivel } };
+    if (e.partida && e.tela === 'jogo') e.partida = { ...e.partida, regras: { ...e.partida.regras, nivelIA: ajustes.nivel } };
   }
   if (chave === 'modo') ajustes.modo = valor as Ajustes['modo'];
   if (chave === 'visual') ajustes.visual = valor as Ajustes['visual'];
@@ -750,6 +755,19 @@ function esperarUsuario(): Promise<NonNullable<ReturnType<typeof usuarioAtual>>>
   });
 }
 
+/** Pausa a partida contra o computador: guarda tudo e volta ao início (lá tem "Continuar partida"). */
+function pausar() {
+  if (e.online || !e.partida) return;
+  geracao++; // se o computador estava no meio da jogada, ela para; ao continuar ele refaz a vez
+  e.computadorJogando = false;
+  e.mesaExibida = e.cartasExibidas = null;
+  e.destaques = [];
+  e.aviso = null;
+  e.selecionadas = [];
+  salvar();
+  mostrarInicio();
+}
+
 /** Volta para a tela inicial e traz da nuvem o que foi jogado em outro aparelho. */
 function mostrarInicio() {
   e.tela = 'inicio';
@@ -844,13 +862,32 @@ app.addEventListener('click', (ev) => {
         e.tela = 'jogo';
         desenhar();
         return continuarJogo(400);
+      case 'pausar': return pausar();
+      case 'pedirPausa':
+        e.janela = 'confirmarSair';
+        return desenhar();
+      case 'continuarSemEliminados': return comecarPartida(true, true);
+      case 'terminarCampeonato':
+        if (e.campeonato) e.campeonato = { ...e.campeonato, encerrado: true };
+        salvar();
+        return desenhar();
       case 'pedirNova':
         if (e.partida && !e.partida.resultado) {
           e.janela = 'confirmarNova';
           return desenhar();
         }
+        if (e.tela === 'inicio') {
+          e.janela = 'comoJogar';
+          return desenhar();
+        }
         return comecarPartida();
-      case 'novaPartida': return comecarPartida();
+      case 'novaPartida':
+        if (e.tela === 'inicio') {
+          e.janela = 'comoJogar';
+          return desenhar();
+        }
+        return comecarPartida();
+      case 'comecarComoEscolhido': return comecarPartida();
       case 'abrirRetrospecto': return abrirJanela('retrospecto');
       case 'abrirMenuConta': return abrirMenuConta();
       case 'abrirConta': return abrirJanela('conta');
