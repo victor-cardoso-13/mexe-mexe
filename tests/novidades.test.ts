@@ -41,6 +41,17 @@ describe('mesa que se arruma sozinha', () => {
   });
 });
 
+describe('tirar uma carta do meio de uma sequência comprida', () => {
+  it('5-6-7-8-9-10-J-Q-K-A sem o 10 vira 5-9 e J-A', () => {
+    const mesa = [{ id: 'j1', cartas: cs('5o 6o 7o 8o 9o 10o Jo Qo Ko Ao') }];
+    const p0 = montar(cs('2c'), mesa);
+    const dez = mesa[0].cartas[5].id;
+    const p = ok(moverCartas(p0, [dez], { tipo: 'novoJogo' }));
+    // o 10 fica sozinho num jogo novo; o resto se separa em dois jogos que valem
+    expect(p.mesa.map((j) => j.cartas.length).sort()).toEqual([1, 4, 5]);
+  });
+});
+
 describe('comprar depois de arrumar a mesa', () => {
   it('mesa mexida e toda certa: dá para comprar e a mesa arrumada fica', () => {
     const mesa = [{ id: 'j1', cartas: cs('3c 4c 5c 6c') }];
