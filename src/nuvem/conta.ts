@@ -6,19 +6,25 @@
  */
 import { initializeApp } from 'firebase/app';
 import {
-  createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendPasswordResetEmail,
-  signInWithEmailAndPassword, signOut,
+  connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendPasswordResetEmail,
+  signInAnonymously, signInWithEmailAndPassword, signOut,
 } from 'firebase/auth';
-import { doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
+import { connectFirestoreEmulator, doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 import type { DadosNuvem } from './mesclar';
 
 const JOGO = 'mexe-mexe';
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+export const auth = getAuth(app);
 auth.languageCode = 'pt'; // e-mail de "esqueci a senha" em português
-const banco = getFirestore(app);
+export const banco = getFirestore(app);
+
+// Só para testar no computador, sem mexer no banco de verdade: abrir o jogo com "?emu" (precisa do emulador ligado).
+if (import.meta.env.DEV && new URLSearchParams(location.search).has('emu')) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  connectFirestoreEmulator(banco, '127.0.0.1', 8080);
+}
 
 export interface Usuario {
   uid: string;
@@ -27,7 +33,14 @@ export interface Usuario {
 
 /** Avisa quando alguém entra ou sai (e logo ao abrir, com quem já estava dentro). */
 export function observarConta(fn: (u: Usuario | null) => void) {
-  return onAuthStateChanged(auth, u => fn(u ? { uid: u.uid, email: u.email ?? '' } : null));
+  // O login "invisível" do jogo online (anônimo) não conta como conta: o progresso continua sem conta.
+  return onAuthStateChanged(auth, u => fn(u && !u.isAnonymous ? { uid: u.uid, email: u.email ?? '' } : null));
+}
+
+/** Quem está na sala online: a conta, se a pessoa entrou; senão um login invisível, sem e-mail nem senha. */
+export async function garantirUid(): Promise<string> {
+  if (!auth.currentUser) await signInAnonymously(auth);
+  return auth.currentUser!.uid;
 }
 
 export async function entrar(email: string, senha: string) {
