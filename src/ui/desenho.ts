@@ -14,6 +14,7 @@ import { podeBaixarJogo } from './baixarJogo';
 import { NOMES_ORDENACAO, ordenarMao, TEXTOS } from './textos';
 import { passosDoTutorial } from './tutorial';
 import { ativos, MAX_JOGADORES, MIN_JOGADORES } from '../online/logica';
+import { escapar } from './seguranca';
 
 // ---------------------------------------------------------------------------
 // Carta
@@ -60,14 +61,14 @@ export function htmlJogo(e: Estado, a: Ajustes): string {
 /** Pílula do campeonato, em ordem de quem está ganhando: "Rodada 2 · 1 Você 35 · 2 Adv. 60 /100". */
 function htmlPlacar(c: Campeonato, p: Partida): string {
   const nomes = ordemDoPlacar(c.totais)
-    .map((l) => `<span class="pos">${l.posicao}</span> ${l.jogador === 0 ? 'Você' : p.jogadores[l.jogador].nome.replace('Adversário', 'Adv.')} <b>${l.pontos}</b>`)
+    .map((l) => `<span class="pos">${l.posicao}</span> ${l.jogador === 0 ? 'Você' : escapar(p.jogadores[l.jogador].nome.replace('Adversário', 'Adv.'))} <b>${l.pontos}</b>`)
     .join(' · ');
   return `<div class="placar-camp">Rodada ${c.rodada} · ${nomes} <span class="ate">/${c.alvo}</span></div>`;
 }
 
 /** Placar grande do fim da rodada: 2 jogadores = dois números lado a lado; 3 ou 4 = uma linha por jogador. */
 function htmlPlacarFim(c: Campeonato, p: Partida, rodada: number[]): string {
-  const nome = (i: number) => (i === 0 ? 'Você' : p.jogadores[i].nome);
+  const nome = (i: number) => (i === 0 ? 'Você' : escapar(p.jogadores[i].nome));
   const barra = (pontos: number) => {
     const pct = Math.min(100, Math.round((pontos / c.alvo) * 100));
     return `<div class="barra"><i class="${pct >= 80 ? 'perigo' : pct >= 60 ? 'alta' : ''}" style="width:${pct}%"></i></div>`;
@@ -93,7 +94,7 @@ function htmlTopo(e: Estado, p: Partida): string {
       const alerta = qtd === 1 ? '<div class="alerta-uma">⚠️ Só 1 carta!</div>' : '';
       const daVez = p.vez === i && e.computadorJogando ? 'da-vez' : '';
       const fala = daVez && !e.online && e.aviso?.curto ? `<span class="fala">· ${e.aviso.curto}</span>` : '';
-      return `<div class="adversario ${daVez}" data-jogador="${i}"><span class="nome"><span class="nome-longo">${j.nome}</span><span class="nome-curto">${j.nome.replace('Adversário', 'Adv.')}</span> (${qtd})</span>${fala}<div class="versos">${versos}</div>${alerta}</div>`;
+      return `<div class="adversario ${daVez}" data-jogador="${i}"><span class="nome"><span class="nome-longo">${escapar(j.nome)}</span><span class="nome-curto">${escapar(j.nome.replace('Adversário', 'Adv.'))}</span> (${qtd})</span>${fala}<div class="versos">${versos}</div>${alerta}</div>`;
     })
     .join('');
   return `<div class="topo ${p.jogadores.length > 3 ? 'muitos' : ''} ${p.jogadores.length > 2 ? 'varios' : ''}">
@@ -112,7 +113,7 @@ function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: 
   if (e.aviso) return e.aviso;
   if (p.resultado) return { texto: 'A partida acabou.', tipo: 'normal', acao: '<button class="acao" data-acao="novaPartida">Jogar de novo</button>' };
   if (e.online && p.resultado === null && e.online.sala?.fase === 'contando') return { texto: 'Contando os pontos…', tipo: 'computador' };
-  if (!minhaVez) return { texto: e.online ? `Vez de ${jogadorDaVez(p).nome}…` : 'Vez do computador…', tipo: 'computador' };
+  if (!minhaVez) return { texto: e.online ? `Vez de ${escapar(jogadorDaVez(p).nome)}…` : 'Vez do computador…', tipo: 'computador' };
   if (e.dica) return { texto: e.dica.texto, tipo: 'normal', acao: '<button class="acao" data-acao="fazerDica">Fazer</button>' };
   if (e.selecionadas.length) {
     const daMesa = e.selecionadas.some((id) => ondeEstaCarta(p, id) !== 'mao');
@@ -311,7 +312,7 @@ export function htmlInicio(temPartida: boolean, email: string | null): string {
   </div></div>`;
 }
 
-export const escapar = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+export { escapar };
 
 /** Uma janela simples: emoji, título, texto e botões grandes, um embaixo do outro. */
 export interface Mensagem {
@@ -473,7 +474,7 @@ export function htmlFim(p: Partida, camp: Campeonato | null = null, online: Onli
   let emoji: string;
   if (sit?.acabou) {
     emoji = sit.campeao === 0 ? '🎉🏆🎉' : '😊';
-    titulo = sit.campeao === 0 ? 'Você ganhou o campeonato!' : `${p.jogadores[sit.campeao!].nome} ganhou o campeonato.`;
+    titulo = sit.campeao === 0 ? 'Você ganhou o campeonato!' : `${escapar(p.jogadores[sit.campeao!].nome)} ganhou o campeonato.`;
   } else if (r.vencedor === 0) {
     emoji = '🎉🏆🎉';
     titulo = camp ? 'Você ganhou a rodada!' : 'Parabéns! Você ganhou!';
@@ -482,7 +483,7 @@ export function htmlFim(p: Partida, camp: Campeonato | null = null, online: Onli
     titulo = 'Deu empate!';
   } else {
     emoji = '😊';
-    titulo = `${p.jogadores[r.vencedor].nome} ganhou ${camp ? 'a rodada' : 'desta vez'}.`;
+    titulo = `${escapar(p.jogadores[r.vencedor].nome)} ganhou ${camp ? 'a rodada' : 'desta vez'}.`;
   }
   const explicacao =
     r.motivo === 'bateu'
@@ -495,7 +496,7 @@ export function htmlFim(p: Partida, camp: Campeonato | null = null, online: Onli
       const cartas = j.mao.length ? j.mao.map((c) => htmlCarta(c).replace(/ data-carta="[^"]*"/, '')).join('') : '<span class="sem-cartas">sem cartas 🎉</span>';
       const pontos = pontosDaMao(j.mao, p.regras);
       const soma = camp ? ` · total <b>${camp.totais[i]}</b>${rodada[i] ? ` (+${rodada[i]})` : ''}` : '';
-      return `<div class="mao-final"><div class="nome-final">${i === 0 ? 'Você' : j.nome}: <b>${pontos} pontos</b> (${j.mao.length} cartas)${soma}</div><div class="cartas-finais">${cartas}</div></div>`;
+      return `<div class="mao-final"><div class="nome-final">${i === 0 ? 'Você' : escapar(j.nome)}: <b>${pontos} pontos</b> (${j.mao.length} cartas)${soma}</div><div class="cartas-finais">${cartas}</div></div>`;
     })
     .join('');
   const passaram = camp && sit?.podeContinuar ? p.jogadores.flatMap((j, i) => (camp.totais[i] >= camp.alvo ? [i === 0 ? 'Você' : j.nome] : [])) : [];
