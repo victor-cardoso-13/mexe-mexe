@@ -168,13 +168,15 @@ export async function sairDaSala(codigo: string, uid: string): Promise<void> {
     if (idx === -1) return;
     if (s.fase === 'espera') {
       const resto = s.jogadores.filter((_, i) => i !== idx);
-      if (!resto.length) return void tx.delete(sala(codigo));
+      // quem foi tirado antes continua na lista (só marcado): o novo criador sai de quem AINDA está na sala
+      const vivos = resto.filter((j) => !j.removido);
+      if (!vivos.length) return void tx.delete(sala(codigo));
       tx.update(sala(codigo), {
         jogadores: resto,
         uids: s.uids.filter((u) => u !== uid),
         cartas: s.cartas.filter((_, i) => i !== idx),
         totais: s.totais.filter((_, i) => i !== idx),
-        dono: s.dono === uid ? resto[0].uid : s.dono,
+        dono: s.dono === uid ? vivos[0].uid : s.dono,
       });
       return;
     }
