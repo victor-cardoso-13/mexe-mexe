@@ -15,7 +15,7 @@ export const TEXTOS = {
   tudoCerto: 'Tudo certo! Passando a vez…',
   mesaComProblema: 'Tem jogo que não vale (em vermelho)',
   mexeuAntesDeComprar: 'A mesa ainda não está certa. Arrume, ou toque em Desfazer tudo.',
-  semDica: 'Não achei jogada. Toque em Comprar e passar.',
+  semDica: 'Não achei jogada. Toque em Comprar.',
   baixarSemNada: 'Você ainda não baixou carta. Baixe um jogo, ou compre e passe.',
 };
 

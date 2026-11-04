@@ -128,7 +128,8 @@ function htmlTopo(e: Estado, p: Partida): string {
 function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: string; icone: string } {
   const icone = (a: Aviso) => (a.tipo === 'problema' ? '!' : a.tipo === 'computador' ? '⏳' : a.texto.startsWith('Você comprou') ? '🃏' : '👉');
   // Vez do computador: a narração curta fica na pílula dele; a faixa só diz de quem é a vez.
-  if (!e.online && !minhaVez && !p.resultado && (!e.aviso || e.aviso.tipo === 'computador')) {
+  // (p.vez !== 0: durante o "Fazer" da dica a vez é sua e a faixa mostra a narração "Você pode…".)
+  if (!e.online && !minhaVez && p.vez !== 0 && !p.resultado && (!e.aviso || e.aviso.tipo === 'computador')) {
     return { texto: `Vez do ${escapar(jogadorDaVez(p).nome)}…`, tipo: 'computador', icone: '⏳' };
   }
   if (e.aviso) {
@@ -249,7 +250,7 @@ const ICONES = Object.fromEntries(
 
 /**
  * Barra de botões: UMA linha (no celular deitado, uma coluna à direita).
- * Desfazer · Desfazer tudo · Dica · Comprar e passar (o maior, com o monte desenhado).
+ * Desfazer · Desfazer tudo · Dica · Comprar (o maior, com o monte desenhado e o número de cartas nele).
  * Não existe botão de passar a vez: ela passa sozinha quando a mesa fica certa (main.ts, talvezPassarSozinho).
  */
 function htmlBotoes(p: Partida, minhaVez: boolean, online = false): string {
@@ -258,14 +259,14 @@ function htmlBotoes(p: Partida, minhaVez: boolean, online = false): string {
   const b = (acao: string, icone: string, nome: string, extra = '') =>
     `<button data-acao="${acao}" ${extra}><span class="icone">${icone}</span><span class="nome-botao">${nome}</span></button>`;
   const n = p.monte.length;
-  const restam = n === 0 ? '⚠️ monte vazio' : n <= 5 ? `⚠️ só ${n} no monte` : `${n} no monte`;
-  const monte = `<span class="monte-ic" aria-hidden="true"><i></i><i></i><i></i><b>${n}</b></span>`;
+  // O número fica só na bolinha do montinho (vermelha quando o monte está acabando).
+  const monte = `<span class="monte-ic ${n <= 5 ? 'pouco' : ''}" aria-hidden="true"><i></i><i></i><i></i><b>${n}</b></span>`;
   const apagado = minhaVez && mexeuNaVez(p) && !mesaMexidaEstaCerta(p) ? 'apagado' : '';
   return `<div class="botoes ${online ? 'sem-dica' : ''}">
     ${b('desfazer', ICONES.desfazer, 'Desfazer', podeDesfazer)}
     ${b('desfazerTudo', ICONES.tudo, 'Desfazer tudo', podeDesfazer)}
     ${online ? '' : b('dica', ICONES.dica, 'Dica', off)}
-    <button data-acao="comprar" class="comprar ${apagado}" ${off}>${monte}<span class="nome-botao">Comprar e passar<small class="${n <= 5 ? 'pouco' : ''}">${restam}</small></span></button>
+    <button data-acao="comprar" class="comprar ${apagado}" ${off}>${monte}<span class="nome-botao">Comprar</span></button>
   </div>`;
 }
 
@@ -480,6 +481,12 @@ export function htmlConfirmarNova(): string {
   </div></div>`;
 }
 
+/** Linha da parte "Mais" dos Ajustes: no mesmo jeito das opções (nome à esquerda, botão branco à direita). */
+function linhaMais(nome: string, explica: string, acao: string, rotulo: string): string {
+  return `<div class="ajuste mais"><div class="nome-ajuste">${nome}<small>${explica}</small></div>
+    <div class="opcoes"><button data-acao="${acao}">${rotulo}</button></div></div>`;
+}
+
 function opcoes(chave: string, atual: string, lista: Array<[string, string]>): string {
   return `<div class="opcoes">${lista
     .map(([valor, rotulo]) => `<button data-acao="ajuste" data-chave="${chave}" data-valor="${valor}" class="${valor === atual ? 'atual' : ''}">${rotulo}</button>`)
@@ -490,7 +497,7 @@ function opcoes(chave: string, atual: string, lista: Array<[string, string]>): s
  * Ajustes: só o que é da TELA e do ritmo do computador. O que é da partida (modo, nível, adversários, coringa)
  * fica no "Como vai ser?", que aparece a cada partida nova.
  */
-export function htmlAjustes(a: Ajustes, online: Online | null = null): string {
+export function htmlAjustes(a: Ajustes, online: Online | null = null, email: string | null = null): string {
   const quatro = '<span class="amostra"><b class="v">♥</b><b class="az">♦</b><b>♠</b><b class="vd">♣</b></span>';
   const duas = '<span class="amostra"><b class="v">♥♦</b><b>♠♣</b></span>';
   const computador = online
@@ -512,11 +519,10 @@ export function htmlAjustes(a: Ajustes, online: Online | null = null): string {
       ${computador}
       ${online ? htmlTirarJogadores(online) : ''}
       <div class="secao">Mais</div>
-      <div class="linha-botoes">
-        <button class="grande secundario" data-acao="abrirRetrospecto">📊 Retrospecto</button>
-        <button class="grande secundario" data-acao="abrirMenuConta">☁️ Conta</button>
-      </div>
-      <button class="link-diario" data-acao="baixarDiario">📋 Baixar o diário do jogo (para o Claude investigar um problema)</button>
+      ${linhaMais('Retrospecto', 'vitórias e derrotas', 'abrirRetrospecto', '📊 Ver')}
+      ${linhaMais('Conta', email ? escapar(email) : 'sem conta', 'abrirMenuConta', email ? '☁️ Abrir' : '☁️ Entrar')}
+      ${linhaMais('Sugestão', 'ideia, problema ou elogio', 'abrirSugestao', '💬 Escrever')}
+      ${linhaMais('Diário', 'das últimas partidas', 'baixarDiario', '📋 Baixar')}
     </div>
     <div class="rodape-ajustes">
       <button class="grande" data-acao="fecharJanela">Pronto</button>
