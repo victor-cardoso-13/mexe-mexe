@@ -13,7 +13,9 @@
 import { NAIPES, type Carta } from '../motor/cartas';
 import type { Regras } from '../motor/regras';
 import { jogoValido, validarJogo } from '../motor/validacao';
-import { contar, tipoDaCarta, type Contagem } from './combinacoes';
+import { cartaDoTipo, contar, tipoDaCarta, type Contagem } from './combinacoes';
+import { dividirViavel, suportado, viavel } from './viavel';
+import { Arrumador } from './arrumacao';
 
 const POR_NAIPE = 13;
 const CURINGA = NAIPES.length * POR_NAIPE; // índice do coringa na lista de contagens
@@ -163,23 +165,43 @@ export interface SolucaoExata {
  */
 export class Divisor {
   private becos = new Map<string, number>(); // resto → maior orçamento que já falhou
+  /** Resto → dá para dividir (com qualquer orçamento)? Resposta do verificador rápido (viavel.ts). */
+  private viaveis = new Map<string, boolean | undefined>();
+  private usarViavel: boolean;
+  /** Limite de passos da próxima divisão (o mesmo no Mac e no iPad); "parou" = passou do limite (resposta não definitiva). */
+  passosMax = Infinity;
+  parou = false;
+  private passos = 0;
   constructor(
     private regras: Regras,
     private relogio: Relogio,
     private jogosDaMesa: Set<number>,
-  ) {}
+  ) {
+    this.usarViavel = suportado(regras);
+  }
 
-  /** Procura uma divisão com custo ≤ orçamento. Devolve null se não há (ou se o tempo acabou: veja relogio.acabou). */
+  /** O resto "qtd" pode ser dividido em jogos, sem limite de orçamento? undefined = não sei (regra não coberta ou desistiu). */
+  daParaDividir(qtd: Int8Array, limite?: number, altoPreferido?: number[]): boolean | undefined {
+    if (!this.usarViavel) return undefined;
+    const k = chave(qtd);
+    if (this.viaveis.has(k)) return this.viaveis.get(k);
+    const v = viavel(qtd, this.regras, limite, altoPreferido);
+    this.viaveis.set(k, v);
+    return v;
+  }
+
+  /** Procura uma divisão com custo ≤ orçamento. Devolve null se não há (ou se o tempo/limite acabou: veja relogio.acabou e parou). */
   dividir(inicial: Contagem, orcamento: number): string[][] | null {
     const qtd = new Int8Array(TOTAL);
     for (const [tipo, n] of inicial) qtd[indiceDoTipo(tipo)] = n;
     const escolhidos: Jogo[] = [];
-    let passos = 0;
+    const interromper = () => this.relogio.acabou || this.parou;
 
     const rec = (restantes: number, gasto: number): boolean => {
       if (restantes === 0) return true;
-      if ((++passos & 255) === 0 && performance.now() > this.relogio.fim) this.relogio.acabou = true;
-      if (this.relogio.acabou) return false;
+      if ((++this.passos & 255) === 0 && performance.now() > this.relogio.fim) this.relogio.acabou = true;
+      if (this.passos > this.passosMax) this.parou = true;
+      if (interromper()) return false;
 
       const k = chave(qtd);
       const falhou = this.becos.get(k);
@@ -207,7 +229,7 @@ export class Divisor {
         if (rec(restantes - n, gasto + ig)) return true;
         escolhidos.pop();
         for (const [i, x] of jogo) qtd[i] += x;
-        if (this.relogio.acabou) return false;
+        if (interromper()) return false;
       }
       // Beco sem saída com este orçamento (guarda o maior orçamento que falhou).
       this.becos.set(k, Math.max(falhou ?? -1, orcamento - gasto));
@@ -219,7 +241,17 @@ export class Divisor {
     const ok = rec(total, 0);
     return ok ? escolhidos.map((j) => j.flatMap(([i, x]) => Array<string>(x).fill(tipoDoIndice(i)))) : null;
   }
+
+  /** Zera o contador de passos e o "parou" (antes de cada pergunta com limite). */
+  limitar(passosMax: number) {
+    this.passosMax = passosMax;
+    this.passos = 0;
+    this.parou = false;
+  }
 }
+
+/** Limite de estados do verificador em cada pergunta do atalho guloso (abaixo): se passar, o jogo não é travado. */
+const LIMITE_GULOSO = 50000;
 
 /**
  * Procura, para cada jeito de baixar cartas da mão (todas no mesmo jogo), como arrumar a mesa.
@@ -228,24 +260,67 @@ export class Divisor {
 export class Buscador {
   private divisor: Divisor;
   private daMesa: Contagem;
+  private jogosDaMesa = new Set<number>();
 
   constructor(
-    mesa: Carta[][],
+    private mesa: Carta[][],
     private regras: Regras,
     private relogio: Relogio,
   ) {
     this.daMesa = contar(mesa.flat());
-    const jogosDaMesa = new Set<number>();
-    for (const j of mesa) jogosDaMesa.add(assinaturaDe([...contar(j)].map(([t, n]) => [indiceDoTipo(t), n] as [number, number])));
-    this.divisor = new Divisor(regras, relogio, jogosDaMesa);
+    for (const j of mesa) this.jogosDaMesa.add(assinaturaDe([...contar(j)].map(([t, n]) => [indiceDoTipo(t), n] as [number, number])));
+    this.divisor = new Divisor(regras, relogio, this.jogosDaMesa);
+  }
+
+  /** Quantos jogos NOVOS (diferentes dos da mesa) a arrumação tem, sem contar o primeiro (o que recebe as cartas da mão). */
+  custo(jogos: string[][]): number {
+    let n = 0;
+    for (let k = 1; k < jogos.length; k++) {
+      const assinatura = assinaturaDe([...contar(jogos[k].map((t) => cartaDoTipo(t)))].map(([t, x]) => [indiceDoTipo(t), x] as [number, number]));
+      if (!this.jogosDaMesa.has(assinatura)) n++;
+    }
+    return n;
+  }
+
+  /** A última pergunta passou do limite de passos (o null dela não é definitivo). */
+  get parou(): boolean {
+    return this.divisor.parou;
+  }
+
+  private contagemCom(baixadas: Carta[]): Int8Array {
+    const todas = new Int8Array(TOTAL);
+    for (const [t, n] of this.daMesa) todas[indiceDoTipo(t)] += n;
+    for (const c of baixadas) todas[indiceDoTipo(tipoDaCarta(c))]++;
+    return todas;
+  }
+
+  /**
+   * Mesa + estas cartas da mão podem virar jogos (mexendo à vontade)? Resposta EXATA do verificador rápido.
+   * false = nem rearrumando tudo dá (não adianta procurar); undefined = não sei (regra não coberta).
+   */
+  possivel(baixadas: Carta[]): boolean | undefined {
+    return this.divisor.daParaDividir(this.contagemCom(baixadas), undefined, this.altoDaMesa());
+  }
+
+  /** Quantos Ases de cada naipe a mesa usa como Ás alto (Q-K-A): o verificador começa por essa combinação. */
+  private altoDaMesa(): number[] {
+    const alto = [0, 0, 0, 0];
+    for (const j of this.mesa) {
+      const normais = j.filter((c) => !c.curinga);
+      if (normais.length === 0 || !normais.every((c) => !c.curinga && c.naipe === (normais[0] as { naipe: string }).naipe)) continue;
+      const valores = normais.map((c) => (c.curinga ? 0 : c.valor));
+      if (valores.includes(1) && (valores.includes(13) || valores.includes(12)) && !valores.includes(2)) alto[NAIPES.indexOf((normais[0] as { naipe: (typeof NAIPES)[number] }).naipe)]++;
+    }
+    return alto;
   }
 
   /**
    * Tenta baixar "baixadas" mexendo em, no máximo, "orcamento" jogos além do jogo que as recebe.
    * Devolve os jogos (como tipos), o primeiro é o que recebe as cartas da mão; ou null.
-   * Se o tempo acabar, "relogio.acabou" fica verdadeiro e o resultado null não é definitivo.
+   * Se o tempo acabar ("relogio.acabou") ou passar de "passosMax" ("parou"), o null não é definitivo.
    */
-  tentar(baixadas: Carta[], orcamento: number): string[][] | null {
+  tentar(baixadas: Carta[], orcamento: number, passosMax = Infinity): string[][] | null {
+    this.divisor.limitar(passosMax);
     const dasBaixadas = contar(baixadas);
     const tudo: Contagem = new Map(this.daMesa);
     for (const [t, n] of dasBaixadas) tudo.set(t, (tudo.get(t) ?? 0) + n);
@@ -260,7 +335,7 @@ export class Buscador {
       .sort((a, b) => a.length - b.length); // o que usa menos cartas da mesa primeiro (mexe menos)
 
     for (const jogo of candidatos) {
-      if (this.relogio.acabou) return null;
+      if (this.relogio.acabou || this.divisor.parou) return null;
       const resto: Contagem = new Map(tudo);
       for (const t of jogo) resto.set(t, resto.get(t)! - 1);
       const r = this.divisor.dividir(resto, orcamento);
@@ -268,6 +343,117 @@ export class Buscador {
     }
     return null;
   }
+
+  /** A arrumação exata (arrumacao.ts) vale para estas regras? */
+  get cobreArrumacao(): boolean {
+    return suportado(this.regras);
+  }
+
+  private arrumadores = new Map<string, Arrumador>();
+
+  /**
+   * A arrumação EXATA que mexe menos (arrumacao.ts) para UMA carta baixada: devolve os jogos (o primeiro recebe a
+   * carta) e o custo no mesmo sentido de tentar() (jogos novos sem contar o que recebe a carta), se o custo for
+   * ≤ custoMax; null se é maior; undefined se a regra não é coberta ou passou do limite ("não sei").
+   * Perguntas seguidas para a mesma carta (custoMax 0, 1, 3, ...) continuam de onde a anterior parou.
+   * "desempatar": entre as de menor custo, a que mexe em menos jogos da mesa.
+   */
+  arrumar(baixadas: Carta[], custoMax: number, desempatar = false): { jogos: string[][]; custo: number } | null | undefined {
+    if (!this.cobreArrumacao || baixadas.length !== 1) return undefined;
+    const mesaIdx = this.mesa.map((j) => j.map((c) => indiceDoTipo(tipoDaCarta(c))));
+    const alvo = indiceDoTipo(tipoDaCarta(baixadas[0]));
+    let arr = this.arrumadores.get(tipoDaCarta(baixadas[0]));
+    if (!arr) {
+      arr = new Arrumador(this.contagemCom(baixadas), this.regras, mesaIdx);
+      this.arrumadores.set(tipoDaCarta(baixadas[0]), arr);
+    }
+    let a = arr.ate(Number.isFinite(custoMax) ? custoMax + 1 : 1000);
+    if (a && desempatar) a = arr.desempatada() ?? a;
+    if (!a) return a;
+    // O jogo que recebe a carta: um que NÃO é igual a um jogo da mesa e que tem o tipo da carta (sempre existe).
+    const livres = mesaIdx.map((j) => [...j].sort((x, y) => x - y).join(','));
+    const daMesa = a.jogos.map((j) => {
+      const k = livres.indexOf([...j].sort((x, y) => x - y).join(','));
+      if (k < 0) return false;
+      livres.splice(k, 1);
+      return true;
+    });
+    const k = a.jogos.findIndex((j, i) => !daMesa[i] && j.includes(alvo));
+    if (k < 0) return undefined; // não deveria acontecer
+    const jogos = [a.jogos[k], ...a.jogos.filter((_, i) => i !== k)].map((j) => j.map(tipoDoIndice));
+    return { jogos, custo: a.custo - 1 };
+  }
+
+  /**
+   * ATALHO GULOSO para UMA carta que o verificador já garantiu que cabe (possivel() = true), quando a busca
+   * "mexendo pouco" passou do limite: trava, um a um, os jogos da mesa MENOS ligados à carta, enquanto o
+   * verificador continuar dizendo que dá. Sobra um pedacinho (jogos não travados + a carta), onde a busca
+   * antiga acha a arrumação rápido. A resposta sempre existe (o verificador garantiu); pode mexer em um
+   * jogo a mais do que o mínimo possível.
+   */
+  tentarGuloso(baixadas: Carta[]): string[][] | null {
+    const todas = this.contagemCom(baixadas);
+    // Distância de cada jogo até a carta, em "camadas": 0 = ligado à carta, 1 = ligado a um jogo da camada 0, ...
+    // Trava primeiro os mais longe (e, na mesma camada, os menos ligados).
+    const camada = this.mesa.map(() => Infinity);
+    let fronteira = baixadas;
+    for (let d = 0; fronteira.length > 0; d++) {
+      const nova: Carta[] = [];
+      this.mesa.forEach((cartas, i) => {
+        if (camada[i] === Infinity && ligacaoDoJogo(cartas, fronteira) > 0) {
+          camada[i] = d;
+          nova.push(...cartas);
+        }
+      });
+      fronteira = nova;
+    }
+    const ordem = this.mesa
+      .map((cartas, i) => ({ i, camada: camada[i], nota: ligacaoDoJogo(cartas, baixadas) }))
+      .sort((a, b) => b.camada - a.camada || a.nota - b.nota);
+    const travados = new Set<number>();
+    for (const { i } of ordem) {
+      const idx = this.mesa[i].map((c) => indiceDoTipo(tipoDaCarta(c)));
+      for (const k of idx) todas[k]--;
+      if (viavel(todas, this.regras, LIMITE_GULOSO) === true) travados.add(i);
+      else for (const k of idx) todas[k]++;
+    }
+    const soltos = this.mesa.filter((_, i) => !travados.has(i));
+    const fixos = this.mesa.filter((_, i) => travados.has(i)).map((j) => j.map(tipoDaCarta));
+    const pequeno = new Buscador(soltos, this.regras, this.relogio);
+    for (const orcamento of [0, 1, 2, 3, 4, 6]) {
+      const r = pequeno.tentar(baixadas, orcamento, 20000);
+      if (r) return [...r, ...fixos];
+      if (this.relogio.acabou) return null;
+    }
+    // Último recurso (não deveria precisar): a divisão que o próprio verificador montou.
+    const div = dividirViavel(todas, this.regras);
+    if (!div) return null;
+    const jogos = div.map((j) => j.map(tipoDoIndice));
+    const alvo = tipoDaCarta(baixadas[0]);
+    const k = jogos.findIndex((j) => j.includes(alvo));
+    if (k < 0 || baixadas.length !== 1) return null;
+    return [jogos[k], ...jogos.filter((_, i) => i !== k), ...fixos];
+  }
+}
+
+/** Quanto um jogo da mesa tem a ver com as cartas (mesmo valor, ou mesmo naipe perto; coringa conversa com tudo). */
+function ligacaoDoJogo(jogo: Carta[], cartas: Carta[]): number {
+  let nota = 0;
+  for (const d of jogo) {
+    if (d.curinga) {
+      nota += 1;
+      continue;
+    }
+    for (const c of cartas) {
+      if (c.curinga) nota += 1;
+      else if (c.valor === d.valor) nota += 2;
+      else if (c.naipe === d.naipe) {
+        const dist = Math.abs(c.valor - d.valor);
+        if (Math.min(dist, 13 - dist) <= 2) nota += 2;
+      }
+    }
+  }
+  return nota;
 }
 
 /** Atalho usado nos testes: confere que as cartas viraram mesmo jogos válidos. */

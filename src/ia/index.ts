@@ -259,6 +259,13 @@ function pensarBase(
  */
 const DEGRAUS = [0, 1, 3, Infinity];
 
+/**
+ * Limite de passos da busca "mexendo pouco" (degraus 0, 1 e 3) para cada carta que o verificador garantiu que cabe.
+ * Passou disso, a carta vai para o atalho guloso (exata.ts → tentarGuloso). Em passos, não em tempo: dá a mesma
+ * resposta no Mac e no iPad.
+ */
+const PASSOS_POR_DEGRAU = 3000;
+
 export function buscaExata(
   regras: Regras,
   inicio: Foto,
@@ -291,25 +298,79 @@ export function buscaExata(
     rec(0, []);
   }
 
+  const buscador = new Buscador(mesaCartas, regras, relogio);
+  const sobra = (b: Carta[]) => nota(contar(mao.filter((c) => !b.includes(c))));
+  // "Dá de algum jeito, mexendo à vontade?" — resposta EXATA do verificador rápido (viavel.ts), guardada.
+  // false = nem rearrumando a mesa toda dá; undefined = não sei (regra não coberta / passou do limite).
+  const possiveis = new Map<Carta[], boolean | undefined>();
+  const possivel = (g: Carta[]) => {
+    if (!possiveis.has(g)) possiveis.set(g, buscador.possivel(g));
+    return possiveis.get(g);
+  };
+  // Carta solta: a arrumação EXATA que mexe menos (arrumacao.ts), degrau a degrau.
+  const exata = (g: Carta[]) => g.length === 1 && buscador.cobreArrumacao;
+  // Jogos de 3 da mão (e regras não cobertas): a busca antiga, só se o verificador não disser que é impossível.
+  const candidatos = grupos.filter((g) => exata(g) || possivel(g) !== false);
+
+  // Cartas em que a busca antiga "mexendo pouco" passou do limite de passos: ganham na hora a arrumação do atalho
+  // guloso e entram na disputa a partir do degrau que cobre quantos jogos essa arrumação mexe.
+  const pesadas = new Map<Carta[], { jogos: string[][] | null; custo: number }>();
+  const antiga = (baixadas: Carta[], orcamento: number): { jogos: string[][] | null } | null => {
+    const pesada = pesadas.get(baixadas);
+    if (pesada) return pesada.custo <= orcamento ? { jogos: pesada.jogos } : null;
+    const certo = possivel(baixadas) === true;
+    if (!Number.isFinite(orcamento)) {
+      if (certo && baixadas.length === 1) return { jogos: null }; // existe com certeza; monta só se for a escolhida
+      const jogos = buscador.tentar(baixadas, orcamento);
+      return jogos ? { jogos } : null;
+    }
+    // Com a garantia do verificador, a busca curta tem limite de passos (igual no Mac e no iPad).
+    const jogos = buscador.tentar(baixadas, orcamento, certo && baixadas.length === 1 ? PASSOS_POR_DEGRAU : Infinity);
+    if (jogos) return { jogos };
+    if (!buscador.parou) return null;
+    const guloso = buscador.tentarGuloso(baixadas);
+    const p = { jogos: guloso, custo: guloso ? buscador.custo(guloso) : Infinity };
+    pesadas.set(baixadas, p);
+    return p.custo <= orcamento ? { jogos: guloso } : null;
+  };
+
   // Do maior número de cartas para o menor: o primeiro tamanho que tiver jogada vence.
   // Para cada tamanho, vai aumentando o número de jogos que pode mexer (0, 1, 3 e depois sem limite):
   // assim a jogada mais simples aparece primeiro e só no fim vêm as rearrumações gigantes.
-  const buscador = new Buscador(mesaCartas, regras, relogio);
-  const tamanhos = [...new Set(grupos.map((g) => g.length))].sort((a, b) => b - a);
+  const tamanhos = [...new Set(candidatos.map((g) => g.length))].sort((a, b) => b - a);
   for (const n of tamanhos) {
-    const doTamanho = grupos.filter((g) => g.length === n);
+    const doTamanho = candidatos.filter((g) => g.length === n);
     for (const orcamento of degraus) {
-      const achadas: Array<{ baixadas: Carta[]; jogos: string[][] }> = [];
+      const achadas: Array<{ baixadas: Carta[]; jogos: string[][] | null; exata: boolean }> = [];
       for (const baixadas of doTamanho) {
-        const jogos = buscador.tentar(baixadas, orcamento);
-        if (jogos) achadas.push({ baixadas, jogos });
+        let r: { jogos: string[][] | null } | null | undefined;
+        if (exata(baixadas)) {
+          if (Number.isFinite(orcamento)) {
+            const a = buscador.arrumar(baixadas, orcamento); // continua de onde o degrau anterior parou
+            r = a === undefined ? undefined : a && { jogos: a.jogos };
+          } else {
+            const v = possivel(baixadas); // sem limite: só precisa saber se existe
+            r = v === true ? { jogos: null } : v === false ? null : undefined;
+          }
+          if (r) achadas.push({ baixadas, jogos: r.jogos, exata: true });
+        }
+        if (r === undefined) {
+          const v = antiga(baixadas, orcamento);
+          if (v) achadas.push({ baixadas, jogos: v.jogos, exata: false });
+        }
         if (relogio.acabou) break;
       }
       if (achadas.length > 0) {
         // Entre as que servem, a que deixa a melhor mão.
-        const sobra = (b: Carta[]) => nota(contar(mao.filter((c) => !b.includes(c))));
         achadas.sort((a, b) => sobra(b.baixadas) - sobra(a.baixadas));
-        const opcao = opcaoDaDivisao(inicio, achadas[0].baixadas, achadas[0].jogos);
+        const melhor = achadas[0];
+        // Desempate (entre as que criam menos jogos novos, a que mexe em menos jogos da mesa) e, se ainda não há
+        // arrumação montada (só se sabia que existe), a exata subindo o custo; se passar do limite, o atalho guloso.
+        const jogos =
+          (melhor.exata ? buscador.arrumar(melhor.baixadas, Number.isFinite(orcamento) ? orcamento : 40, true)?.jogos : null) ??
+          melhor.jogos ??
+          buscador.tentarGuloso(melhor.baixadas);
+        const opcao = jogos ? opcaoDaDivisao(inicio, melhor.baixadas, jogos) : null;
         // Se o tempo acabou no meio desta rodada, pode haver jogada melhor que não deu tempo de olhar.
         return { completa: !relogio.acabou && !!opcao, opcao };
       }
