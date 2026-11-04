@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<!--
+  MOCK (desenho estático) do VISUAL NOVO do Mexe-Mexe — não é o jogo de verdade.
+  Proposta de 03/11/2026. Especificação para programar: ../PROMPT-VISUAL-NOVO.md
+  Botões no alto da página trocam: aparelho, momento da partida, visual, cor da mesa e outras telas.
+  "Como é hoje" mostra o print atual (prints/revisao-atual/) para comparar.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mexe-Mexe · visual novo (mock)</title>
+<link rel="stylesheet" href="../node_modules/@fontsource/fredoka/latin-600.css" />
+<link rel="stylesheet" href="../node_modules/@fontsource/fredoka/latin-700.css" />
+<link rel="stylesheet" href="../node_modules/@fontsource/nunito/latin-700.css" />
+<link rel="stylesheet" href="../node_modules/@fontsource/nunito/latin-800.css" />
+<style>
+/* =====================================================================
+   PÁGINA DO MOCK (controles) — não faz parte do jogo
+   ===================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font-family: 'Nunito', system-ui, sans-serif; font-weight: 700; background: #d9d2c7; color: #3b2f2a; display: flex; flex-direction: column; }
+.controles { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 14px; background: #3b2f2a; color: #fbf6ee; font-size: 13px; align-items: center; }
+.controles .grupo { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.controles b { margin-right: 4px; color: #f3c969; }
+.controles button { font: inherit; border: 0; border-radius: 99px; padding: 5px 11px; background: #5a4a42; color: #fbf6ee; cursor: pointer; }
+.controles button.on { background: #f3c969; color: #3b2f2a; }
+.palco-mock { flex: 1; display: flex; gap: 18px; padding: 16px; min-height: 0; }
+.vitrine { flex: 1; min-width: 0; display: flex; align-items: flex-start; justify-content: center; }
+.moldura { transform-origin: top left; border-radius: 28px; box-shadow: 0 0 0 10px #1d1a19, 0 20px 50px #0006; overflow: hidden; flex: none; }
+.notas { width: 330px; flex: none; background: #fbf6ee; border-radius: 16px; padding: 14px 18px; overflow: auto; font-size: 14px; line-height: 1.45; }
+.notas h3 { font-family: 'Fredoka', sans-serif; margin: 4px 0 8px; font-size: 19px; }
+.notas li { margin-bottom: 6px; }
+.notas .tag { display: inline-block; background: #f3c969; border-radius: 6px; padding: 0 6px; font-size: 12px; }
+.antes img { display: block; }
+
+/* =====================================================================
+   O JOGO (proposta)
+   ===================================================================== */
+.app {
+  --tinta: #3b2f2a; --creme: #fbf6ee; --ambar: #e7a400; --ambar-claro: #f3c969; --ambar-fundo: #fff3d6;
+  --verm: #c8102e; --preto: #1d1a19; --azul-sel: #0057d9;
+  --feltro-1: #237a50; --feltro-2: #17583a; --borda-mesa: #8a5a2e; --borda-mesa-2: #6b4321;
+  --titulo: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  --mw: 46px; --hw: 66px;
+  position: relative; overflow: hidden;
+  font-family: 'Nunito', system-ui, sans-serif; font-weight: 700; color: var(--tinta);
+  background: radial-gradient(circle at 50% 0%, #fffaf2, #f3e9da 75%);
+  display: grid; gap: 8px; padding: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  grid-template-areas: "topo" "mesa" "faixa" "mao" "barra";
+}
+.app.mesa-petroleo { --feltro-1: #23707c; --feltro-2: #174d57; }
+:where(.app) button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
+.app svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* iPhone deitado: botões numa COLUNA à direita (sobra altura para mesa e mão) */
+.app[data-tela="iphone-deitado"] {
+  gap: 5px; padding: 6px 8px;
+  grid-template-columns: minmax(0, 1fr) 128px;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "topo barra" "mesa barra" "faixa barra" "mao barra";
+}
+
+/* ---------- topo ---------- */
+.topo { grid-area: topo; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.topo .espaco { flex: 1; }
+.btn-menu { display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 14px 0 11px; border-radius: 99px; background: #fff; font-size: 17px; font-weight: 800; }
+.btn-menu .barras { display: grid; gap: 3px; } .btn-menu .barras i { display: block; width: 16px; height: 2.5px; border-radius: 2px; background: currentColor; }
+.adv { display: flex; align-items: center; gap: 7px; height: 44px; padding: 0 12px 0 4px; border-radius: 99px; background: #fff; font-size: 16px; font-weight: 800; position: relative; min-width: 0; }
+.adv .avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-family: var(--titulo); font-size: 18px; flex: none; }
+.adv .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.adv .qtd { display: flex; align-items: center; gap: 4px; }
+.adv .qtd .versinho { width: 14px; height: 19px; border-radius: 3px; background: linear-gradient(135deg, var(--feltro-1), var(--feltro-2)); box-shadow: 2px -1px 0 #fff, 3px -2px 0 var(--feltro-2); }
+.adv .qtd b { font-family: var(--titulo); font-size: 19px; }
+.adv.da-vez { background: var(--ambar-fundo); box-shadow: 0 0 0 3px var(--ambar); }
+.adv .fala { font-weight: 700; font-size: 14px; color: #6b5a50; white-space: nowrap; }
+.adv.uma { background: #ffe1e1; box-shadow: 0 0 0 3px var(--verm); }
+.adv .alerta { color: var(--verm); font-size: 14px; font-weight: 800; white-space: nowrap; }
+.placar { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 99px; background: #fff; font-size: 14px; white-space: nowrap; }
+.placar .rod { color: #8a7a70; font-size: 12px; } .placar .pos { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--tinta); color: #fff; font-size: 11px; }
+.placar .pos.p1 { background: var(--ambar); color: var(--tinta); }
+.tempo { display: flex; align-items: center; gap: 4px; height: 44px; padding: 0 12px; white-space: nowrap; flex: none; border-radius: 99px; background: #fff; font-family: var(--titulo); font-size: 20px; }
+.tempo.pouco { background: #ffe1e1; color: var(--verm); }
+.linha-placar { grid-area: topo; } /* (usado só no iPhone em pé com campeonato: 2ª linha do topo) */
+.topo-2linhas { display: flex; flex-direction: column; gap: 6px; }
+.topo-2linhas .placar { justify-content: space-between; height: 34px; gap: 4px; padding: 0 10px; }
+.placar .ch { display: inline-flex; align-items: center; gap: 4px; } .placar .bol { width: 20px; height: 20px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-size: 11px; font-family: var(--titulo); } .placar .ch b { font-family: var(--titulo); font-size: 16px; } .placar .ch.lider b { color: #b07d00; }
+
+/* ---------- mesa (feltro com borda de madeira) ---------- */
+.mesa { grid-area: mesa; border-radius: 22px; padding: 12px; overflow: hidden; position: relative;
+  background: radial-gradient(ellipse at 50% 35%, var(--feltro-1), var(--feltro-2) 85%);
+  box-shadow: inset 0 0 0 6px var(--borda-mesa), inset 0 0 0 8px var(--borda-mesa-2), inset 0 10px 24px #0004; }
+.jogos { display: flex; flex-wrap: wrap; gap: 12px 12px; align-content: flex-start; padding: 4px; }
+.jogo { display: flex; align-items: flex-start; padding: 7px; border-radius: 12px; background: #ffffff1c; border: 2px solid #ffffff3a; position: relative; }
+.jogo .c + .c { margin-left: calc(var(--w) * -0.52); }
+.jogo.trinca .c + .c { margin-left: 4px; }
+.jogo.invalido { border: 3px solid #ff6b6b; background: #e0242440; }
+.jogo.destaque { border: 3px solid var(--ambar-claro); box-shadow: 0 0 0 4px #f3c96955, 0 0 18px #f3c969aa; }
+.jogo .erro { position: absolute; top: -12px; left: -10px; width: 28px; height: 28px; border-radius: 50%; background: var(--verm); color: #fff; display: grid; place-items: center; font-family: var(--titulo); font-size: 18px; border: 2px solid #fff; }
+.jogo .mais { position: absolute; top: -13px; right: -13px; width: 32px; height: 32px; border-radius: 50%; background: var(--ambar-claro); color: var(--tinta); border: 2.5px solid var(--tinta); display: grid; place-items: center; font-family: var(--titulo); font-size: 22px; line-height: 1; z-index: 2; }
+.vazio { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-width: calc(var(--mw) * 2.6); height: calc(var(--mw) * 1.4 + 18px); border: 3px dashed #ffffffc0; border-radius: 12px; color: #fff; font-size: 15px; font-weight: 800; line-height: 1.15; padding: 0 8px; }
+.vazio small { font-size: 11px; font-weight: 700; opacity: .85; }
+.mesa .rola { position: absolute; right: 12px; bottom: 10px; color: #fff; font-size: 12px; background: #0005; padding: 3px 9px; border-radius: 99px; }
+
+/* ---------- carta ---------- */
+.c { --w: var(--mw); width: var(--w); height: calc(var(--w) * 1.4); flex: none; position: relative; background: #fff; border-radius: calc(var(--w) * .13); color: var(--preto); font-family: var(--titulo); box-shadow: 0 1px 0 #0000000d, 0 3px 8px #3b2f2a33; }
+.mao .c { --w: var(--hw); }
+.c.v { color: var(--verm); }
+.app.quatro .c.ouros { color: #1660c9; } .app.quatro .c.paus { color: #19813f; }
+.c .canto { position: absolute; top: calc(var(--w) * .05); left: calc(var(--w) * .09); display: flex; flex-direction: column; align-items: center; line-height: .9; }
+.c .val { font-size: calc(var(--w) * .42); font-weight: 700; letter-spacing: -.04em; }
+.c .np { font-size: calc(var(--w) * .3); }
+.c .ng { position: absolute; right: calc(var(--w) * .07); bottom: calc(var(--w) * .02); font-size: calc(var(--w) * .58); line-height: 1; }
+.c.coringa { background: linear-gradient(160deg, #3b2f2a, #5b463c); color: #ffd75e; }
+.c.coringa .estrela { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--w) * .62); }
+.c.coringa .rot { position: absolute; bottom: calc(var(--w) * .08); width: 100%; text-align: center; font-size: calc(var(--w) * .14); letter-spacing: .05em; }
+.c .selo { position: absolute; top: -9px; left: 50%; translate: -50% 0; font-family: 'Nunito'; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 99px; color: #fff; background: #1660c9; z-index: 2; white-space: nowrap; }
+.c .selo.pc { background: #e8730c; }
+.c.sel { translate: 0 -10px; box-shadow: 0 0 0 4px var(--ambar), 0 8px 16px #3b2f2a44; }
+.c.dica { box-shadow: 0 0 0 4px #ffd75e, 0 0 16px #ffd75e; translate: 0 -6px; }
+
+/* ---------- faixa da vez (a frase + o botão do momento) ---------- */
+.faixa { grid-area: faixa; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 5px 6px 5px 6px; border-radius: 16px; background: #fff; box-shadow: 0 2px 8px #3b2f2a14; }
+.faixa .chip { flex: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; font-size: 22px; background: var(--ambar-fundo); }
+.faixa .txt { flex: 1; min-width: 0; font-size: 18px; font-weight: 800; line-height: 1.15; }
+.faixa.problema { background: #fff0f0; box-shadow: 0 0 0 2.5px var(--verm); } .faixa.problema .chip { background: var(--verm); color: #fff; } .faixa.problema .txt { color: var(--verm); }
+.faixa.pc .chip { background: #ebe4da; } .faixa.pc .txt { color: #6b5a50; }
+.faixa.ok { box-shadow: 0 0 0 2.5px #1d6b40; } .faixa.ok .chip { background: #1d6b40; color: #fff; }
+.acao { flex: none; display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 16px; border-radius: 12px; background: #1d6b40; color: #fff !important; font-family: var(--titulo); font-size: 18px; border: 2.5px solid #0d3d24 !important; white-space: nowrap; }
+.acao.ambar { background: var(--ambar-claro); color: var(--tinta) !important; border-color: var(--tinta) !important; }
+.acao .ic { font-size: 22px; }
+
+/* ---------- mão (na bandeja) ---------- */
+.area-mao { grid-area: mao; border-radius: 18px; padding: 14px 10px 10px; background: linear-gradient(#efe2cc, #e6d5b8); box-shadow: inset 0 2px 6px #3b2f2a26; }
+.mao { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+
+/* ---------- barra de botões (uma linha só; Comprar é o maior) ---------- */
+.barra { grid-area: barra; display: grid; grid-template-columns: 1fr 1fr 1fr 2.2fr; gap: 8px; }
+.barra.sem-dica { grid-template-columns: 1fr 1fr 2.4fr; }
+.bt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 64px; border-radius: 16px; background: #fff; border: 2.5px solid var(--tinta) !important; font-size: 15px; font-weight: 800; line-height: 1.05; text-align: center; padding: 4px; }
+.bt .ic { font-size: 26px; }
+.bt[disabled] { opacity: .38; border-color: #3b2f2a55 !important; }
+.bt.comprar { flex-direction: row; gap: 12px; background: var(--ambar-claro); font-family: var(--titulo); font-size: 20px; justify-content: center; text-align: left; }
+.bt.comprar.apagado { background: #f3e9d6; opacity: .6; }
+.bt.comprar small { display: block; font-family: 'Nunito'; font-size: 13px; font-weight: 800; color: #6b5a50; margin-top: 2px; }
+.bt.comprar small.pouco { color: var(--verm); }
+.monte-ic { position: relative; width: 34px; height: 46px; flex: none; }
+.monte-ic i { position: absolute; inset: 0; border-radius: 5px; background: linear-gradient(135deg, var(--feltro-1), var(--feltro-2)); border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--tinta); }
+.monte-ic i:nth-child(1) { translate: 5px -4px; } .monte-ic i:nth-child(2) { translate: 2.5px -2px; }
+.monte-ic b { position: absolute; right: -10px; bottom: -6px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 99px; background: var(--tinta); color: #fff; font-size: 13px; display: grid; place-items: center; font-family: 'Nunito'; }
+
+/* iPad: ícone ao lado do nome; botões mais baixos */
+.app[data-tela^="ipad"] .bt { flex-direction: row; gap: 10px; font-size: 19px; min-height: 66px; }
+.app[data-tela^="ipad"] .bt .ic { font-size: 26px; }
+.app[data-tela^="ipad"] .barra { grid-template-columns: 1fr 1.2fr 1fr 2fr; max-width: 980px; width: 100%; justify-self: center; }
+.app[data-tela^="ipad"] .barra.sem-dica { grid-template-columns: 1fr 1.2fr 2fr; }
+.app[data-tela^="ipad"] .faixa .txt { font-size: 21px; }
+
+/* iPhone deitado: coluna */
+.app[data-tela="iphone-deitado"] .barra { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr 1.6fr; gap: 5px; }
+.app[data-tela="iphone-deitado"] .barra.sem-dica { grid-template-rows: 1fr 1fr 1.6fr; }
+.app[data-tela="iphone-deitado"] .bt { min-height: 0; flex-direction: row; gap: 6px; font-size: 13px; border-radius: 12px; justify-content: flex-start; padding: 0 8px; text-align: left; }
+.app[data-tela="iphone-deitado"] .bt .ic { font-size: 20px; }
+.app[data-tela="iphone-deitado"] .bt.comprar { flex-direction: column; gap: 4px; justify-content: center; text-align: center; font-size: 15px; }
+.app[data-tela="iphone-deitado"] .monte-ic { width: 24px; height: 32px; }
+.app[data-tela="iphone-deitado"] .bt.comprar small { font-size: 11px; }
+.app[data-tela="iphone-deitado"] .topo .btn-menu, .app[data-tela="iphone-deitado"] .adv, .app[data-tela="iphone-deitado"] .placar, .app[data-tela="iphone-deitado"] .tempo { height: 34px; font-size: 14px; }
+.app[data-tela="iphone-deitado"] .adv .avatar { width: 28px; height: 28px; font-size: 14px; }
+.app[data-tela="iphone-deitado"] .faixa { min-height: 38px; padding: 3px 4px; border-radius: 12px; }
+.app[data-tela="iphone-deitado"] .faixa .chip { width: 30px; height: 30px; font-size: 17px; border-radius: 9px; }
+.app[data-tela="iphone-deitado"] .faixa .txt { font-size: 15px; }
+.app[data-tela="iphone-deitado"] .acao { height: 32px; font-size: 15px; padding: 0 10px; }
+.app[data-tela="iphone-deitado"] .area-mao { padding: 10px 8px 5px; border-radius: 12px; }
+.app[data-tela="iphone-deitado"] .mesa { padding: 8px; border-radius: 16px; }
+.app[data-tela="iphone-deitado"] .jogos { gap: 8px; }
+.app[data-tela="iphone-deitado"] .jogo { padding: 4px; }
+.app[data-tela="iphone-deitado"] .jogo .mais { width: 26px; height: 26px; font-size: 18px; top: -10px; right: -10px; }
+
+/* Topo compacto (celular em pé ou muitos jogadores): avatar + número */
+.app.compacto .adv .nome, .app.compacto .adv .fala, .app.compacto .adv .alerta .longo { display: none; }
+.app.muitos .btn-menu .palavra { display: none; }
+.app.muitos .btn-menu { padding: 0 13px; }
+.app.compacto .adv.da-vez .fala { display: inline; font-size: 13px; }
+
+/* ---------- Visual "Normal" (sem bordas pretas, sombras) ---------- */
+.app.normal .bt { border: 0 !important; box-shadow: 0 2px 8px #3b2f2a1f; }
+.app.normal .bt.comprar { box-shadow: 0 3px 0 #c99a2e, 0 6px 14px #3b2f2a33; }
+.app.normal .bt { font-size: 12px; color: #5b4a42; }
+.app.normal .c.sel { box-shadow: 0 0 0 3px var(--ambar), 0 10px 18px #3b2f2a55; }
+.app.normal .c:nth-child(odd) { rotate: -.6deg; } .app.normal .c:nth-child(even) { rotate: .6deg; }
+/* "Melhor idade": cartas com borda preta, sem sombra; escolhida com moldura azul */
+.app.idade .c { border: 2.5px solid var(--preto); box-shadow: none; }
+.app.idade .c.sel { box-shadow: 0 0 0 5px var(--azul-sel); }
+.app.idade .jogo .c + .c { box-shadow: -2px 0 0 #0002; }
+
+/* ---------- janelas ---------- */
+.veu { position: absolute; inset: 0; background: #3b2f2a8c; display: grid; place-items: center; padding: 16px; z-index: 10; }
+.janela { width: min(100%, 520px); max-height: 100%; overflow: hidden; background: var(--creme); border-radius: 24px; padding: 18px; box-shadow: 0 0 0 3px var(--tinta); display: flex; flex-direction: column; gap: 10px; }
+.janela h2 { font-family: var(--titulo); font-size: 26px; margin: 0; text-align: center; }
+.janela p { margin: 0; text-align: center; font-size: 17px; }
+.gb { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 58px; border-radius: 16px; font-family: var(--titulo); font-size: 21px; background: #efe5d6; padding: 0 14px; }
+.gb.pri { background: var(--tinta); color: #fff !important; }
+.gb.amb { background: var(--ambar-claro); box-shadow: 0 0 0 2.5px var(--tinta); }
+.gb.sair { background: #fff; box-shadow: inset 0 0 0 2.5px #c8102e88; color: var(--verm) !important; }
+.gb small { font-family: 'Nunito'; font-size: 13px; color: #8a7a70; font-weight: 700; }
+.grade2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grade2 .gb { flex-direction: column; gap: 2px; font-size: 18px; min-height: 72px; }
+.grade2 .gb .e { font-size: 26px; }
+.secao { font-size: 13px; letter-spacing: .08em; color: #8a7a70; text-transform: uppercase; margin: 6px 2px 0; }
+.ajuste { display: grid; grid-template-columns: 1fr 1.5fr; align-items: center; gap: 10px; }
+.ajuste .n { font-size: 18px; } .ajuste .n small { display: block; font-size: 12px; color: #8a7a70; }
+.ops { display: flex; gap: 6px; } .ops span { flex: 1; display: grid; place-items: center; min-height: 48px; border-radius: 12px; background: #fff; box-shadow: inset 0 0 0 2px #e2d8c8; font-size: 16px; text-align: center; line-height: 1.1; padding: 2px; }
+.ops span.on { background: var(--ambar-fundo); box-shadow: inset 0 0 0 3px var(--ambar); }
+.janela.larga { width: min(100%, 820px); }
+.duas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+
+/* início */
+.inicio { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; }
+.leque { position: relative; width: 170px; height: 120px; }
+.leque .c { --w: 72px; --mw: 72px; position: absolute; left: 50%; top: 6px; margin-left: -36px; border: 2.5px solid var(--preto); }
+.leque .c:nth-child(1) { rotate: -16deg; translate: -44px 10px; } .leque .c:nth-child(3) { rotate: 16deg; translate: 44px 10px; }
+.inicio h1 { font-family: var(--titulo); font-size: 48px; margin: 0; letter-spacing: -.01em; }
+.inicio .sub { font-size: 17px; max-width: 360px; margin: -4px 0 6px; color: #6b5a50; }
+.inicio .col { display: flex; flex-direction: column; gap: 10px; width: min(100%, 400px); }
+.inicio .quem { font-size: 13px; color: #8a7a70; }
+.inicio.deitado { flex-direction: row; gap: 40px; }
+.inicio.deitado .lado { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+/* fim */
+.lin-placar { display: grid; grid-template-columns: 1fr auto 90px auto; gap: 8px; align-items: center; background: #fff; border-radius: 12px; padding: 8px 12px; font-size: 17px; }
+.lin-placar .t { font-family: var(--titulo); font-size: 24px; }
+.lin-placar .barrinha { height: 10px; border-radius: 99px; background: #eee3d3; overflow: hidden; } .lin-placar .barrinha i { display: block; height: 100%; background: var(--ambar); }
+.lin-placar .barrinha i.perigo { background: var(--verm); }
+.lin-placar .d { font-size: 14px; color: #8a7a70; }
+.placar-deitado .lin-placar { padding: 3px 12px; font-size: 15px; } .placar-deitado .lin-placar .t { font-size: 19px; }
+.maos-fim { display: flex; flex-direction: column; gap: 6px; font-size: 14px; } .maos-fim .cs { display: flex; gap: 3px; margin-top: 3px; } .maos-fim .c { --w: 30px; --mw: 30px; border-width: 1.5px; }
+</style>
+</head>
+<body>
+<div class="controles" id="controles"></div>
+<div class="palco-mock">
+  <div class="vitrine" id="vitrine"></div>
+  <div class="notas" id="notas"></div>
+</div>
+<script>
+// ------------------------------------------------------------------ dados
+const TELAS = {
+  'iphone-pe': { nome: 'iPhone em pé', w: 440, h: 800, mw: 44, hw: 64, print: 'iphone-em-pe' },
+  'iphone-deitado': { nome: 'iPhone deitado', w: 956, h: 360, mw: 32, hw: 46, print: 'iphone-deitado' },
+  'ipad-deitado': { nome: 'iPad deitado', w: 1180, h: 820, mw: 62, hw: 94, print: 'ipad-deitado' },
+  'ipad-pe': { nome: 'iPad em pé', w: 820, h: 1180, mw: 62, hw: 80, print: 'ipad-em-pe' },
+};
+const MOMENTOS = {
+  suaVez: 'Sua vez', tres: '3 cartas escolhidas', erro: 'Mesa com erro', dica: 'Dica', pc: 'Vez do computador',
+  coringa: 'Com coringa', camp: 'Campeonato · 4 jogadores', online: 'Online · tempo',
+};
+const OUTRAS = { jogo: 'Partida', inicio: 'Tela inicial', menu: 'Menu (pausa)', menuOnline: 'Menu online', ajustes: 'Ajustes', como: 'Como vai ser?', fim: 'Fim da rodada' };
+const S = { tela: 'iphone-pe', momento: 'suaVez', visual: 'idade', mesa: 'verde', outra: 'jogo', antes: false, cores4: false };
+
+const NA = { c: ['♥', 'copas', 1], o: ['♦', 'ouros', 1], e: ['♠', 'espadas', 0], p: ['♣', 'paus', 0] };
+function carta(t, cls = '', selo = '') {
+  if (t === '*') return `<div class="c coringa ${cls}"><div class="estrela">★</div><div class="rot">CORINGA</div>${selo}</div>`;
+  const n = NA[t.slice(-1)], v = t.slice(0, -1);
+  return `<div class="c ${n[2] ? 'v' : ''} ${n[1]} ${cls}"><div class="canto"><span class="val">${v}</span><span class="np">${n[0]}</span></div><div class="ng">${n[0]}</div>${selo}</div>`;
+}
+const MESA_BASE = [['3e 4e 5e 6e'], ['9c 9p 9o', 'trinca'], ['Jo Qo Ko'], ['7p 8p 9p 10p']];
+const MESA_CHEIA = [...MESA_BASE, ['2c 3c 4c 5c'], ['Ap 2p 3p'], ['8o 8e 8c', 'trinca'], ['5o 6o 7o 8o 9o'], ['Qe Ke Ae']];
+const MAO = '2c 5c 6c 7c 8e Ao 4o 10p Kp';
+
+const ICON = {
+  desfazer: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  tudo: '<path d="M3 12a9 9 0 1 0 2.8-6.5L3 8"/><path d="M3 3v5h5"/>',
+  dica: '<path d="M9 18h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.6V16h6v-.1c0-.6.3-1.2.8-1.6A6.5 6.5 0 0 0 12 2.5z"/>',
+  baixar: '<rect x="3" y="9" width="8" height="11" rx="1.5" transform="rotate(-12 7 14.5)"/><rect x="8" y="8" width="8" height="11" rx="1.5"/><rect x="13" y="9" width="8" height="11" rx="1.5" transform="rotate(12 17 14.5)"/><path d="M12 1.5v4"/><path d="m10 3.5 2-2 2 2"/>',
+  fazer: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+};
+const ic = (n) => `<svg class="ic" viewBox="0 0 24 24">${ICON[n]}</svg>`;
+const CORES_ADV = ['#c0563b', '#3b6fb6', '#7a4fa8'];
+
+// ------------------------------------------------------------------ cada momento
+function cenario() {
+  const m = S.momento;
+  const c = {
+    mesa: MESA_BASE, mao: MAO, sel: [], dicaMao: [], mais: false, vazio: false,
+    advs: [{ nome: 'Adversário', inicial: 'A', qtd: 7 }],
+    faixa: { tipo: 'vez', chip: '✋', txt: 'Sua vez' }, acao: '',
+    desfazer: false, dica: true, comprar: 'on', monte: 63, placar: null, tempo: null,
+    destaque: -1, invalido: -1, novaPc: [],
+  };
+  if (S.tela === 'iphone-pe' || S.tela === 'ipad-pe') c.mesa = MESA_CHEIA.slice(0, S.tela === 'ipad-pe' ? 9 : 8);
+  if (m === 'tres') {
+    c.sel = ['5c', '6c', '7c']; c.mais = true; c.vazio = true;
+    c.faixa = { tipo: 'vez', chip: '👆', txt: 'Toque no + de um jogo, ou no espaço vazio' };
+    c.acao = `<button class="acao">${ic('baixar')} Baixar jogo</button>`;
+  }
+  if (m === 'erro') {
+    c.mesa = [...c.mesa.slice(0, 3), ['7p 8p', ''], ...c.mesa.slice(4)]; c.invalido = 3; c.desfazer = true; c.comprar = 'apagado';
+    c.faixa = { tipo: 'problema', chip: '!', txt: 'O jogo 7♣ 8♣ precisa de mais 1 carta' };
+  }
+  if (m === 'dica') {
+    c.dicaMao = ['8e'];
+    c.faixa = { tipo: 'vez', chip: '💡', txt: 'Você pode colocar 8♠ no jogo 3♠ 4♠ 5♠ 6♠ … 7♠?' };
+    c.faixa.txt = 'Você pode baixar um jogo novo: 5♥ 6♥ 7♥.'; c.dicaMao = ['5c', '6c', '7c'];
+    c.acao = `<button class="acao ambar">${ic('fazer')} Fazer</button>`;
+  }
+  if (m === 'pc') {
+    c.advs = [{ nome: 'Adversário', inicial: 'A', qtd: 6, daVez: true, fala: 'pôs 5♣' }];
+    c.faixa = { tipo: 'pc', chip: '⏳', txt: 'Vez do Adversário…' }; c.dica = 'off'; c.comprar = 'off';
+    c.mesa = c.mesa.map((j, i) => (i === 3 ? ['7p 8p 9p 10p Jp'] : j)); c.destaque = 3; c.novaPc = ['Jp'];
+  }
+  if (m === 'coringa') {
+    c.mao = '2c 5c * 7c 8e Ao 4o 10p Kp';
+    c.acao = `<button class="acao ambar">🃏 Deixar o coringa solto</button>`;
+  }
+  if (m === 'camp') {
+    c.advs = [{ nome: 'Adversário', inicial: 'A', qtd: 6 }, { nome: 'Adversário 2', inicial: '2', qtd: 1, alerta: true }, { nome: 'Adversário 3', inicial: '3', qtd: 8 }];
+    c.placar = [['2', 12, 1], ['Você', 35, -1], ['A', 58, 0], ['3', 81, 2]]; c.monte = 4;
+  }
+  if (m === 'online') {
+    c.advs = [{ nome: 'Ana', inicial: 'A', qtd: 8 }, { nome: 'Beto', inicial: 'B', qtd: 5 }, { nome: 'Zezé', inicial: 'Z', qtd: 9 }];
+    c.dica = false; c.tempo = '1:42'; c.monte = 41;
+  }
+  return c;
+}
+
+// ------------------------------------------------------------------ desenho da partida
+function htmlPartida(c, t) {
+  const compacto = c.advs.length > 1 && t.w < 1000;
+  const muitos = c.advs.length > 2 && t.w < 600;
+  const advs = c.advs.map((a, i) => `<div class="adv ${a.daVez ? 'da-vez' : ''} ${a.alerta ? 'uma' : ''}">
+      <span class="avatar" style="background:${CORES_ADV[i]}">${a.inicial}</span>
+      <span class="nome">${a.nome}</span>
+      <span class="qtd"><span class="versinho"></span><b>${a.qtd}</b></span>
+      ${a.fala ? `<span class="fala">· ${a.fala}</span>` : ''}
+      ${a.alerta ? '<span class="alerta">⚠️<span class="longo"> Só 1 carta!</span></span>' : ''}</div>`).join('');
+  const placar = c.placar ? `<div class="placar"><span class="rod">Rodada 3<br>até 100</span>${c.placar.map(([n, p, cor], i) => `<span class="ch ${i ? '' : 'lider'}">${i ? '' : '👑'}<span class="bol" style="background:${cor < 0 ? '#3b2f2a' : CORES_ADV[cor]};${cor < 0 ? 'width:auto;padding:0 6px;border-radius:99px' : ''}">${n}</span><b>${p}</b></span>`).join('')}</div>` : '';
+  const tempo = c.tempo ? `<div class="tempo">⏱ ${c.tempo}</div>` : '';
+  const menu = `<button class="btn-menu"><span class="barras"><i></i><i></i><i></i></span><span class="palavra">Menu</span></button>`;
+  let topo = `<div class="topo">${menu}${advs}<div class="espaco"></div>${tempo}${t.w >= 900 ? placar : ''}</div>`;
+  if (placar && t.w < 900) topo = `<div class="topo-2linhas" style="grid-area:topo"><div class="topo" style="grid-area:auto">${menu}${advs}<div class="espaco"></div>${tempo}</div>${placar}</div>`;
+
+  const jogos = c.mesa.map(([s, tipo], i) => {
+    const cs = s.split(' ').map((x) => carta(x, '', c.novaPc.includes(x) ? '<span class="selo pc">NOVA</span>' : '')).join('');
+    const cls = ['jogo', tipo || '', i === c.invalido ? 'invalido' : '', i === c.destaque ? 'destaque' : ''].join(' ');
+    return `<div class="${cls}">${cs}${i === c.invalido ? '<div class="erro">!</div>' : ''}${c.mais ? '<div class="mais">+</div>' : ''}</div>`;
+  }).join('');
+  const vazio = c.vazio ? '<div class="vazio">+ jogo novo<small>toque ou solte aqui</small></div>' : '';
+  const rola = (S.tela === 'iphone-deitado' && c.mesa.length > 4) ? '<span class="rola">role a mesa ↓</span>' : '';
+
+  const mao = c.mao.split(' ').map((x) => carta(x, [c.sel.includes(x) ? 'sel' : '', c.dicaMao.includes(x) ? 'dica' : ''].join(' '))).join('');
+  const faixa = `<div class="faixa ${c.faixa.tipo}"><span class="chip">${c.faixa.chip}</span><span class="txt">${c.faixa.txt}</span>${c.acao}</div>`;
+
+  const off = c.faixa.tipo === 'pc' ? 'disabled' : '';
+  const pouco = c.monte <= 5;
+  const nomeTudo = S.tela === 'iphone-deitado' ? 'Desfazer tudo' : 'Desfazer<br>tudo';
+  const botoes = [
+    `<button class="bt" ${c.desfazer && !off ? '' : 'disabled'}>${ic('desfazer')}<span>Desfazer</span></button>`,
+    `<button class="bt" ${c.desfazer && !off ? '' : 'disabled'}>${ic('tudo')}<span>${S.tela.startsWith('ipad') ? 'Desfazer tudo' : nomeTudo}</span></button>`,
+    c.dica ? `<button class="bt" ${c.dica === 'off' ? 'disabled' : ''}>${ic('dica')}<span>Dica</span></button>` : '',
+    `<button class="bt comprar ${c.comprar === 'apagado' ? 'apagado' : ''}" ${c.comprar === 'off' ? 'disabled' : ''}><span class="monte-ic"><i></i><i></i><i></i><b>${c.monte}</b></span><span>Comprar e passar<small class="${pouco ? 'pouco' : ''}">${pouco ? `⚠️ só ${c.monte} no monte` : `${c.monte} no monte`}</small></span></button>`,
+  ].join('');
+  return { compacto, muitos, html: `${topo}
+    <div class="mesa"><div class="jogos">${jogos}${vazio}</div>${rola}</div>
+    ${faixa}
+    <div class="area-mao"><div class="mao">${mao}</div></div>
+    <div class="barra ${c.dica ? '' : 'sem-dica'}">${botoes}</div>` };
+}
+
+// ------------------------------------------------------------------ outras telas
+function htmlInicio(t) {
+  const deitado = t.w > t.h;
+  const leque = `<div class="leque">${carta('Ac')}${carta('*')}${carta('Ke')}</div>`;
+  const titulo = `${leque}<h1>Mexe-Mexe</h1><div class="sub">Sequências e trincas. Quem acabar com as cartas primeiro, ganha!</div>`;
+  const botoes = `<div class="col">
+      <button class="gb pri">▶ Continuar partida <small style="color:#f3c969">Rodada 3</small></button>
+      <button class="gb amb">🃏 Partida nova</button>
+      <button class="gb">🌐 Jogar online com amigos</button>
+      <div class="grade2" style="grid-template-columns:repeat(${t.w >= 820 && !deitado ? 4 : 2},1fr)">
+        <button class="gb"><span class="e">❓</span>Como jogar</button>
+        <button class="gb"><span class="e">⚙️</span>Ajustes</button>
+        <button class="gb"><span class="e">📊</span>Retrospecto</button>
+        <button class="gb"><span class="e">☁️</span>Entrar</button>
+      </div>
+      <div class="quem">Jogando sem conta, neste aparelho</div></div>`;
+  if (S.tela === 'iphone-deitado') {
+    return `<div class="inicio deitado" style="padding:10px 24px"><div class="lado" style="transform:scale(.8)">${titulo}</div>
+      <div class="col" style="gap:6px"><button class="gb pri" style="min-height:48px">▶ Continuar partida</button><button class="gb amb" style="min-height:44px">🃏 Partida nova</button><button class="gb" style="min-height:44px">🌐 Online com amigos</button>
+      <div class="grade2" style="grid-template-columns:repeat(4,1fr);gap:6px"><button class="gb" style="min-height:52px;font-size:13px"><span class="e" style="font-size:18px">❓</span>Como jogar</button><button class="gb" style="min-height:52px;font-size:13px"><span class="e" style="font-size:18px">⚙️</span>Ajustes</button><button class="gb" style="min-height:52px;font-size:13px"><span class="e" style="font-size:18px">📊</span>Retrospecto</button><button class="gb" style="min-height:52px;font-size:13px"><span class="e" style="font-size:18px">☁️</span>Entrar</button></div></div></div>`;
+  }
+  if (deitado) return `<div class="inicio deitado"><div class="lado">${titulo}</div>${botoes}</div>`;
+  return `<div class="inicio">${titulo}${botoes}</div>`;
+}
+function htmlMenu(t, online) {
+  const deitado = S.tela === 'iphone-deitado';
+  const itens = online
+    ? `<button class="gb">⚙️ Ajustes</button><button class="gb">❓ Como jogar</button><button class="gb sair">🚪 Sair da sala</button>`
+    : `<button class="gb">⚙️ Ajustes</button><button class="gb">❓ Como jogar</button><button class="gb">🃏 Começar partida nova</button><button class="gb sair">🏠 Sair para o início <small>a partida fica guardada</small></button>`;
+  return `<div class="veu"><div class="janela ${deitado ? 'larga' : ''}" ${deitado ? 'style="padding:12px;gap:6px"' : ''}>
+    <h2 ${deitado ? 'style="font-size:20px"' : ''}>${online ? 'Menu' : '⏸ Partida pausada'}</h2>
+    <div class="${deitado ? 'duas' : ''}" style="display:${deitado ? 'grid' : 'flex'};flex-direction:column;gap:8px">
+      <button class="gb pri">▶ Voltar ao jogo</button>
+      <button class="gb">⇅ Ordenar minhas cartas</button>
+      ${itens}
+    </div></div></div>`;
+}
+const op = (lista, on) => `<div class="ops">${lista.map((x, i) => `<span class="${i === on ? 'on' : ''}">${x}</span>`).join('')}</div>`;
+function htmlAjustes() {
+  const deitado = S.tela === 'iphone-deitado';
+  const tela = `<div class="secao">Tela</div>
+    <div class="ajuste"><div class="n">Visual</div>${op(['Melhor idade', 'Normal'], 0)}</div>
+    <div class="ajuste"><div class="n">Cores dos naipes</div>${op(['<span>2 cores<br><b style="color:#c8102e">♥♦</b>♠♣</span>', '<span>4 cores<br><b style="color:#c8102e">♥</b><b style="color:#1660c9">♦</b>♠<b style="color:#19813f">♣</b></span>'], 0)}</div>`;
+  const pc = `<div class="secao">Computador</div>
+    <div class="ajuste"><div class="n">Velocidade</div>${op(['Devagar', 'Normal'], 0)}</div>
+    <div class="ajuste"><div class="n">Ver animações<small>dica e adversário</small></div>${op(['Sim', 'Não'], 0)}</div>`;
+  const mais = `<div class="secao">Mais</div><div class="grade2"><button class="gb"><span class="e">📊</span>Retrospecto</button><button class="gb"><span class="e">☁️</span>Conta</button></div>
+    <div style="text-align:center;font-size:12px;color:#8a7a70;text-decoration:underline">📋 Baixar o diário do jogo (para o Claude investigar um problema)</div>`;
+  return `<div class="veu"><div class="janela ${deitado ? 'larga' : ''}" ${deitado ? 'style="padding:12px;gap:4px"' : ''}>
+    <h2>⚙️ Ajustes</h2>
+    ${deitado ? `<div class="duas"><div>${tela}</div><div>${pc}</div></div><div class="grade2" style="grid-template-columns:repeat(2,1fr)"><button class="gb" style="min-height:40px;flex-direction:row;font-size:15px">📊 Retrospecto</button><button class="gb" style="min-height:40px;flex-direction:row;font-size:15px">☁️ Conta</button></div>` : tela + pc + mais}
+    <button class="gb pri">Pronto</button></div></div>`;
+}
+function htmlComo() {
+  const deitado = S.tela === 'iphone-deitado';
+  return `<div class="veu"><div class="janela ${deitado ? 'larga' : ''}" ${deitado ? 'style="padding:12px;gap:6px"' : ''}>
+    <h2>🃏 Como vai ser?</h2>
+    <div class="${deitado ? 'duas' : ''}" style="display:${deitado ? 'grid' : 'flex'};flex-direction:column;gap:10px">
+    <div class="ajuste"><div class="n">Jogo</div>${op(['Uma partida', 'Até 100 pontos'], 0)}</div>
+    <div class="ajuste"><div class="n">Computador</div>${op(['Fácil', 'Médio', 'Difícil'], 0)}</div>
+    <div class="ajuste"><div class="n">Quantos adversários</div>${op(['1', '2', '3'], 0)}</div>
+    <div class="ajuste"><div class="n">Coringa</div>${op(['Sem', 'Com ★'], 0)}</div></div>
+    <div class="grade2"><button class="gb pri" style="flex-direction:row;font-size:21px;min-height:58px">▶ Começar</button><button class="gb" style="flex-direction:row;min-height:58px">Voltar</button></div>
+  </div></div>`;
+}
+function htmlFim() {
+  const linhas = [['👑 Adv. 2', 12, 0, 12], ['Você', 35, 0, 35], ['Adversário', 58, 23, 58], ['Adv. 3', 81, 14, 81]];
+  const deitado = S.tela === 'iphone-deitado';
+  const placar = linhas.map(([n, t, d, p]) => `<div class="lin-placar"><span>${n}</span><span class="t">${t}</span><div class="barrinha"><i class="${p >= 80 ? 'perigo' : ''}" style="width:${p}%"></i></div><span class="d">+${d}</span></div>`).join('');
+  return `<div class="veu"><div class="janela ${deitado ? 'larga' : ''}" ${deitado ? 'style="padding:10px;gap:6px"' : ''}>
+    ${deitado ? '<h2 style="font-size:20px">🎉 Você ganhou a rodada!</h2>' : '<div style="text-align:center;font-size:40px">🎉🏆🎉</div><h2>Você ganhou a rodada!</h2>'}
+    ${deitado ? '' : '<p>Você acabou com todas as suas cartas!</p>'}
+    <div class="${deitado ? 'placar-deitado' : ''}" style="display:flex;flex-direction:column;gap:5px">${placar}</div>
+    ${deitado ? '' : `<div class="maos-fim"><div>Adversário: <b>23 pontos</b><div class="cs">${carta('Kp')}${carta('Kp')}${carta('3p')}</div></div></div>`}
+    <div class="grade2"><button class="gb pri" style="flex-direction:row;${deitado ? 'min-height:46px' : ''}">Próxima rodada</button><button class="gb" style="flex-direction:row;${deitado ? 'min-height:46px' : ''}">Ver a mesa</button></div>
+  </div></div>`;
+}
+
+// ------------------------------------------------------------------ notas (o que muda)
+const NOTAS = {
+  geral: [
+    '<b>Sai o botão "Passar a vez".</b> A vez já passa sozinha quando a mesa fica certa. Se algo está errado, a faixa (logo acima da mão) diz o quê, em vermelho.',
+    '<b>Botões numa linha só:</b> Desfazer · Desfazer tudo · Dica · <b>Comprar e passar</b> (o maior, cor âmbar). No iPhone em pé eram 2 linhas: a mão ganha espaço.',
+    '<b>O monte virou o botão Comprar:</b> o desenho do monte e quantas cartas restam ficam dentro do botão ("63 no monte"; com 5 ou menos, aviso vermelho).',
+    '<b>Topo mais limpo:</b> só <b>Menu</b> à esquerda + adversários (bolinha colorida, nome, nº de cartas). Ajustes, Sair, Ordenar e Como jogar ficam dentro do Menu.',
+    '<b>Faixa da vez</b> maior (letra 18–21): ícone + frase + o botão do momento (Baixar jogo, Fazer, Deixar o coringa solto…). Ela tem altura fixa: nada pula.',
+    '<b>Mesa de feltro com borda de madeira</b>; os jogos ficam num fundo claro discreto (sem o contorno verde-neon em todos). Erro = vermelho com "!"; o que acabou de mudar = brilho âmbar.',
+    '<b>Mão numa "bandeja"</b> bege: fica claro onde estão as SUAS cartas.',
+  ],
+  suaVez: ['Desfazer ficam apagados até você mexer em algo.'],
+  tres: ['As 3 cartas sobem com moldura (azul na Melhor idade). O "+" de cada jogo agora é âmbar com borda (mais visível). "Baixar jogo" aparece na faixa.'],
+  erro: ['A faixa fica vermelha e diz o problema. Comprar fica apagado (se tocar, explica: "Arrume, ou toque em Desfazer tudo").'],
+  dica: ['A frase da dica ocupa a faixa; as cartas da dica brilham na mão; botão <b>Fazer</b> ao lado.'],
+  pc: ['A pílula do adversário fica âmbar e diz o que ele fez ("pôs 5♣"). A faixa diz "Vez do Adversário…". Botões apagados. Selo laranja NOVA continua.'],
+  coringa: ['"Deixar o coringa solto" vai para a faixa, no mesmo lugar dos outros botões do momento.'],
+  camp: ['4 jogadores: no celular o topo mostra só bolinha + número de cartas; o placar vai numa 2ª linha fina (iPad/deitado: na mesma linha). "⚠️ Só 1 carta!" continua.'],
+  online: ['Online não tem Dica: a barra fica com 3 botões e o Comprar cresce (sem buraco). O tempo da vez fica no topo, à direita.'],
+  inicio: ['Desenho de 3 cartas no lugar do emoji. "Como jogar" agora também está aqui (antes só dentro de Ajustes).', '"Partida nova" abre "Como vai ser?".'],
+  menu: ['Um botão só no topo abre tudo o que não é jogada. "Sair para o início" não pergunta de novo (já foi um toque a mais, e a partida fica guardada).', '"Ordenar minhas cartas" mora aqui: escolhe-se uma vez e a mão fica sempre assim.'],
+  menuOnline: ['Online: sem "Partida nova"; "Sair da sala" em vermelho. Quem criou a sala continua tirando pessoas em Ajustes.'],
+  ajustes: ['Só o que é da TELA e do ritmo do computador. O que é da partida (modo, nível, adversários, coringa) fica só em "Como vai ser?", que aparece a cada partida nova.'],
+  como: ['Mesmas 4 escolhas de hoje, com nomes mais claros ("Uma partida" em vez de "Casual").'],
+  fim: ['Mesmo conteúdo de hoje (placar com barras, mão dos outros, Ver a mesa), no visual novo.'],
+};
+
+// ------------------------------------------------------------------ montar a página
+function grupo(rotulo, lista, chave) {
+  return `<div class="grupo"><b>${rotulo}</b>${Object.entries(lista).map(([k, v]) => `<button data-k="${chave}" data-v="${k}" class="${S[chave] === k ? 'on' : ''}">${v}</button>`).join('')}</div>`;
+}
+function desenhar() {
+  const t = TELAS[S.tela];
+  document.getElementById('controles').innerHTML =
+    grupo('Aparelho', Object.fromEntries(Object.entries(TELAS).map(([k, v]) => [k, v.nome])), 'tela') +
+    grupo('Tela', OUTRAS, 'outra') +
+    (S.outra === 'jogo' ? grupo('Momento', MOMENTOS, 'momento') : '') +
+    grupo('Visual', { idade: 'Melhor idade', normal: 'Normal' }, 'visual') +
+    grupo('Mesa', { verde: 'Verde (recomendo)', petroleo: 'Azul-petróleo' }, 'mesa') +
+    `<div class="grupo"><button id="antes" class="${S.antes ? 'on' : ''}">👀 Como é hoje</button></div>`;
+
+  const vit = document.getElementById('vitrine');
+  const escala = Math.min(1, (vit.clientWidth - 20) / t.w, (vit.clientHeight - 20) / t.h);
+  if (S.antes) {
+    const etapa = S.momento === 'tres' ? '2-tres-escolhidas' : '1-jogo';
+    const arq = S.outra === 'ajustes' ? '3-ajustes' : (S.tela === 'iphone-pe' || S.tela === 'ipad-pe') && S.momento !== 'tres' ? '1-jogo-cheia' : etapa;
+    const nomeArq = S.outra === 'inicio' ? `inicio-${S.tela.startsWith('ipad') ? 'ipad' : 'iphone'}.png` : S.outra === 'como' ? `comojogar-${S.tela.startsWith('ipad') ? 'ipad' : 'iphone'}.png` : `${S.visual === 'idade' ? 'idade' : 'bonito'}-${t.print}-${arq}.png`;
+    vit.innerHTML = `<div class="moldura antes" style="width:${t.w}px;height:${t.h}px;transform:scale(${escala});margin-right:${-t.w * (1 - escala)}px;margin-bottom:${-t.h * (1 - escala)}px"><img src="../prints/revisao-atual/${nomeArq}" width="${t.w}" height="${t.h}" alt="print de hoje (rode node scripts/prints.mjs prints/revisao-atual)"></div>`;
+  } else {
+    const c = cenario();
+    const p = htmlPartida(c, t);
+    const cls = ['app', S.visual, S.mesa === 'petroleo' ? 'mesa-petroleo' : '', p.compacto ? 'compacto' : '', p.muitos ? 'muitos' : '', S.cores4 ? 'quatro' : ''].join(' ');
+    let corpo = p.html;
+    if (S.outra === 'inicio') corpo = htmlInicio(t);
+    if (S.outra === 'menu') corpo += htmlMenu(t, false);
+    if (S.outra === 'menuOnline') corpo += htmlMenu(t, true);
+    if (S.outra === 'ajustes') corpo += htmlAjustes();
+    if (S.outra === 'como') corpo += htmlComo();
+    if (S.outra === 'fim') corpo += htmlFim();
+    const mw = (S.momento === 'camp' || S.momento === 'online') && t.w < 600 ? t.mw - 4 : t.mw;
+    vit.innerHTML = `<div class="moldura" style="width:${t.w}px;height:${t.h}px;transform:scale(${escala});margin-right:${-t.w * (1 - escala)}px;margin-bottom:${-t.h * (1 - escala)}px">
+      <div class="${cls}" data-tela="${S.tela}" style="width:${t.w}px;height:${t.h}px;--mw:${mw}px;--hw:${t.hw}px">${corpo}</div></div>`;
+  }
+  const chave = S.outra === 'jogo' ? S.momento : S.outra;
+  document.getElementById('notas').innerHTML = `<h3>${S.outra === 'jogo' ? MOMENTOS[S.momento] : OUTRAS[S.outra]} · ${t.nome}</h3>
+    <ul>${(NOTAS[chave] ?? []).map((x) => `<li>${x}</li>`).join('')}</ul>
+    <h3>O que muda no jogo todo</h3><ul>${NOTAS.geral.map((x) => `<li>${x}</li>`).join('')}</ul>
+    <p style="font-size:12px;color:#8a7a70">Mock: desenho parado, não dá para jogar. Os botões no alto trocam o que aparece.</p>`;
+}
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('.controles button');
+  if (!b) return;
+  if (b.id === 'antes') S.antes = !S.antes;
+  else S[b.dataset.k] = b.dataset.v;
+  desenhar();
+});
+addEventListener('resize', desenhar);
+desenhar();
+</script>
+</body>
+</html>

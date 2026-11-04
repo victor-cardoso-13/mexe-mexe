@@ -1,7 +1,7 @@
 // Confere no navegador (build de produção): a dica roda em segundo plano e "Fazer" mostra a animação.
 // Uso: npm run build; npx vite preview --port 5198; node scripts/verificar-worker.mjs prints
 import { chromium } from 'playwright';
-const URL = 'http://localhost:5198/';
+const URL = process.env.URL ?? 'http://localhost:5198/';
 const pasta = process.argv[2] ?? 'prints';
 const MONTAR = async () => {
   const NA = { c: 'copas', o: 'ouros', e: 'espadas', p: 'paus' }, VA = { A: 1, J: 11, Q: 12, K: 13 };

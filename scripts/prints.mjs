@@ -4,7 +4,7 @@
 import { chromium } from 'playwright';
 
 const saida = process.argv[2] ?? '/tmp/mm-prints';
-const URL = 'http://localhost:5199/';
+const URL = process.env.URL ?? 'http://localhost:5199/';
 const telas = {
   'ipad-deitado': [1180, 820], 'ipad-em-pe': [820, 1180],
   'iphone-em-pe': [440, 800], 'iphone-deitado': [956, 360],
@@ -51,9 +51,14 @@ for (const visual of ['idade', 'bonito']) {
     }
     if (nome !== 'ipad-em-pe') {
       await pg.evaluate(() => localStorage.setItem('mexe-mexe:ajustes:v1', JSON.stringify({ visual: document.body.className, tutorialVisto: true })));
-      await pg.getByRole('button', { name: /Ajustes/ }).first().click();
+      await pg.locator('[data-acao="abrirMenu"]').click();
+      await pg.waitForTimeout(200);
+      await foto('3-menu');
+      await pg.locator('.janela [data-acao="abrirAjustes"]').click();
       await pg.waitForTimeout(200);
       await foto('3-ajustes');
+      await pg.getByText('Pronto').click();
+      await pg.locator('[data-acao="abrirMenu"]').click();
       await pg.getByText('Como jogar').click();
       for (const passo of [1, 3, 5, 7]) {
         while ((await pg.locator('.contador').innerText()) !== `PASSO ${passo} DE 7`) await pg.getByRole('button', { name: /Próximo/ }).click();

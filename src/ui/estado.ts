@@ -72,7 +72,7 @@ export interface Online {
 
 export interface Estado {
   tela: 'inicio' | 'jogo' | 'sala';
-  janela: null | 'ajustes' | 'fim' | 'confirmarNova' | 'confirmarSair' | 'comoJogar' | 'conta' | 'retrospecto' | 'mensagem' | 'tutorial' | 'online';
+  janela: null | 'menu' | 'ajustes' | 'fim' | 'confirmarNova' | 'confirmarSair' | 'comoJogar' | 'conta' | 'retrospecto' | 'mensagem' | 'tutorial' | 'online';
   /** Para onde o botão "Voltar" das janelas de conta e retrospecto leva. */
   voltarPara: null | 'ajustes';
   /** Passo do tutorial que está na tela (0 a 6). */
@@ -93,7 +93,7 @@ export interface Estado {
   /** Cartas que o computador baixou da mão dele na última rodada (selo laranja "NOVA"). */
   baixadasPeloComputador: string[];
   menuOrdenar: boolean;
-  /** Onde o curinga da mão pode ficar nesta vez (botão "Deixar o coringa solto"). */
+  /** Onde o curinga da mão pode ficar nesta vez (botão "Jogar o coringa"). */
   lugarCuringa: Foto | null;
   /** Para qual vez o lugar do curinga já foi calculado. */
   lugarCuringaVez: string;
