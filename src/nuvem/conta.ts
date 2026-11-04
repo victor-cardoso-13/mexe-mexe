@@ -9,7 +9,7 @@ import {
   connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendPasswordResetEmail,
   signInAnonymously, signInWithEmailAndPassword, signOut,
 } from 'firebase/auth';
-import { connectFirestoreEmulator, doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
+import { addDoc, collection, connectFirestoreEmulator, doc, getDoc, getFirestore, serverTimestamp, setDoc } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 import type { DadosNuvem } from './mesclar';
 
@@ -68,6 +68,29 @@ export async function baixar(uid: string): Promise<DadosNuvem | null> {
 
 export async function enviar(uid: string, dados: DadosNuvem) {
   await setDoc(lugar(uid), dados);
+}
+
+/**
+ * Sugestão do jogador ("Dar sugestão" nos Ajustes), com o diário das últimas partidas junto.
+ * Só com conta. Vai para a coleção `sugestoes`; as regras do servidor deixam só CRIAR a própria
+ * (ninguém lê, muda nem apaga pelo app). O Victor lê pelo console do Firebase.
+ */
+export async function enviarSugestao(texto: string, diario: string) {
+  const u = auth.currentUser;
+  if (!u || u.isAnonymous || !u.email) throw Object.assign(new Error('sem conta'), { code: 'auth/requires-login' });
+  const semInternet = () => Object.assign(new Error('sem internet'), { code: 'unavailable' });
+  if (!navigator.onLine) throw semInternet();
+  // Sem internet o Firebase não dá erro: fica esperando. Depois de 15 s avisamos a pessoa.
+  let relogio: ReturnType<typeof setTimeout> | undefined;
+  const limite = new Promise<never>((_, falhar) => { relogio = setTimeout(() => falhar(semInternet()), 15_000); });
+  try {
+    await Promise.race([
+      addDoc(collection(banco, 'sugestoes'), { uid: u.uid, email: u.email, jogo: JOGO, texto, diario, criadoEm: serverTimestamp() }),
+      limite,
+    ]);
+  } finally {
+    clearTimeout(relogio);
+  }
 }
 
 /** Mensagens do Firebase em português simples. */

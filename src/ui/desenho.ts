@@ -481,6 +481,12 @@ export function htmlConfirmarNova(): string {
   </div></div>`;
 }
 
+/** Linha da parte "Mais" dos Ajustes: no mesmo jeito das opções (nome à esquerda, botão branco à direita). */
+function linhaMais(nome: string, explica: string, acao: string, rotulo: string): string {
+  return `<div class="ajuste mais"><div class="nome-ajuste">${nome}<small>${explica}</small></div>
+    <div class="opcoes"><button data-acao="${acao}">${rotulo}</button></div></div>`;
+}
+
 function opcoes(chave: string, atual: string, lista: Array<[string, string]>): string {
   return `<div class="opcoes">${lista
     .map(([valor, rotulo]) => `<button data-acao="ajuste" data-chave="${chave}" data-valor="${valor}" class="${valor === atual ? 'atual' : ''}">${rotulo}</button>`)
@@ -491,7 +497,7 @@ function opcoes(chave: string, atual: string, lista: Array<[string, string]>): s
  * Ajustes: só o que é da TELA e do ritmo do computador. O que é da partida (modo, nível, adversários, coringa)
  * fica no "Como vai ser?", que aparece a cada partida nova.
  */
-export function htmlAjustes(a: Ajustes, online: Online | null = null): string {
+export function htmlAjustes(a: Ajustes, online: Online | null = null, email: string | null = null): string {
   const quatro = '<span class="amostra"><b class="v">♥</b><b class="az">♦</b><b>♠</b><b class="vd">♣</b></span>';
   const duas = '<span class="amostra"><b class="v">♥♦</b><b>♠♣</b></span>';
   const computador = online
@@ -513,11 +519,10 @@ export function htmlAjustes(a: Ajustes, online: Online | null = null): string {
       ${computador}
       ${online ? htmlTirarJogadores(online) : ''}
       <div class="secao">Mais</div>
-      <div class="linha-botoes">
-        <button class="grande secundario" data-acao="abrirRetrospecto">📊 Retrospecto</button>
-        <button class="grande secundario" data-acao="abrirMenuConta">☁️ Conta</button>
-      </div>
-      <button class="link-diario" data-acao="baixarDiario">📋 Baixar o diário das últimas partidas</button>
+      ${linhaMais('Retrospecto', 'vitórias e derrotas', 'abrirRetrospecto', '📊 Ver')}
+      ${linhaMais('Conta', email ? escapar(email) : 'sem conta', 'abrirMenuConta', email ? '☁️ Abrir' : '☁️ Entrar')}
+      ${linhaMais('Sugestão', 'ideia, problema ou elogio', 'abrirSugestao', '💬 Escrever')}
+      ${linhaMais('Diário', 'das últimas partidas', 'baixarDiario', '📋 Baixar')}
     </div>
     <div class="rodape-ajustes">
       <button class="grande" data-acao="fecharJanela">Pronto</button>

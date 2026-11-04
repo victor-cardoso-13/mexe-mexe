@@ -15,7 +15,8 @@ import { cancelarBusca, escolherJogadaAsync } from './ia/assincrono';
 
 /** Busca a jogada em segundo plano (a tela não trava). */
 const buscarJogada = escolherJogadaAsync;
-import { anotar, baixarDiario, guardarDicaPerdeu, textoCartas, textoMesa } from './ui/diario';
+import { anotar, baixarDiario, diarioParaEnviar, guardarDicaPerdeu, textoCartas, textoMesa } from './ui/diario';
+import { abrirSugestao } from './ui/sugestao';
 import { estadoInicial, type Ajustes, type Ordenacao } from './ui/estado';
 import { escapar, htmlAjustes, htmlComoJogar, htmlConfirmarNova, htmlConfirmarSair, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenu, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlTutorial, type Mensagem } from './ui/desenho';
 import { encaixar, reiniciarEncaixe } from './ui/encaixe';
@@ -121,7 +122,7 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
     html += htmlInicio(temPartida, usuarioAtual()?.email ?? null, temPartida && e.campeonato ? e.campeonato.rodada : null);
   }
   if (e.janela === 'menu') html += htmlMenu(!!e.online);
-  if (e.janela === 'ajustes') html += htmlAjustes(ajustes, e.online);
+  if (e.janela === 'ajustes') html += htmlAjustes(ajustes, e.online, usuarioAtual()?.email ?? null);
   if (e.janela === 'retrospecto') html += htmlRetrospecto(resumir(gaveta.resultados), usuarioAtual()?.email ?? null);
   if (e.janela === 'conta') html += htmlConta();
   if (e.janela === 'mensagem' && mensagem) html += htmlMensagem(mensagem);
@@ -738,6 +739,29 @@ function mudarAjuste(chave: string, valor: string) {
 // Conta (entrar, criar, sair) e retrospecto
 // ---------------------------------------------------------------------------
 
+/** Ajustes → Sugestão: abre por cima dos Ajustes (que continuam abertos embaixo). */
+function abrirTelaDeSugestao() {
+  abrirSugestao({
+    comConta: !!usuarioAtual(),
+    enviar: async (texto) => {
+      const c = await carregarConta();
+      await c.enviarSugestao(texto, diarioParaEnviar());
+    },
+    erro: (err) => {
+      const codigo = (err as { code?: string })?.code;
+      if (codigo === 'unavailable' || !navigator.onLine) return 'Sem internet agora. Tente de novo quando a internet voltar.';
+      if (codigo === 'auth/requires-login') return 'Entre na sua conta para mandar a sugestão.';
+      return 'Algo deu errado. Tente de novo daqui a pouco.';
+    },
+    aoEntrar: () => abrirJanela('conta'),
+    aoFechar: (enviou) => {
+      if (!enviou) return; // "Voltar": continua nos Ajustes
+      e.janela = null;
+      desenhar();
+    },
+  });
+}
+
 /** Abre uma janela de conta/retrospecto, lembrando se veio dos Ajustes. */
 function abrirJanela(janela: 'conta' | 'retrospecto' | 'mensagem') {
   if (e.janela === 'ajustes') e.voltarPara = 'ajustes';
@@ -963,6 +987,7 @@ app.addEventListener('click', (ev) => {
         e.janela = 'ajustes';
         return desenhar();
       case 'ajuste': return mudarAjuste(botao.dataset.chave!, botao.dataset.valor!);
+      case 'abrirSugestao': return abrirTelaDeSugestao();
       case 'baixarDiario':
         anotar('diário baixado');
         return baixarDiario();

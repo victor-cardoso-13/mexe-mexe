@@ -1,7 +1,7 @@
 /**
  * Diário do jogo: guarda as últimas jogadas e dicas, com a mão e a mesa do momento.
  * Serve para investigar problemas ("a dica não achou o K", "o computador fez algo estranho").
- * Fica só no aparelho. Em Ajustes há um botão para baixar o arquivo e mandar para o Claude.
+ * Fica no aparelho. Em Ajustes dá para baixar o arquivo; e ele vai junto quando a pessoa manda uma sugestão.
  */
 import { nomeDaCarta, type Carta } from '../motor/cartas';
 import type { Jogo } from '../motor/partida';
@@ -58,9 +58,32 @@ export function guardarDicaPerdeu(dados: Record<string, unknown>) {
   }
 }
 
+const conteudo = (diario: Anotacao[], perdidas: Anotacao[]) =>
+  ({ jogo: 'mexe-mexe', baixadoEm: new Date().toISOString(), aparelho: navigator.userAgent, diario, dicasQuePerderam: perdidas });
+
+/** Limite do diário que vai junto com a sugestão (o mesmo das regras do Firebase, coleção `sugestoes`). */
+export const MAX_DIARIO_SUGESTAO = 250_000;
+
+/**
+ * O diário numa linha só, para ir junto com a sugestão. Se passar do limite, tira as anotações
+ * mais antigas (primeiro do diário, depois das dicas perdidas) até caber.
+ */
+export function diarioParaEnviar(limite = MAX_DIARIO_SUGESTAO, diario = lerDiario(), perdidas = lerDicasPerdidas()): string {
+  let d = [...diario];
+  let p = [...perdidas];
+  let texto = JSON.stringify(conteudo(d, p));
+  while (texto.length > limite && (d.length || p.length)) {
+    const corte = Math.max(1, Math.ceil((d.length || p.length) / 5)); // tira 20% de cada vez
+    if (d.length) d = d.slice(corte);
+    else p = p.slice(corte);
+    texto = JSON.stringify(conteudo(d, p));
+  }
+  return texto.length > limite ? JSON.stringify(conteudo([], [])) : texto;
+}
+
 /** Baixa o diário como arquivo (vai para a pasta Downloads no computador). */
 export function baixarDiario() {
-  const texto = JSON.stringify({ jogo: 'mexe-mexe', baixadoEm: new Date().toISOString(), aparelho: navigator.userAgent, diario: lerDiario(), dicasQuePerderam: lerDicasPerdidas() }, null, 2);
+  const texto = JSON.stringify(conteudo(lerDiario(), lerDicasPerdidas()), null, 2);
   const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
   const a = document.createElement('a');
   a.href = url;
