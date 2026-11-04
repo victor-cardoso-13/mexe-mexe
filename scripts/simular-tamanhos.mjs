@@ -3,7 +3,7 @@
 // Uso: com "npx vite --port 5199" rodando:  node scripts/simular-tamanhos.mjs [turnos] [semente]
 import { chromium } from 'playwright';
 
-const URL = 'http://localhost:5199/';
+const URL = process.env.URL ?? 'http://localhost:5199/';
 const TURNOS = Number(process.argv[2] ?? 14);
 const telas = [['iPad deitado', 1180, 820], ['iPad em pé', 820, 1180], ['iPhone 440×800', 440, 800], ['iPhone 390×844', 390, 844], ['iPhone deitado', 956, 360]];
 const SEMENTES = [11, 23, 37];
@@ -36,7 +36,7 @@ for (const [nome, w, h] of telas.filter((_, i) => !so || so.includes(i))) {
           const cs = getComputedStyle(document.documentElement);
           const mesa = document.querySelector('.mesa'), mao = document.querySelector('.area-mao');
           if (!mesa || !mao) return null;
-          return { mesaW: cs.getPropertyValue('--mesa-w').trim(), maoW: cs.getPropertyValue('--mao-w').trim(), mesaH: mesa.getBoundingClientRect().height | 0, maoH: mao.getBoundingClientRect().height | 0, mesaTop: mesa.getBoundingClientRect().top | 0, topoH: (document.querySelector('.topo')?.getBoundingClientRect().height | 0), avisoH: (document.querySelector('.aviso')?.getBoundingClientRect().height | 0), botoesH: (document.querySelector('.botoes')?.getBoundingClientRect().height | 0) };
+          return { mesaW: cs.getPropertyValue('--mesa-w').trim(), maoW: cs.getPropertyValue('--mao-w').trim(), mesaH: mesa.getBoundingClientRect().height | 0, maoH: mao.getBoundingClientRect().height | 0, mesaTop: mesa.getBoundingClientRect().top | 0, topoH: (document.querySelector('.topo')?.getBoundingClientRect().height | 0), avisoH: (document.querySelector('.faixa')?.getBoundingClientRect().height | 0), botoesH: (document.querySelector('.botoes')?.getBoundingClientRect().height | 0) };
         };
         const quadro = () => {
           const l = lido();

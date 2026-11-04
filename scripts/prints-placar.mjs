@@ -3,7 +3,7 @@
 import { chromium } from 'playwright';
 
 const saida = process.argv[2] ?? '/tmp/mm-prints';
-const URL = 'http://localhost:5199/';
+const URL = process.env.URL ?? 'http://localhost:5199/';
 const telas = { 'ipad-deitado': [1180, 820], 'ipad-em-pe': [820, 1180], 'iphone-em-pe': [440, 800], 'iphone-deitado': [956, 360] };
 
 const MONTAR = async ({ n, fim }) => {

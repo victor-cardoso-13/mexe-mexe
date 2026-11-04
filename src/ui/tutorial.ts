@@ -1,5 +1,5 @@
 /**
- * Tutorial de 7 passos (aparece na primeira partida e em Ajustes → Como jogar).
+ * Tutorial de 7 passos (aparece na primeira partida, no Menu → Como jogar e na tela inicial).
  * Os desenhos usam as mesmas cartas do jogo, escritas de forma curta: "5c" = 5 de copas.
  */
 import { htmlCarta } from './desenho';
@@ -47,7 +47,7 @@ export function passosDoTutorial(): PassoTutorial[] {
     },
     {
       titulo: 'Tocar ou arrastar',
-      texto: '<b>Toque</b> numa carta e depois <b>toque</b> onde ela vai. Ou <b>arraste</b>. Para começar um jogo novo, <b>arraste</b> para qualquer lugar vazio da mesa, ou toque no botão <b>Novo jogo</b>. Mexendo na mesa, escolha várias cartas e toque no <b>+</b> do jogo onde elas vão.',
+      texto: '<b>Toque</b> numa carta e depois <b>toque</b> onde ela vai. Ou <b>arraste</b>. Para começar um jogo novo, <b>arraste</b> para qualquer lugar vazio da mesa, ou toque no botão <b>Novo jogo</b> (aparece em cima das suas cartas). Mexendo na mesa, escolha várias cartas e toque no <b>+</b> do jogo onde elas vão.',
       desenho: linha(`${carta('Ac', 'selecionada')}<span class="seta">👆 →</span><div class="vazio exemplo">jogo novo</div>`),
     },
     {
@@ -57,8 +57,8 @@ export function passosDoTutorial(): PassoTutorial[] {
     },
     {
       titulo: 'Ajuda sempre à mão',
-      texto: '<b>Dica</b> mostra uma jogada. <b>Desfazer</b> volta um passo. Pode rever este tutorial em <b>Ajustes → Como jogar</b>.',
-      desenho: linha('<span class="ok">💡 Dica</span><span class="ok">↶ Desfazer</span><span class="ok">⚙️ Ajustes</span>'),
+      texto: '<b>Dica</b> mostra uma jogada. <b>Desfazer</b> volta um passo. Pode rever este tutorial em <b>Menu → Como jogar</b>.',
+      desenho: linha('<span class="ok">💡 Dica</span><span class="ok">↶ Desfazer</span><span class="ok">☰ Menu</span>'),
     },
   ];
 }

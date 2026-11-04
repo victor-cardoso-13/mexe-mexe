@@ -17,7 +17,7 @@ import { cancelarBusca, escolherJogadaAsync } from './ia/assincrono';
 const buscarJogada = escolherJogadaAsync;
 import { anotar, baixarDiario, guardarDicaPerdeu, textoCartas, textoMesa } from './ui/diario';
 import { estadoInicial, type Ajustes, type Ordenacao } from './ui/estado';
-import { escapar, htmlAjustes, htmlComoJogar, htmlConfirmarNova, htmlConfirmarSair, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlTutorial, type Mensagem } from './ui/desenho';
+import { escapar, htmlAjustes, htmlComoJogar, htmlConfirmarNova, htmlConfirmarSair, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenu, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlTutorial, type Mensagem } from './ui/desenho';
 import { encaixar, reiniciarEncaixe } from './ui/encaixe';
 import { codigoNoLink, criarOnline, linkDaSalaAtual, nomeSalvo, LIMITE_PADRAO_SEG } from './online/controle';
 import { carregarAjustes, carregarGaveta, salvarAjustes, salvarGaveta, type Gaveta } from './ui/salvar';
@@ -116,8 +116,12 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   if (e.partida && e.tela === 'jogo') html += htmlJogo(e, ajustes);
   if (e.tela === 'sala' && e.online?.sala) html += htmlSala(e.online, linkDaSalaAtual(e.online.codigo));
   if (e.janela === 'online') html += htmlMenuOnline(nomeSalvo(), codigoConvite, '', false);
-  if (e.tela === 'inicio' && !e.janela) html += htmlInicio(!!e.partida && !e.partida.resultado, usuarioAtual()?.email ?? null);
-  if (e.janela === 'ajustes') html += htmlAjustes(ajustes, e.tela === 'jogo', e.online);
+  if (e.tela === 'inicio' && !e.janela) {
+    const temPartida = !!e.partida && !e.partida.resultado;
+    html += htmlInicio(temPartida, usuarioAtual()?.email ?? null, temPartida && e.campeonato ? e.campeonato.rodada : null);
+  }
+  if (e.janela === 'menu') html += htmlMenu(!!e.online);
+  if (e.janela === 'ajustes') html += htmlAjustes(ajustes, e.online);
   if (e.janela === 'retrospecto') html += htmlRetrospecto(resumir(gaveta.resultados), usuarioAtual()?.email ?? null);
   if (e.janela === 'conta') html += htmlConta();
   if (e.janela === 'mensagem' && mensagem) html += htmlMensagem(mensagem);
@@ -359,7 +363,7 @@ function soltar(ids: string[], alvo: Element | null, x: number) {
 
 /**
  * No começo da vez da jogadora, se ela tem curinga na mão, procura (uma vez só) um lugar para ele.
- * Se achar, aparece o botão "Deixar o curinga solto".
+ * Se achar, aparece o botão "Jogar o coringa".
  */
 function prepararCuringa() {
   const p = e.partida;
@@ -376,10 +380,10 @@ function prepararCuringa() {
   }, 150);
 }
 
-/** Botão "Deixar o coringa solto": o jogo coloca o curinga no lugar achado e passa a vez. */
+/** Botão "Jogar o coringa": o jogo coloca o curinga num jogo da mesa (o lugar achado; pode rearrumar) e passa a vez. Ele nunca fica sozinho. */
 function curingaSolto() {
   if (!minhaVez() || !e.lugarCuringa || mexeuNaVez(e.partida!)) return;
-  anotar('coringa solto', { mesaAntes: textoMesa(e.partida!.mesa), mesaDepois: textoMesa(e.lugarCuringa.mesa) });
+  anotar('jogar o coringa', { mesaAntes: textoMesa(e.partida!.mesa), mesaDepois: textoMesa(e.lugarCuringa.mesa) });
   e.partida = definirFoto(e.partida!, e.lugarCuringa);
   e.lugarCuringa = null;
   botaoBaixar();
@@ -540,7 +544,7 @@ async function fazerDica() {
   }
   e.partida = definirFoto(base, dica.foto);
   e.chegaram = dica.cartas;
-  avisar('Pronto! Confira a mesa e toque em ✔ Passar a vez.', 'normal');
+  avisar('Pronto! Se a mesa estiver certa, a vez passa sozinha.', 'normal');
   talvezPassarSozinho();
   salvar();
   desenhar();
@@ -934,12 +938,21 @@ app.addEventListener('click', (ev) => {
         e.tutorialPasso = Math.max(0, e.tutorialPasso - 1);
         return desenhar();
       case 'comprar': return botaoComprar();
-      case 'baixar': return botaoBaixar();
       case 'dica': return botaoDica();
       case 'fazerDica': return fazerDica();
       case 'curingaSolto': return curingaSolto();
+      case 'abrirMenu':
+        e.menuOrdenar = false;
+        e.janela = 'menu';
+        return desenhar();
       case 'menuOrdenar':
+        // Abre pelo Menu (fecha o Menu); "Voltar" na janela de ordenar fecha.
+        e.janela = null;
         e.menuOrdenar = !e.menuOrdenar;
+        return desenhar();
+      case 'escolherNova':
+        // "Sim, começar outra": antes de começar, pergunta como vai ser.
+        e.janela = 'comoJogar';
         return desenhar();
       case 'ordenar':
         e.ordenacao = botao.dataset.modo as Ordenacao;
@@ -974,11 +987,8 @@ app.addEventListener('click', (ev) => {
           e.janela = 'confirmarNova';
           return desenhar();
         }
-        if (e.tela === 'inicio') {
-          e.janela = 'comoJogar';
-          return desenhar();
-        }
-        return comecarPartida();
+        e.janela = 'comoJogar';
+        return desenhar();
       case 'novaPartida':
         if (e.tela === 'inicio') {
           e.janela = 'comoJogar';

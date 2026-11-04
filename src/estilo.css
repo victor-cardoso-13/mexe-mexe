@@ -5,20 +5,30 @@
 @import '@fontsource/nunito/latin-800.css';
 
 /* ==========================================================
-   Visual do Mexe-Mexe. Pensado para o iPad deitado, com
-   letras e cartas grandes. A tela NUNCA rola: as cartas
-   encolhem para caber (veja src/ui/encaixe.ts).
+   Visual do Mexe-Mexe (visual novo, 03/11/2026; mock aprovado em scripts/mock-visual-novo.html).
+   Creme + tinta + âmbar, mesa de feltro com borda de madeira, mão numa bandeja,
+   faixa da vez acima da mão e UMA linha de botões (no celular deitado, uma coluna à direita).
+   A tela NUNCA rola: as cartas encolhem para caber (src/ui/encaixe.ts); no celular só a mesa rola.
+   Dois visuais (Ajustes → Visual): body.idade = "Melhor idade" (padrão) · body.bonito = "Normal".
    ========================================================== */
 
 :root {
-  --verde: #0f5f3a;
-  --verde-escuro: #0a4329;
-  --amarelo: #ffd400;
-  --vermelho: #e02424;
-  --ok: #4cd07d;
+  --tinta: #3b2f2a;
+  --creme: #fbf6ee;
+  --ambar: #e7a400;
+  --ambar-claro: #f3c969;
+  --ambar-fundo: #fff3d6;
+  --vermelho: #c8102e;
+  --preto: #1d1a19;
+  --azul-sel: #0057d9;
+  --verde-botao: #1d6b40;
+  --feltro-1: #237a50;
+  --feltro-2: #17583a;
+  --madeira: #8a5a2e;
+  --madeira-2: #6b4321;
+  --titulo: 'Fredoka', 'Nunito', system-ui, sans-serif;
   --mesa-w: 60px; /* largura das cartas da mesa (ajustada sozinha) */
   --mao-w: 90px;  /* largura das cartas da mão (ajustada sozinha) */
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -28,136 +38,104 @@ html, body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
-  background: var(--verde-escuro);
-  color: #fff;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
-
-#app { height: 100dvh; width: 100vw; }
+/* iPhone/iPad na Tela de Início (iOS 26, bug WebKit 301108): com status-bar "black-translucent" +
+   viewport-fit=cover, a janela do app fica MENOR que a tela (pela altura da barra de status) e sobra
+   uma faixa lisa embaixo. O iOS só dá a janela inteira se a página for pelo menos tão alta quanto a tela.
+   O min() com 100lvh evita rolagem onde o recuo do topo é 0 (WebKit 316008). Só vale no modo app. Não apague. */
+@media (display-mode: standalone) {
+  html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top))); }
+}
+/* Fundo e #app FIXOS na tela inteira (não pinte o fundo no body nem use height: 100dvh no #app).
+   A cor do html é a do fim do degradê, para qualquer sobra sumir. */
+html { background-color: #f3e9da; }
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1;
+  background: radial-gradient(circle at 50% 0%, #fffaf2, #f3e9da 75%);
+}
+body { font-family: 'Nunito', -apple-system, system-ui, sans-serif; font-weight: 700; color: var(--tinta); }
+#app { position: fixed; inset: 0; }
 
 button {
   font: inherit;
+  color: inherit;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
+svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
-/* ---------- Estrutura da tela de jogo ---------- */
+/* ==========================================================
+   TELA DA PARTIDA: topo / mesa / faixa da vez / mão / botões
+   ========================================================== */
 
 .tela-jogo {
   height: 100%;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 8px;
   grid-template-columns: minmax(0, 1fr); /* nada pode deixar a tela mais larga que o aparelho */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  grid-template-areas: "topo" "mesa" "faixa" "mao" "barra";
+  padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
 }
 
-.topo {
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  padding: 8px 16px;
-  font-size: 22px;
-  font-weight: 600;
-  min-height: 60px;
+/* ---------- Topo: Menu + adversários (+ tempo / placar) ---------- */
+.topo { grid-area: topo; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 16px; font-weight: 800; }
+.topo .espaco { flex: 1; min-width: 0; }
+.botao-menu, .topo .adversario, .placar-camp, .tempo-vez {
+  height: 44px; background: #fff; border-radius: 99px; border: 0; box-shadow: 0 2px 8px #3b2f2a14; white-space: nowrap;
 }
-.adversario { display: flex; align-items: center; gap: 10px; }
-.adversario.da-vez .nome { color: var(--amarelo); }
+.botao-menu { flex: none; display: flex; align-items: center; gap: 7px; padding: 0 15px 0 12px; font-size: 17px; font-weight: 800; color: var(--tinta); }
+.botao-menu .barras { display: grid; gap: 3px; }
+.botao-menu .barras i { display: block; width: 17px; height: 2.5px; border-radius: 2px; background: currentColor; }
+.topo .adversario { display: flex; align-items: center; gap: 7px; padding: 0 12px 0 4px; min-width: 0; flex: 0 1 auto; }
+.avatar {
+  width: 36px; height: 36px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  color: #fff; font-family: var(--titulo); font-size: 18px; font-weight: 700;
+}
+.cor-0 { background: #c0563b; } .cor-1 { background: #3b6fb6; } .cor-2 { background: #7a4fa8; }
+.topo .adversario .nome { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.topo .adversario .qtd { display: flex; align-items: center; gap: 4px; flex: none; }
+.topo .adversario .qtd b { font-family: var(--titulo); font-size: 19px; }
 .versos { display: flex; }
-.versos .verso { margin-left: -14px; }
-.versos .verso:first-child { margin-left: 0; }
 .verso {
-  width: 28px;
-  height: 40px;
-  border-radius: 5px;
-  border: 2px solid #fff;
-  background: repeating-linear-gradient(45deg, #b3261e 0 5px, #8c1d17 5px 10px);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  width: 14px; height: 19px; border-radius: 3px; flex: none;
+  background: linear-gradient(135deg, var(--feltro-1), var(--feltro-2));
+  box-shadow: 2px -1px 0 #fff, 3px -2px 0 var(--feltro-2);
   transition: opacity .4s;
 }
-.alerta-uma {
-  background: var(--vermelho);
-  color: #fff;
-  font-weight: 800;
-  font-size: 20px;
-  border-radius: 12px;
-  padding: 6px 12px;
-  animation: pisca .8s infinite alternate;
-}
+.topo .adversario.da-vez { background: var(--ambar-fundo); box-shadow: 0 0 0 3px var(--ambar); }
+.topo .adversario .fala { font-size: 14px; font-weight: 700; color: #6b5a50; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+.topo .adversario.uma { background: #ffe1e1; box-shadow: 0 0 0 3px var(--vermelho); }
+.alerta-uma { color: var(--vermelho); font-size: 14px; font-weight: 800; flex: none; animation: pisca .8s infinite alternate; }
 @keyframes pisca { from { opacity: 1; } to { opacity: .55; } }
-.monte { display: flex; align-items: center; gap: 10px; }
-.espaco { flex: 1; }
-.botao-ajustes {
-  background: #fff;
-  color: var(--verde-escuro);
-  border: 0;
-  border-radius: 14px;
-  padding: 10px 16px;
-  font-size: 20px;
-  font-weight: 700;
-}
+.tempo-vez { flex: none; display: flex; align-items: center; padding: 0 14px; font-family: var(--titulo); font-size: 20px; font-variant-numeric: tabular-nums; }
+.tempo-vez.acabando { background: #ffe1e1; color: var(--vermelho); }
+/* Placar do campeonato: fichas em ordem (1 = menos pontos) */
+.placar-camp { flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; font-size: 14px; }
+.placar-camp .rod { font-size: 11px; line-height: 1.1; color: #8a7a70; }
+.placar-camp .ficha { display: inline-flex; align-items: center; gap: 4px; }
+.placar-camp .bol { min-width: 22px; height: 22px; border-radius: 99px; color: #fff; display: grid; place-items: center; font-size: 12px; font-family: var(--titulo); }
+.placar-camp .bol.voce { background: var(--tinta); padding: 0 7px; }
+.placar-camp .ficha b { font-family: var(--titulo); font-size: 17px; }
+.placar-camp .ficha.lider b { color: #a87400; }
 
-.aviso {
-  margin: 0 16px;
-  background: #fff8d6;
-  color: #3a2e00;
-  border-radius: 14px;
-  padding: 10px 16px;
-  font-size: 22px;
-  font-weight: 600;
-  min-height: 52px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.aviso.problema { background: #ffe1e1; color: #7a0000; }
-.aviso.computador { background: #dfefff; color: #0c2d57; }
-.aviso .acao {
-  margin-left: auto;
-  flex: none;
-  background: var(--verde);
-  color: #fff;
-  border: 0;
-  border-radius: 12px;
-  padding: 8px 14px;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-/* ---------- Mesa ---------- */
-
+/* ---------- Mesa: feltro com borda de madeira ---------- */
 .mesa {
-  overflow: hidden;
-  padding: 12px 16px 26px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 26px;
-  background: var(--verde);
-  margin: 10px 0 0;
+  grid-area: mesa; overflow: hidden; position: relative; padding: 16px 14px 18px; border-radius: 22px;
+  background: radial-gradient(ellipse at 50% 35%, var(--feltro-1), var(--feltro-2) 85%);
+  box-shadow: inset 0 0 0 6px var(--madeira), inset 0 0 0 8px var(--madeira-2), inset 0 10px 24px #0004;
 }
-.jogos {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 26px 14px;
-}
-.jogos:empty { display: none; }
-.jogo {
-  display: flex;
-  padding: 6px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, .1);
-  border: 4px solid var(--ok);
-  position: relative;
-}
-.jogo.invalido { border-color: var(--vermelho); background: rgba(224, 36, 36, .22); }
-.jogo.destaque { animation: brilho 1s ease-in-out 2; }
-@keyframes brilho { 50% { box-shadow: 0 0 0 6px var(--amarelo); } }
-/* Sequência: cartas um pouco sobrepostas (o canto com o valor sempre aparece). */
+.jogos { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 22px 12px; }
+.jogo { display: flex; padding: 6px; border-radius: 12px; background: #ffffff1c; border: 2px solid #ffffff3a; position: relative; }
+.jogo.invalido { border: 3px solid #ff6b6b; background: #e0242440; }
+.jogo.destaque { border-color: var(--ambar-claro); animation: brilho 1s ease-in-out 2; }
+@keyframes brilho { 50% { box-shadow: 0 0 0 5px #f3c969aa, 0 0 18px #f3c969; } }
+/* Sequência: cartas sobrepostas (o canto com o valor sempre aparece). */
 .jogo:not(.trinca) > .carta + .carta { margin-left: calc(var(--w) * -0.42); }
 /* Trinca: naipes lado a lado, sem sobrepor; repetidas empilhadas na vertical. */
 .jogo.trinca { flex-direction: column; align-items: center; }
@@ -166,748 +144,540 @@ button {
 .base { display: flex; gap: calc(var(--mesa-w) * 0.08); margin-top: calc(var(--mesa-w) * -0.62); position: relative; }
 .coluna { display: flex; flex-direction: column; }
 .coluna .carta + .carta { margin-top: calc(var(--w) * -0.62); } /* deixa o canto (valor e naipe) inteiro à mostra */
+/* "!" no jogo que não vale (o motivo está na faixa da vez) */
 .jogo .erro {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  margin-top: 2px;
-  background: var(--vermelho);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 6px;
-  white-space: nowrap;
-  z-index: 2;
+  position: absolute; left: -10px; top: -12px; width: 28px; height: 28px; border-radius: 50%; z-index: 4;
+  display: grid; place-items: center; background: var(--vermelho); color: #fff; border: 2px solid #fff;
+  font-family: var(--titulo); font-size: 17px;
 }
-.linha-mao { display: flex; align-items: flex-end; gap: 14px; }
-.linha-mao .mao { flex: 1; min-width: 0; }
+/* "+" de cada jogo (escolheu cartas): bolinha âmbar com borda; área de toque invisível de ~52 px */
+.mais-aqui {
+  position: absolute; right: -11px; top: -13px; width: 32px; height: 32px; border-radius: 50%; z-index: 4;
+  display: grid; place-items: center; background: var(--ambar-claro); color: var(--tinta); border: 2.5px solid var(--tinta);
+  font-family: var(--titulo); font-size: 23px; line-height: 1; cursor: pointer; box-shadow: 0 2px 6px #0004;
+}
+.mais-aqui::before { content: ""; position: absolute; inset: -12px; border-radius: 14px; }
+/* Espaço vazio: só aparece com carta escolhida ou arrastando (o lugar fica reservado: nada se mexe) */
+.vazio {
+  visibility: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  min-width: calc(var(--mesa-w) * 2.6); height: calc(var(--mesa-w) * 1.4 + 18px); padding: 0 10px;
+  border: 3px dashed #ffffffc0; border-radius: 12px; color: #fff; font-size: 15px; font-weight: 800; line-height: 1.2; cursor: pointer;
+}
+.tem-selecao .vazio, .arrastando-cartas .vazio { visibility: visible; }
+.vazio small { display: block; font-size: 11px; font-weight: 700; opacity: .85; }
+.vazio.alvo-arraste { background: #ffffff26; outline: none; border-color: var(--ambar-claro); }
+.alvo-arraste { outline: 6px solid var(--ambar-claro); outline-offset: 2px; }
 /* Celular: a mesa pode rolar (só ela), com as cartas num tamanho legível */
 .mesa.rolavel { overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
-/* Na mesa que rola: deslizar na vertical rola a mesa; tocar ou arrastar para o lado mexe na carta */
 .mesa.rolavel .carta { touch-action: pan-y; }
-.alvo-arraste { outline: 6px solid var(--amarelo); outline-offset: 2px; }
+/* Na vez do computador, jogos pela metade (no meio da animação) não ficam vermelhos. */
+.computador-jogando .jogo.invalido { border: 2px dashed #ffffff99; background: #ffffff14; }
+.computador-jogando .jogo .erro { display: none; }
+.animando .mesa:not(.rolavel) { overflow: visible; }
 
 /* ---------- Cartas ---------- */
-
 .carta {
   --w: var(--mesa-w);
-  width: var(--w);
-  height: calc(var(--w) * 1.4);
-  flex: none;
-  background: #fff;
-  border-radius: calc(var(--w) * 0.12);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, .35);
-  position: relative;
-  color: #111;
-  touch-action: none;
-  cursor: pointer;
-  transition: transform .15s;
+  width: var(--w); height: calc(var(--w) * 1.4); flex: none; position: relative;
+  background: #fff; border-radius: calc(var(--w) * 0.13); color: var(--preto);
+  box-shadow: 0 1px 0 #0000000d, 0 3px 8px #3b2f2a33;
+  font-family: var(--titulo); touch-action: none; cursor: pointer; transition: transform .15s;
 }
 .carta .canto {
-  position: absolute;
-  top: calc(var(--w) * 0.04);
-  left: calc(var(--w) * 0.07);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: .95;
-  font-weight: 800;
+  position: absolute; top: calc(var(--w) * 0.04); left: calc(var(--w) * 0.08);
+  display: flex; flex-direction: column; align-items: center; line-height: .92; font-weight: 700;
 }
-.carta .valor { font-size: calc(var(--w) * 0.4); letter-spacing: -0.04em; }
+.carta .valor { font-size: calc(var(--w) * 0.42); letter-spacing: -0.04em; }
 .carta .naipe-peq { font-size: calc(var(--w) * 0.3); }
-.carta .naipe-grande {
-  position: absolute;
-  right: calc(var(--w) * 0.06);
-  bottom: calc(var(--w) * 0.02);
-  font-size: calc(var(--w) * 0.62);
-  line-height: 1;
-}
-.vermelho { color: #d10000; }
+.carta .naipe-grande { position: absolute; right: calc(var(--w) * 0.06); bottom: calc(var(--w) * 0.02); font-size: calc(var(--w) * 0.6); line-height: 1; }
+.vermelho { color: #c8102e; }
 /* Modo 4 cores: ♥ vermelho, ♦ azul, ♣ verde, ♠ preto */
-.quatro-cores .naipe-ouros { color: #0057d9; }
-.quatro-cores .naipe-paus { color: #0a8a2a; }
-
-/* Curinga: estrela dourada sobre fundo roxo */
-.carta.curinga {
-  background: radial-gradient(circle at 50% 45%, #7b3fe4 0%, #4b1fa3 70%, #34127a 100%);
-  color: #fff;
-  border: calc(var(--w) * 0.04) solid #ffd75e;
-}
+.quatro-cores .naipe-ouros { color: #1660c9; }
+.quatro-cores .naipe-paus { color: #19813f; }
+/* Coringa: estrela dourada sobre a tinta */
+.carta.curinga { background: linear-gradient(160deg, #3b2f2a, #5b463c); color: #ffd75e; }
 .carta.curinga .estrela {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: calc(var(--w) * 0.85);
-  color: #ffd75e;
-  text-shadow: 0 0 calc(var(--w) * 0.12) rgba(255, 215, 94, .8);
-  padding-bottom: calc(var(--w) * 0.18);
+  position: absolute; inset: 0; display: grid; place-items: center; padding-bottom: calc(var(--w) * 0.16);
+  font-size: calc(var(--w) * 0.78); color: #ffd75e; text-shadow: 0 0 calc(var(--w) * 0.12) #ffd75e99;
 }
 .carta.curinga .rotulo-curinga {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: calc(var(--w) * 0.1);
-  text-align: center;
-  font-size: calc(var(--w) * 0.155);
-  font-weight: 800;
-  letter-spacing: .02em;
-  color: #ffe9a8;
+  position: absolute; left: 0; right: 0; bottom: calc(var(--w) * 0.1); text-align: center;
+  font-size: calc(var(--w) * 0.15); font-weight: 700; letter-spacing: .03em; color: #ffe9a8;
 }
 .carta.curinga .canto { color: #ffd75e; }
-
-.carta.selecionada {
-  transform: translateY(calc(var(--w) * -0.18));
-  outline: 5px solid var(--amarelo);
-  z-index: 3;
+.carta.selecionada { transform: translateY(calc(var(--w) * -0.16)); z-index: 3; box-shadow: 0 0 0 3px var(--ambar), 0 10px 18px #3b2f2a55; }
+/* Selos "NOVA": azul = a carta que você comprou; laranja = o que o computador baixou */
+.carta.nova::after, .carta.do-computador::after {
+  content: 'NOVA'; position: absolute; left: 50%; top: calc(var(--w) * -0.2); transform: translateX(-50%); z-index: 5;
+  color: #fff; font-family: 'Nunito', sans-serif; font-size: max(10px, calc(var(--w) * 0.15)); font-weight: 800; padding: 1px 6px; border-radius: 99px;
 }
-.carta.nova::after {
-  content: 'NOVA';
-  position: absolute;
-  left: 50%;
-  top: calc(var(--w) * -0.2);
-  transform: translateX(-50%);
-  background: #2f80ff;
-  color: #fff;
-  font-size: max(12px, calc(var(--w) * 0.16));
-  font-weight: 800;
-  padding: 1px 6px;
-  border-radius: 6px;
-}
-.carta.nova { box-shadow: 0 0 0 4px #2f80ff, 0 2px 4px rgba(0, 0, 0, .35); }
-/* Cartas que o computador acabou de baixar: selo laranja "NOVA" */
-.carta.do-computador { box-shadow: 0 0 0 4px #ff8a00, 0 2px 4px rgba(0, 0, 0, .35); }
-.carta.do-computador::after {
-  content: 'NOVA';
-  position: absolute;
-  left: 50%;
-  top: calc(var(--w) * -0.2);
-  transform: translateX(-50%);
-  background: #ff8a00;
-  color: #fff;
-  font-size: max(11px, calc(var(--w) * 0.16));
-  font-weight: 800;
-  padding: 1px 5px;
-  border-radius: 6px;
-  z-index: 5;
-}
+.carta.nova { box-shadow: 0 0 0 4px #1660c9; }
+.carta.nova::after { background: #1660c9; }
+.carta.do-computador { box-shadow: 0 0 0 4px #e8730c; }
+.carta.do-computador::after { background: #e8730c; }
 .carta.dica { animation: dica 1s ease-in-out infinite alternate; }
-@keyframes dica { to { box-shadow: 0 0 0 6px #ff9f1a; } }
+@keyframes dica { to { box-shadow: 0 0 0 5px #ffd75e, 0 0 16px #ffd75e; } }
 .carta.chegou { animation: chegou .8s ease-out; }
-@keyframes chegou { from { transform: scale(1.35); box-shadow: 0 0 0 8px var(--amarelo); } }
-
-/* Na vez do computador, jogos pela metade (no meio da animação) não ficam vermelhos. */
-.computador-jogando .jogo.invalido { border-color: rgba(255, 255, 255, .6); border-style: dashed; background: rgba(255, 255, 255, .08); }
-.computador-jogando .jogo .erro { display: none; }
-
+@keyframes chegou { from { transform: scale(1.35); box-shadow: 0 0 0 8px var(--ambar-claro); } }
 /* Jogada do computador: a carta que está "voando" fica por cima de tudo, com brilho. */
-.animando .mesa:not(.rolavel) { overflow: visible; }
-.carta.voando { z-index: 40; box-shadow: 0 0 0 5px var(--amarelo), 0 10px 24px rgba(0, 0, 0, .5); }
-
-.fantasma {
-  position: fixed;
-  pointer-events: none;
-  z-index: 50;
-  display: flex;
-  opacity: .9;
-  transform: rotate(-3deg);
-}
+.carta.voando { z-index: 40; box-shadow: 0 0 0 5px var(--ambar-claro), 0 10px 24px #0008; }
+.fantasma { position: fixed; pointer-events: none; z-index: 50; display: flex; opacity: .9; transform: rotate(-3deg); }
 .arrastando { opacity: .35; }
 
-/* ---------- Mão ---------- */
+/* ---------- Faixa da vez: ícone + frase (até 2 linhas) + botão do momento. ALTURA FIXA. ---------- */
+.faixa {
+  grid-area: faixa; display: flex; align-items: center; gap: 10px; height: 60px; overflow: hidden;
+  padding: 6px; border-radius: 16px; background: #fff; box-shadow: 0 2px 8px #3b2f2a14;
+}
+.faixa .chip {
+  flex: none; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px;
+  background: var(--ambar-fundo); font-size: 22px; font-family: var(--titulo);
+}
+.faixa .msg {
+  flex: 1; min-width: 0; font-size: 18px; font-weight: 800; line-height: 1.15;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.faixa.problema { background: #fff0f0; box-shadow: inset 0 0 0 2.5px var(--vermelho); }
+.faixa.problema .chip { background: var(--vermelho); color: #fff; }
+.faixa.problema .msg { color: var(--vermelho); }
+.faixa.computador .chip { background: #ebe4da; }
+.faixa.computador .msg { color: #6b5a50; }
+.faixa.ok { box-shadow: inset 0 0 0 2.5px var(--verde-botao); }
+.faixa.ok .chip { background: var(--verde-botao); color: #fff; }
+/* Botão do momento (sempre no mesmo lugar, à direita da frase) */
+.faixa .baixar-jogo, .faixa .acao {
+  flex: none; display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px; white-space: nowrap;
+  border-radius: 12px; font-family: var(--titulo); font-size: 18px; font-weight: 700; animation: sobe .25s ease-out;
+}
+.faixa .baixar-jogo { background: var(--verde-botao); color: #fff; border: 2.5px solid #0d3d24; }
+.faixa .baixar-jogo.novo { background: var(--tinta); border-color: var(--preto); }
+.faixa .acao { background: var(--ambar-claro); color: var(--tinta); border: 2.5px solid var(--tinta); }
+.faixa .icone-baixar { display: grid; font-size: 22px; }
+.faixa .acao .ic { font-size: 20px; }
+@keyframes sobe { from { transform: translateY(8px); opacity: 0; } }
 
-.area-mao { padding: 10px 16px 6px; background: var(--verde-escuro); }
-.rotulo-mao { font-size: 18px; opacity: .85; margin-bottom: 4px; display: flex; gap: 12px; }
+/* ---------- Mão, numa bandeja ---------- */
+.area-mao {
+  grid-area: mao; border-radius: 18px; padding: 4px 10px 8px;
+  background: linear-gradient(#efe2cc, #e6d5b8); box-shadow: inset 0 2px 6px #3b2f2a26;
+}
 .mao {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
   padding-top: calc(var(--mao-w) * 0.2);
   min-height: calc(var(--mao-w) * 1.6);
 }
 .mao .carta { --w: var(--mao-w); }
 
-/* ---------- Botões de baixo ---------- */
-.rotulo-mao { align-items: center; }
-/* "Passar a vez" ainda não liberado: cinza bem visível, sem parecer quebrado */
-.janela .exemplo { opacity: .7; font-weight: 600; margin-left: 8px; }
-.janela .nota-ordenar { font-size: 18px; color: #555; margin-top: 14px; }
+/* ---------- Botões: UMA linha. Desfazer · Desfazer tudo · Dica · Comprar e passar (o maior) ---------- */
+.botoes { grid-area: barra; display: grid; grid-template-columns: 1fr 1fr 1fr 2.2fr; gap: 8px; }
+.botoes.sem-dica { grid-template-columns: 1fr 1fr 2.4fr; } /* online: sem Dica, o Comprar cresce */
+.botoes button {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; min-height: 64px;
+  padding: 4px; border: 0; border-radius: 16px; background: #fff; color: var(--tinta); box-shadow: 0 2px 8px #3b2f2a1f;
+  font-size: 15px; font-weight: 800; line-height: 1.05; text-align: center;
+}
+.botoes .icone { display: grid; font-size: 26px; }
+.botoes .comprar { flex-direction: row; gap: 12px; background: var(--ambar-claro); font-family: var(--titulo); font-size: 19px; font-weight: 700; text-align: left; }
+.botoes .comprar small { display: block; margin-top: 2px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; color: #6b5a50; }
+.botoes .comprar small.pouco { color: var(--vermelho); }
+.botoes .comprar.apagado { background: #f3e9d6; opacity: .6; }
+.botoes button:disabled { opacity: .38; }
+/* O monte desenhado dentro do Comprar: 3 cartinhas viradas + quantas restam */
+.monte-ic { position: relative; width: 34px; height: 46px; flex: none; }
+.monte-ic i { position: absolute; inset: 0; border-radius: 5px; background: linear-gradient(135deg, var(--feltro-1), var(--feltro-2)); border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--tinta); }
+.monte-ic i:nth-child(1) { translate: 5px -4px; }
+.monte-ic i:nth-child(2) { translate: 2.5px -2px; }
+.monte-ic b { position: absolute; right: -10px; bottom: -6px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 99px; background: var(--tinta); color: #fff; font-family: 'Nunito', sans-serif; font-size: 13px; display: grid; place-items: center; }
 
-/* ---------- Janelas (início, ajustes, fim de jogo) ---------- */
+/* ---------- Telas largas (iPad): ícone ao lado do nome, letras maiores ---------- */
+@media (min-width: 700px) and (min-height: 501px) {
+  .tela-jogo { gap: 10px; padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+  .botoes { grid-template-columns: 1fr 1.25fr 1fr 2fr; width: 100%; max-width: 980px; justify-self: center; }
+  .botoes.sem-dica { grid-template-columns: 1fr 1.25fr 2fr; }
+  .botoes button { flex-direction: row; gap: 10px; font-size: 19px; min-height: 64px; }
+  .faixa .msg { font-size: 21px; }
+  .faixa .chip { width: 46px; height: 46px; font-size: 24px; }
+  .faixa .baixar-jogo, .faixa .acao { font-size: 20px; height: 48px; }
+}
+
+/* ---------- Topo compacto ---------- */
+/* 2 ou 3 adversários sem muito espaço: bolinha + número (sem o nome) */
+@media (max-width: 999px) {
+  .topo.varios .adversario .nome { display: none; }
+  .topo.varios .alerta-uma .longo { display: none; }
+  .topo.varios .adversario .fala { max-width: 22vw; }
+}
+/* Campeonato em tela estreita: o placar ganha uma linha só dele, embaixo */
+@media (max-width: 899px) {
+  .campeonato .topo { flex-wrap: wrap; row-gap: 6px; }
+  .campeonato .placar-camp { order: 9; flex: 1 0 100%; justify-content: space-between; height: 34px; gap: 4px; padding: 0 12px; }
+}
+
+/* ---------- iPhone em pé ---------- */
+@media (max-width: 600px) {
+  .tela-jogo { gap: 7px; padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
+  .topo { gap: 6px; }
+  .topo.muitos .botao-menu .palavra { display: none; }
+  .topo.muitos .botao-menu { padding: 0 13px; }
+  .mesa { padding: 14px 10px 16px; border-radius: 18px; }
+  .jogos { gap: 20px 9px; }
+  .jogo { padding: 4px; }
+  .mais-aqui { width: 28px; height: 28px; font-size: 20px; right: -9px; top: -11px; }
+  .vazio { font-size: 13px; }
+  .faixa { gap: 8px; height: 58px; padding: 5px; }
+  .faixa .chip { width: 38px; height: 38px; font-size: 20px; }
+  .faixa .msg { font-size: 17px; }
+  .faixa .baixar-jogo, .faixa .acao { font-size: 16px; height: 44px; padding: 0 12px; gap: 6px; }
+  .area-mao { padding: 2px 6px 6px; border-radius: 16px; }
+  .botoes { gap: 6px; }
+  .botoes .comprar { font-size: 18px; gap: 10px; }
+}
+
+/* ---------- iPhone deitado: botões numa COLUNA à direita (sobra altura para mesa e mão) ---------- */
+@media (max-height: 500px) {
+  .tela-jogo {
+    gap: 5px;
+    grid-template-columns: minmax(0, 1fr) 128px;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "topo barra" "mesa barra" "faixa barra" "mao barra";
+    padding: max(5px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  }
+  .topo { gap: 6px; font-size: 14px; }
+  .botao-menu, .topo .adversario, .placar-camp, .tempo-vez { height: 34px; }
+  .botao-menu { font-size: 14px; padding: 0 12px 0 10px; }
+  .avatar { width: 28px; height: 28px; font-size: 14px; }
+  .topo .adversario .qtd b { font-size: 16px; }
+  .tempo-vez { font-size: 16px; padding: 0 10px; }
+  .placar-camp { gap: 6px; padding: 0 10px; }
+  .mesa { padding: 10px 8px 10px; border-radius: 16px; box-shadow: inset 0 0 0 5px var(--madeira), inset 0 0 0 6px var(--madeira-2), inset 0 6px 16px #0004; }
+  .jogos { gap: 16px 8px; }
+  .jogo { padding: 3px; }
+  .mais-aqui { width: 26px; height: 26px; font-size: 18px; right: -9px; top: -10px; }
+  .vazio { font-size: 12px; }
+  .faixa { height: 40px; padding: 3px 4px; gap: 6px; border-radius: 12px; }
+  .faixa .chip { width: 32px; height: 32px; font-size: 17px; border-radius: 9px; }
+  .faixa .msg { font-size: 15px; }
+  .faixa .baixar-jogo, .faixa .acao { font-size: 14px; height: 32px; padding: 0 10px; gap: 5px; border-width: 2px; }
+  .faixa .icone-baixar { font-size: 17px; }
+  .area-mao { padding: 0 6px 4px; border-radius: 12px; }
+  .mao { gap: 5px; }
+  .botoes { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr 1.6fr; gap: 5px; }
+  .botoes.sem-dica { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1.6fr; }
+  .botoes button { min-height: 0; flex-direction: row; justify-content: flex-start; gap: 6px; padding: 0 8px; font-size: 13px; border-radius: 12px; text-align: left; }
+  .botoes .icone { font-size: 20px; }
+  .botoes .comprar { flex-direction: column; justify-content: center; gap: 4px; text-align: center; font-size: 15px; }
+  .botoes .comprar small { font-size: 11px; }
+  .monte-ic { width: 24px; height: 32px; }
+  .monte-ic b { min-width: 20px; height: 20px; font-size: 11px; right: -12px; bottom: -4px; }
+}
+
+/* ==========================================================
+   JANELAS (menu, ajustes, como vai ser?, fim, conta...)
+   ========================================================== */
 
 .fundo-janela {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, .55);
-  display: grid;
-  place-items: center;
-  z-index: 100;
-  padding: 16px;
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px;
+  padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));
+  background: #3b2f2a8c; overscroll-behavior: contain;
 }
 .janela {
-  background: #fff;
-  color: #1a1a1a;
-  border-radius: 24px;
-  padding: 28px 32px;
-  width: min(640px, 100%);
-  max-height: 100%;
-  overflow-y: auto; /* só rola se a janela não couber (celular pequeno deitado) */
-  text-align: center;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, .5);
+  width: min(600px, 100%); max-height: 100%; overflow-y: auto; /* só rola se a janela não couber */
+  background: var(--creme); color: var(--tinta); border-radius: 24px; padding: 22px 24px;
+  text-align: center; box-shadow: 0 0 0 3px var(--tinta), 0 20px 50px #0005;
 }
+.janela h1, .janela h2, .janela h3 { font-family: var(--titulo); font-weight: 700; }
 .janela h1 { margin: 0 0 10px; font-size: 44px; }
-.janela h2 { margin: 0 0 14px; font-size: 32px; }
-.janela p { font-size: 22px; margin: 8px 0; }
-.janela .grande {
-  display: block;
-  width: 100%;
-  margin-top: 14px;
-  border: 0;
-  border-radius: 18px;
-  padding: 18px;
-  font-size: 26px;
-  font-weight: 800;
-  background: #2fbf5b;
-  color: #fff;
+.janela h2 { margin: 0 0 12px; font-size: 28px; }
+.janela p { font-size: 19px; margin: 8px 0; }
+.janela .emoji { font-size: 56px; line-height: 1.1; }
+/* Botões grandes: escuro = principal; claro = secundário; âmbar = destaque; "sair" em vermelho */
+.grande {
+  display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 10px; min-height: 58px;
+  border: 0; border-radius: 16px; padding: 10px 16px; background: var(--tinta); color: #fff;
+  font-family: var(--titulo); font-size: 22px; font-weight: 700; line-height: 1.15;
 }
-.janela .grande.secundario { background: #e9eef0; color: #133; }
-.janela .emoji { font-size: 64px; line-height: 1.1; }
-.janela .placar { font-size: 22px; margin: 12px 0; }
-.janela .placar div { padding: 4px 0; }
-
-.linha-botoes { display: flex; gap: 12px; }
-/* ---------- Conta e retrospecto ---------- */
-
-.linha-inicio { flex-wrap: wrap; row-gap: 0; }
-.linha-inicio .grande { flex: 1 1 150px; white-space: nowrap; }
-.retro { table-layout: fixed; }
-.retro th:first-child { width: 24%; }
-.quem-joga { font-size: 16px; color: #555; margin-top: 12px; overflow-wrap: anywhere; }
-.formulario input {
-  display: block; width: 100%; box-sizing: border-box; margin-top: 12px;
-  font-size: 20px; padding: 14px 16px; border: 2px solid #c9d3d6; border-radius: 14px; background: #f7f9fa; color: #1a1a1a;
-}
-.formulario input:focus { outline: none; border-color: #1d7a4a; background: #fff; }
-.formulario .erro { min-height: 1.3em; margin-top: 8px; font-size: 17px; font-weight: 600; color: #b3261e; }
-.formulario .erro.ok { color: #1d7a4a; }
-.formulario button:disabled { opacity: .5; }
-.linha-links { display: flex; justify-content: space-between; margin-top: 8px; }
-.linha-links .link-diario { font-size: 17px; }
-.janela-retro h3 { margin: 18px 0 6px; font-size: 22px; text-align: left; }
-.retro { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 20px; }
-.retro th, .retro td { padding: 8px 4px; border-bottom: 1px solid #e3e8ea; }
-.retro thead th { font-size: 15px; color: #555; font-weight: 700; }
-.retro tbody th { text-align: left; }
-.retro td { font-weight: 700; font-variant-numeric: tabular-nums; }
-.retro tr.total th, .retro tr.total td { border-bottom: 0; background: #eef5f0; }
-.ultimas { list-style: none; margin: 0; padding: 0; text-align: left; font-size: 18px; }
-.ultimas li { padding: 7px 0; border-bottom: 1px solid #eef1f2; }
-.ultimas li span { display: block; color: #555; font-size: 16px; margin-top: 2px; }
-.janela .nada { font-size: 18px; color: #555; text-align: left; }
-
-.link-diario { background: none; border: 0; color: #2a5d9f; text-decoration: underline; font-size: 15px; margin-top: 6px; padding: 4px; }
+.grande.secundario { background: #efe5d6; color: var(--tinta); }
+.grande.ambar { background: var(--ambar-claro); color: var(--tinta); box-shadow: inset 0 0 0 2.5px var(--tinta); }
+.grande.sair { background: #fff; color: var(--vermelho); box-shadow: inset 0 0 0 2.5px #c8102e88; }
+.grande small { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; color: #8a7a70; }
+.grande:not(.secundario):not(.ambar):not(.sair) small { color: var(--ambar-claro); }
+.grande:disabled { opacity: .5; }
+.janela .exemplo { opacity: .7; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: .8em; }
+.janela .nota-ordenar { font-size: 17px; color: #6b5a50; margin-top: 14px; }
+.linha-botoes { display: flex; gap: 10px; }
 .linha-botoes .grande { flex: 1; }
-.ajuste { display: flex; align-items: center; gap: 12px; margin: 12px 0; text-align: left; }
-.ajuste .nome-ajuste { flex: 1.1; font-size: 21px; font-weight: 700; }
-.ajuste .nome-ajuste small { display: block; font-size: 15px; font-weight: 500; color: #666; }
+.linha-links { display: flex; justify-content: center; gap: 24px; margin-top: 8px; }
+.linha-links .link-diario { font-size: 17px; }
+.link-diario { background: none; border: 0; color: #6b5a50; text-decoration: underline; font-size: 14px; margin-top: 8px; padding: 6px; }
+.quem-joga { font-size: 14px; color: #8a7a70; margin-top: 10px; overflow-wrap: anywhere; text-align: center; }
+.nota-camp { font-size: 16px !important; color: #6b5a50; }
+
+/* Opções (Ajustes, Como vai ser?, sala) */
+.secao { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #8a7a70; text-align: left; margin: 14px 2px 2px; }
+.ajuste { display: flex; align-items: center; gap: 12px; margin: 10px 0; text-align: left; }
+.ajuste .nome-ajuste { flex: 1.1; font-size: 19px; font-weight: 800; }
+.ajuste .nome-ajuste small { display: block; font-size: 13px; font-weight: 700; color: #8a7a70; }
 .opcoes { flex: 2; display: flex; gap: 6px; }
 .opcoes button {
-  flex: 1;
-  border: 3px solid #cfd8dc;
-  background: #fff;
-  color: #133;
-  border-radius: 12px;
-  padding: 10px 4px;
-  font-size: 19px;
-  font-weight: 700;
+  flex: 1; min-height: 50px; border: 0; border-radius: 12px; padding: 6px 4px; background: #fff; color: var(--tinta);
+  box-shadow: inset 0 0 0 2px #e2d8c8; font-size: 17px; font-weight: 800; line-height: 1.1;
 }
-.opcoes button.atual { border-color: #2fbf5b; background: #e6f7ec; }
+.opcoes button.atual { background: var(--ambar-fundo); box-shadow: inset 0 0 0 3px var(--ambar); }
+.opcoes .amostra { display: block; font-size: 15px; margin-top: 2px; letter-spacing: 1px; }
+.opcoes .amostra b { color: var(--preto); }
+.opcoes .amostra .v { color: #c8102e; } .opcoes .amostra .az { color: #1660c9; } .opcoes .amostra .vd { color: #19813f; }
+.so-ver { flex: 2; font-size: 18px; font-weight: 800; text-align: center; }
 
-/* ==========================================================
-   Telas menores. Tudo continua cabendo, só fica mais compacto.
-   ========================================================== */
+/* Janela fixa (título em cima, botões embaixo), só o meio rola */
+.janela-ajustes { display: flex; flex-direction: column; overflow: hidden; max-height: min(100%, 760px); padding: 18px 20px 14px; }
+.janela-ajustes h2 { flex: none; margin: 0 0 4px; }
+.corpo-ajustes { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: 0 2px; }
+.corpo-ajustes .link-diario { display: block; margin: 8px auto 0; }
+.rodape-ajustes { flex: none; display: flex; gap: 10px; padding-top: 10px; border-top: 2px solid #e4d9c8; margin-top: 6px; }
+.rodape-ajustes .grande { flex: 1; margin-top: 0; }
 
-/* Em pé (celular ou iPad): botões em 2 linhas de 3 */
-@media (orientation: portrait) {
+/* Menu da partida */
+.janela-menu { width: min(480px, 100%); padding: 18px; }
+.janela-menu h2 { margin-bottom: 4px; }
+.itens-menu { display: flex; flex-direction: column; gap: 8px; }
+.itens-menu .grande { margin-top: 0; }
+
+/* ---------- Tela inicial ---------- */
+.tela-inicio {
+  position: absolute; inset: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
 }
-
-/* Celular em pé (tela estreita) */
-@media (max-width: 600px) {
-  .retro thead th { font-size: 12px; letter-spacing: -.2px; }
-  .retro { font-size: 18px; }
-  .topo { flex-wrap: wrap; gap: 8px 12px; padding: 6px 10px; font-size: 16px; min-height: 0; }
-  .verso { width: 18px; height: 26px; border-radius: 4px; }
-  .versos .verso { margin-left: -10px; }
-  .alerta-uma { font-size: 14px; padding: 3px 8px; }
-  .botao-ajustes { font-size: 15px; padding: 6px 10px; border-radius: 10px; }
-  .aviso { margin: 0 10px; font-size: 16px; padding: 8px 10px; min-height: 0; }
-  .aviso .acao { font-size: 15px; padding: 6px 10px; }
-  .mesa { padding: 8px 10px 20px; gap: 18px; }
-  .jogos { gap: 20px 10px; }
-  .area-mao { padding: 6px 10px 4px; }
-  .rotulo-mao { font-size: 14px; }
-  .jogo { padding: 3px; border-width: 3px; }
-  .jogos { gap: 14px 8px; }
+.tela-inicio .marca { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tela-inicio h1 { font-family: var(--titulo); font-weight: 700; font-size: 50px; margin: 0; letter-spacing: -.01em; }
+.tela-inicio .marca p { font-size: 17px; max-width: 340px; margin: 0; color: #6b5a50; }
+.leque { position: relative; width: 180px; height: 128px; }
+.leque .carta { --w: 74px; position: absolute; left: 50%; top: 8px; margin-left: -37px; cursor: default; border: 2.5px solid var(--preto); box-shadow: none; }
+.leque .carta:nth-child(1) { rotate: -16deg; translate: -46px 10px; }
+.leque .carta:nth-child(3) { rotate: 16deg; translate: 46px 10px; }
+.col-inicio { width: min(100%, 420px); display: flex; flex-direction: column; gap: 10px; }
+.col-inicio .grande { margin-top: 0; }
+.grade-inicio { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grade-inicio .grande { flex-direction: column; gap: 2px; min-height: 72px; font-size: 17px; }
+.grade-inicio .e { font-size: 24px; line-height: 1; }
+.col-inicio .quem-joga { margin-top: 0; }
+@media (min-width: 700px) and (orientation: portrait) {
+  .grade-inicio { grid-template-columns: repeat(4, 1fr); }
 }
-
-/* Celular deitado (tela baixa) */
+@media (orientation: landscape) and (min-width: 700px) {
+  .tela-inicio { flex-direction: row; gap: 48px; }
+}
 @media (max-height: 500px) {
-  .topo { padding: 4px 12px; font-size: 16px; min-height: 0; gap: 14px; }
-  .verso { width: 18px; height: 26px; border-radius: 4px; }
-  .versos .verso { margin-left: -10px; }
-  .alerta-uma { font-size: 14px; padding: 3px 8px; }
-  .botao-ajustes { font-size: 15px; padding: 5px 10px; border-radius: 10px; }
-  .aviso { margin: 0 12px; font-size: 15px; padding: 5px 12px; min-height: 0; }
-  .aviso .acao { font-size: 14px; padding: 4px 10px; }
-  .mesa { padding: 6px 12px 16px; gap: 14px; margin-top: 6px; }
-  .jogos { gap: 16px 10px; }
-  .jogo { padding: 4px; border-width: 3px; }
-  .area-mao { padding: 4px 12px 2px; }
-  .rotulo-mao { display: none; }
-  /* "Novo jogo" com o + ao lado do texto */
-  .janela { padding: 14px 18px; }
-  .janela h1 { font-size: 30px; }
-  .janela h2 { font-size: 24px; margin-bottom: 6px; }
-  .janela p { font-size: 17px; }
-  .janela .grande { padding: 10px; font-size: 19px; margin-top: 8px; }
-  .janela .emoji { font-size: 40px; }
-  .ajuste { margin: 4px 0; }
-  .ajuste .nome-ajuste { font-size: 17px; }
-  .ajuste .nome-ajuste small { font-size: 12px; }
-  .opcoes button { padding: 5px 4px; font-size: 16px; }
-  .formulario input { padding: 8px 12px; font-size: 17px; margin-top: 6px; }
-  .retro { font-size: 16px; margin-top: 4px; }
-  .retro th, .retro td { padding: 4px; }
-  .janela-retro h3 { margin-top: 8px; font-size: 18px; }
-  .ultimas { font-size: 15px; }
-  .ultimas li { padding: 4px 0; }
-  .ultimas li span { font-size: 14px; }
-  .formulario p { display: none; }
-  .quem-joga { font-size: 14px; margin-top: 6px; }
+  .tela-inicio { gap: 24px; padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .tela-inicio .marca { transform: scale(.8); }
+  .tela-inicio h1 { font-size: 40px; }
+  .col-inicio { gap: 6px; }
+  .col-inicio .grande { min-height: 46px; font-size: 18px; padding: 6px 12px; }
+  .grade-inicio { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .grade-inicio .grande { min-height: 54px; font-size: 13px; }
+  .grade-inicio .e { font-size: 18px; }
 }
 
-/* Celular pequeno deitado (ex.: iPhone SE): aperta mais um pouco */
-@media (max-height: 400px) {
-  .topo { padding: 2px 10px; font-size: 15px; }
-  .monte .verso { display: none; }
-  .aviso { font-size: 14px; padding: 3px 10px; }
-  .mesa { padding: 4px 10px 12px; gap: 10px; margin-top: 4px; }
-  .jogos { gap: 12px 8px; }
+/* ---------- Conta e retrospecto ---------- */
+.formulario input {
+  display: block; width: 100%; margin-top: 12px; font: inherit; font-size: 19px; padding: 14px 16px;
+  border: 2px solid #e2d8c8; border-radius: 14px; background: #fff; color: var(--tinta);
 }
+.formulario input:focus { outline: none; border-color: var(--ambar); }
+.formulario .erro { min-height: 1.3em; margin-top: 8px; font-size: 16px; font-weight: 700; color: var(--vermelho); }
+.formulario .erro.ok { color: var(--verde-botao); }
+.formulario button:disabled { opacity: .5; }
+.janela-retro h3 { margin: 18px 0 6px; font-size: 21px; text-align: left; }
+.retro { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 12px; font-size: 19px; }
+.retro th:first-child { width: 24%; }
+.retro th, .retro td { padding: 8px 4px; border-bottom: 1px solid #e4d9c8; }
+.retro thead th { font-size: 14px; color: #6b5a50; }
+.retro tbody th { text-align: left; }
+.retro td { font-variant-numeric: tabular-nums; }
+.retro tr.total th, .retro tr.total td { border-bottom: 0; background: var(--ambar-fundo); }
+.ultimas { list-style: none; margin: 0; padding: 0; text-align: left; font-size: 17px; }
+.ultimas li { padding: 7px 0; border-bottom: 1px solid #e4d9c8; }
+.ultimas li span { display: block; color: #6b5a50; font-size: 15px; margin-top: 2px; }
+.janela .nada { font-size: 17px; color: #6b5a50; text-align: left; }
 
-/* ==========================================================
-   Celular (iPhone em pé ou deitado): botões minimalistas e
-   mão com a fila toda; "Novo jogo" vira botãozinho no rótulo.
-   ========================================================== */
-@media (max-width: 600px), (max-height: 500px) {
-  .dica-arrastar { display: none; }
-  /* Topo numa linha só: Ajustes vira só o ícone */
-  .topo { flex-wrap: nowrap; }
-  .nome-ajustes, .monte .verso { display: none; }
-  .botao-ajustes { font-size: 20px; padding: 4px 10px; }
-  .rotulo-mao { display: flex !important; font-size: 14px; margin-bottom: 2px; }
-}
+/* ---------- Fim da rodada ---------- */
+.janela-fim { width: min(720px, 100%); display: flex; flex-direction: column; overflow: hidden; max-height: 100%; }
+.corpo-fim { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.rodape-fim { flex: none; padding-top: 4px; }
+.maos-finais { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; text-align: left; }
+.mao-final { background: #fff; border-radius: 14px; padding: 8px 12px; }
+.nome-final { font-size: 17px; margin-bottom: 6px; }
+.cartas-finais { display: flex; flex-wrap: wrap; gap: 4px; }
+.cartas-finais .carta { --w: 40px; cursor: default; }
+.sem-cartas { font-size: 17px; }
+.placar-fim { margin: 6px 0 10px; display: flex; flex-direction: column; gap: 6px; }
+.placar-fim .dupla { display: flex; align-items: stretch; gap: 10px; background: #fff; border-radius: 16px; padding: 10px 12px; }
+.placar-fim .lado { flex: 1; text-align: center; }
+.placar-fim .lado .nome { display: block; font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.placar-fim .lado .total { display: block; font-family: var(--titulo); font-size: 46px; line-height: 1.05; }
+.placar-fim .meio { display: flex; flex-direction: column; justify-content: center; font-size: 13px; color: #8a7a70; }
+.placar-fim .barra { height: 10px; border-radius: 99px; background: #eee3d3; margin-top: 6px; overflow: hidden; }
+.placar-fim .barra i { display: block; height: 100%; background: var(--ambar); }
+.placar-fim .barra i.alta { background: #e8a317; }
+.placar-fim .barra i.perigo { background: var(--vermelho); }
+.placar-fim .delta { display: inline-block; margin-top: 4px; font-size: 14px; color: #8a7a70; }
+.placar-fim .lista { display: flex; flex-direction: column; gap: 5px; }
+.placar-fim .lin { display: grid; grid-template-columns: minmax(96px, 1fr) 56px 120px 52px; align-items: center; gap: 10px; background: #fff; border-radius: 12px; padding: 8px 12px; font-size: 17px; text-align: left; }
+.placar-fim .lin .quem { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.placar-fim .lin .total { font-family: var(--titulo); font-size: 26px; line-height: 1; text-align: right; }
+.placar-fim .lin .barra { margin: 0; }
+.placar-fim .lin .delta { margin: 0; text-align: right; }
 
-
-/* ==========================================================
-   Dois visuais (Ajustes → Visual). Identidade do Miaudoku:
-   creme, tinta marrom, âmbar, Fredoka + Nunito.
-   body.idade = "Melhor idade" (padrão) · body.bonito = "Bonito"
-   ========================================================== */
-
-:root {
-  --tinta: #3b2f2a;
-  --creme: #fbf6ee;
-  --ambar: #e7a400;
-  --ambar-claro: #f3c969;
-  --titulo: 'Fredoka', 'Nunito', system-ui, sans-serif;
-}
-html, body { background: radial-gradient(circle at 50% 0%, #fffaf2, #f6eee2 70%); color: var(--tinta); }
-body { font-family: 'Nunito', -apple-system, system-ui, sans-serif; font-weight: 700; }
-.carta { font-family: var(--titulo); }
-.carta .valor { font-weight: 700; }
-svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-
-/* topo e faixa de aviso: pílulas brancas sobre o creme */
-.topo { gap: 10px; font-size: 18px; font-weight: 800; }
-.topo .adversario, .topo .monte {
-  background: #fff; border-radius: 99px; padding: 6px 14px; box-shadow: 0 2px 8px #3b2f2a14;
-}
-.adversario.da-vez .nome { color: #b87a00; }
-.versos .verso { width: 20px; height: 28px; margin-left: -8px; border: 1.5px solid #fff; background: linear-gradient(135deg, #2f6b4f, #1f4d38); }
-.versos .verso:first-child { margin-left: 0; }
-.monte .verso { width: 18px; height: 26px; background: linear-gradient(135deg, #2f6b4f, #1f4d38); }
-.botao-ajustes { background: #fff; color: var(--tinta); border-radius: 99px; padding: 8px 14px; font-size: 18px; box-shadow: 0 2px 8px #3b2f2a14; display: flex; align-items: center; gap: 6px; }
-.aviso {
-  justify-self: center; margin: 4px 16px 0; min-height: 0; background: #fff; color: var(--tinta);
-  border-radius: 99px; padding: 6px 16px; font-size: 18px; font-weight: 800; box-shadow: 0 2px 8px #3b2f2a10;
-}
-.aviso.problema { background: #ffe1e1; color: #8a0f1f; }
-.aviso.computador { background: #e8f0ff; color: #0c2d57; }
-.aviso .acao { background: var(--tinta); border-radius: 99px; font-weight: 800; }
-
-/* mesa */
-.mesa { margin: 8px 12px 0; border-radius: 26px; background: radial-gradient(circle at 50% 30%, #3f8763, #2c654a 75%); box-shadow: inset 0 2px 14px #0003; }
-.jogo { border-width: 3px; border-radius: 14px; }
-.carta { box-shadow: 0 1px 0 #0000000d, 0 3px 8px #3b2f2a26; }
-.jogo.invalido { border-color: var(--vermelho); }
-
-/* espaço vazio (E): só aparece com carta escolhida ou arrastando */
-.vazio {
-  visibility: hidden; /* o lugar fica reservado, para escolher uma carta não mexer em nada */
-  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-  min-width: calc(var(--mesa-w) * 2.4); height: calc(var(--mesa-w) * 1.4 + 22px); padding: 0 10px;
-  border: 3px dashed #ffffffb8; border-radius: 14px; color: #fff; font-size: 15px; font-weight: 800; line-height: 1.2; cursor: pointer;
-}
-.tem-selecao .vazio, .arrastando-cartas .vazio { visibility: visible; }
-.vazio small { display: block; font-size: 12px; font-weight: 700; opacity: .85; }
-.vazio.alvo-arraste { background: #ffffff26; outline: none; border-color: var(--ambar-claro); }
-
-/* mão */
-.area-mao { background: transparent; padding: 8px 16px 2px; }
-.rotulo-mao { color: var(--tinta); opacity: 1; font-size: 15px; font-weight: 800; letter-spacing: .5px; min-height: 46px; align-items: center; }
-.rotulo-mao .espaco-baixar { margin-left: auto; }
-.baixar-jogo {
-  display: flex; align-items: center; gap: 8px; white-space: nowrap; border-radius: 99px; padding: 9px 18px 9px 14px;
-  background: var(--ambar); color: #fff; font-size: 18px; font-weight: 800; box-shadow: 0 6px 16px #e7a40066;
-  animation: sobe .25s ease-out;
-}
-.baixar-jogo .icone-baixar { display: grid; font-size: 22px; }
-.baixar-jogo.exemplo { display: inline-flex; animation: none; }
-@keyframes sobe { from { transform: translateY(8px); opacity: 0; } }
-.carta.selecionada { outline: none; box-shadow: 0 0 0 3px var(--ambar), 0 10px 18px #e7a40055; }
-
-/* botões de baixo */
-.botoes { display: flex; justify-content: center; align-items: stretch; gap: 8px; padding: 6px 16px 12px; }
-.botoes .ordenar { display: flex; }
-.botoes button {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 56px;
-  border: 0; border-radius: 16px; background: #fff; color: var(--tinta); padding: 8px 10px; font-weight: 800; box-shadow: 0 2px 8px #3b2f2a14;
-}
-.botoes .icone { font-size: 24px; display: grid; }
-.botoes .nome-botao { font-size: 12.5px; }
-.botoes .comprar { background: var(--ambar-claro); }
-.botoes .baixar { background: #2f7a52; color: #fff; flex-direction: row; gap: 8px; padding: 8px 18px; font-size: 16px; }
-.botoes .apagado { opacity: .45; }
-.botoes .baixar.apagado { opacity: .5; background: #e9e1d4; color: var(--tinta); }
-.botoes button:disabled { opacity: .35; }
-
-/* janelas */
-.fundo-janela { background: #3b2f2a73; }
-.janela { background: var(--creme); color: var(--tinta); border-radius: 28px; font-weight: 700; }
-.janela h1, .janela h2, .janela h3 { font-family: var(--titulo); font-weight: 700; }
-.janela .grande { background: var(--tinta); border-radius: 18px; font-family: inherit; }
-.janela .grande.secundario { background: #f0e8dc; color: var(--tinta); }
-.opcoes button { border-color: #e4d9c8; background: #fff; color: var(--tinta); font-family: inherit; }
-.opcoes button.atual { border-color: var(--ambar); background: #fff3d1; }
-
-/* tutorial (D) */
+/* ---------- Tutorial ---------- */
 .tutorial {
-  width: min(100%, 560px); max-height: 100%; overflow-y: auto; background: var(--creme); color: var(--tinta); border-radius: 28px;
-  padding: 18px 20px 20px; box-shadow: 0 20px 50px #0005; display: flex; flex-direction: column; gap: 12px; position: relative; text-align: left;
+  width: min(100%, 560px); max-height: 100%; overflow-y: auto; background: var(--creme); color: var(--tinta); border-radius: 24px;
+  padding: 18px 20px 20px; box-shadow: 0 0 0 3px var(--tinta), 0 20px 50px #0005; display: flex; flex-direction: column; gap: 12px; position: relative; text-align: left;
 }
-.tutorial .pular { position: absolute; right: 14px; top: 14px; font-size: 16px; font-weight: 800; padding: 6px 14px; border: 0; border-radius: 99px; background: #fff; color: var(--tinta); box-shadow: 0 2px 8px #3b2f2a14; }
+.tutorial .pular { position: absolute; right: 14px; top: 14px; font-size: 16px; font-weight: 800; padding: 6px 14px; border: 0; border-radius: 99px; background: #fff; color: var(--tinta); box-shadow: inset 0 0 0 2px var(--tinta); }
 .tutorial .contador { font-size: 12px; font-weight: 800; letter-spacing: 2px; opacity: .55; }
 .tutorial h2 { margin: 0; font-family: var(--titulo); font-weight: 700; font-size: 26px; line-height: 1.15; padding-right: 76px; }
 .tutorial p { margin: 0; font-size: 18px; line-height: 1.45; }
-.palco { border-radius: 20px; padding: 16px 10px; display: flex; flex-direction: column; align-items: center; gap: 12px; background: radial-gradient(circle at 50% 30%, #3f8763, #2c654a 75%); color: #fff; }
-.palco .linha { display: flex; gap: 6px; align-items: center; }
+.palco {
+  flex: none; border-radius: 20px; padding: 16px 10px; display: flex; flex-direction: column; align-items: center; gap: 12px; color: #fff;
+  background: radial-gradient(ellipse at 50% 35%, var(--feltro-1), var(--feltro-2) 85%);
+  box-shadow: inset 0 0 0 5px var(--madeira), inset 0 0 0 6px var(--madeira-2);
+}
+.palco .linha { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
 .palco .carta { --w: 54px; cursor: default; }
 .palco .carta + .carta { margin-left: 0; }
-.palco .ok { font-size: 15px; font-weight: 800; padding: 3px 10px; border-radius: 99px; background: #fff; color: #1d6b40; }
+.palco .ok { font-size: 15px; font-weight: 800; padding: 3px 10px; border-radius: 99px; background: #fff; color: var(--verde-botao); }
 .palco .seta { font-size: 24px; }
-.palco { flex: none; }
-.palco .vazio { visibility: visible; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 110px; height: 80px; font-size: 14px; border: 3px dashed #ffffffb8; border-radius: 14px; padding: 0 10px; cursor: default; }
+.palco .vazio { visibility: visible; min-width: 110px; height: 80px; font-size: 14px; cursor: default; }
+.palco .baixar-jogo { display: inline-flex; align-items: center; gap: 6px; border-radius: 12px; padding: 6px 12px; background: var(--verde-botao); color: #fff; font-family: var(--titulo); font-size: 16px; }
+.palco .baixar-jogo .icone-baixar { display: grid; font-size: 18px; }
 .pontos { display: flex; gap: 7px; justify-content: center; }
 .pontos i { width: 9px; height: 9px; border-radius: 50%; background: #3b2f2a33; }
-.pontos i.atual { background: var(--ambar); width: 24px; border-radius: 99px; }
+.pontos i.atual { background: var(--tinta); width: 24px; border-radius: 99px; }
 .botoes-tutorial { display: flex; gap: 10px; }
-.botoes-tutorial button { flex: 1; padding: 14px; border: 0; border-radius: 16px; font-size: 18px; font-weight: 800; background: var(--tinta); color: #fff; font-family: inherit; }
-.botoes-tutorial button.claro { background: #f0e8dc; color: var(--tinta); }
+.botoes-tutorial button { flex: 1; padding: 14px; border: 0; border-radius: 16px; font-family: var(--titulo); font-size: 19px; font-weight: 700; background: var(--tinta); color: #fff; }
+.botoes-tutorial button.claro { background: #efe5d6; color: var(--tinta); }
 .botoes-tutorial button:disabled { opacity: .4; }
 
-/* ---------- BONITO: sombras, transições, leve inclinação ---------- */
-body.bonito .carta { transition: transform .2s cubic-bezier(.3, 1.5, .6, 1), box-shadow .2s; }
-body.bonito .mao .carta:nth-child(odd) { rotate: -.6deg; }
-body.bonito .mao .carta:nth-child(even) { rotate: .6deg; }
-
-/* ---------- MELHOR IDADE: grande, alto contraste, sem enfeite ---------- */
-body.idade *, body.idade *::before, body.idade *::after { transition: none !important; }
-body.idade .carta { border: 2.5px solid #1d1a19; box-shadow: none; border-radius: 10px; }
-body.idade .carta .valor { font-size: calc(var(--w) * .46); }
-body.idade .carta .naipe-peq { font-size: calc(var(--w) * .34); }
-body.idade .carta.selecionada { box-shadow: 0 0 0 5px #0057d9; }
-body.idade .carta.curinga { border-color: #ffd75e; }
-body.idade .mesa { background: #1f5a3d; box-shadow: none; border-radius: 16px; }
-body.idade .jogo { border-width: 3px; background: #ffffff26; }
-body.idade .aviso { font-size: 20px; padding: 8px 18px; border: 2.5px solid var(--tinta); box-shadow: none; }
-body.idade .topo .adversario, body.idade .topo .monte, body.idade .botao-ajustes { border: 2px solid var(--tinta); box-shadow: none; font-size: 18px; }
-body.idade .rotulo-mao { font-size: 18px; }
-body.idade .baixar-jogo { background: #1d6b40; font-size: 21px; box-shadow: none; border: 3px solid #0d3d24; animation: none; }
-body.idade .vazio { border-style: dashed; border-width: 3px; border-color: #fff; font-size: 17px; }
-body.idade .botoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-body.idade .botoes .ordenar { display: flex; }
-body.idade .botoes button { flex-direction: row; gap: 8px; min-height: 56px; border: 2.5px solid var(--tinta); border-radius: 14px; box-shadow: none; font-size: 17px; }
-body.idade .botoes .nome-botao { font-size: 17px; }
-body.idade .botoes .icone { font-size: 22px; }
-body.idade .botoes .baixar { background: #1d6b40; border-color: #0d3d24; font-size: 18px; }
-body.idade .botoes .baixar.apagado { background: #e9e1d4; color: var(--tinta); border-color: #0004; }
-body.idade .botoes .comprar { background: var(--ambar-claro); }
-body.idade .janela, body.idade .tutorial { border: 3px solid var(--tinta); box-shadow: none; }
-body.idade .tutorial h2 { font-size: 28px; }
-body.idade .tutorial p { font-size: 21px; }
-body.idade .tutorial .pular { font-size: 19px; border: 2px solid var(--tinta); box-shadow: none; }
-body.idade .palco { background: #1f5a3d; }
-body.idade .palco .carta { --w: 62px; }
-body.idade .botoes-tutorial button { font-size: 21px; padding: 16px; }
-body.idade .pontos i.atual { background: var(--tinta); }
-
-/* iPad deitado e telas largas: tudo numa fila */
-@media (min-width: 900px) {
-  body.idade .botoes { display: flex; justify-content: center; gap: 12px; }
-  body.idade .botoes button { padding: 8px 20px; }
-}
-
-/* Celular: botões minimalistas no bonito (ícone + nome pequeno, uma fila só); idade em 2 fileiras */
-@media (max-width: 600px), (max-height: 500px) {
-  .topo { gap: 6px; font-size: 15px; padding: 6px 10px; }
-  .topo .adversario, .topo .monte { padding: 4px 10px; }
-  .botao-ajustes { padding: 6px 10px; font-size: 20px; }
-  /* O botão de sair divide a linha do topo: encolhe um pouco o resto para tudo caber. */
-  .botao-sair { padding: 6px 8px; font-size: 16px; flex: none; }
-  .topo .adversario { min-width: 0; flex-shrink: 1; padding: 4px 8px; }
-  .topo .adversario .nome { font-size: 14px; }
-  .topo .adversario .versos .verso { width: 12px; margin-left: -7px; }
-  .topo .adversario .versos .verso:first-child { margin-left: 0; }
-  .topo .monte { flex: none; padding: 4px 8px; }
-  .aviso { margin: 2px 10px 0; font-size: 15px; padding: 4px 12px; }
-  .mesa { margin: 6px 8px 0; border-radius: 18px; }
-  .area-mao { padding: 4px 10px 0; }
-  .rotulo-mao { min-height: 40px; font-size: 14px; }
-  .baixar-jogo { font-size: 16px; padding: 7px 14px 7px 10px; }
-  .botoes { gap: 4px; padding: 4px 8px 6px; }
-  body.bonito .botoes button { flex: 1; min-width: 0; padding: 5px 2px; border-radius: 12px; }
-  body.bonito .botoes .ordenar { flex: 1; }
-  body.bonito .botoes .icone { font-size: 21px; }
-  body.bonito .botoes .nome-botao { font-size: 11px; }
-  body.bonito .botoes .baixar { flex-direction: column; gap: 3px; padding: 5px 2px; font-size: 11px; }
-  .vazio { font-size: 13px; min-width: calc(var(--mesa-w) * 2.6); }
-  .vazio small { font-size: 11px; }
-  .tutorial { padding: 14px 16px 16px; gap: 10px; }
-  .tutorial h2 { font-size: 22px; }
-  .tutorial p { font-size: 16px; }
-  body.idade .tutorial h2 { font-size: 24px; }
-  body.idade .tutorial p { font-size: 18px; }
-  .palco { padding: 10px 6px; }
-  .palco .carta, body.idade .palco .carta { --w: 46px; }
-  body.idade .botoes button { min-height: 48px; font-size: 15px; padding: 4px 6px; }
-  body.idade .botoes .nome-botao { font-size: 15px; }
-  body.idade .botoes .baixar { font-size: 16px; }
-  body.idade .aviso { font-size: 16px; border-width: 2px; }
-}
-@media (max-height: 500px) {
-  .rotulo-mao { display: flex !important; min-height: 36px; }
-  body.idade .botoes { display: flex; gap: 6px; }
-  body.idade .botoes button { flex: 1; min-height: 40px; }
-  .tutorial { width: min(100%, 860px); padding: 10px 16px 12px; gap: 4px 16px; display: grid; grid-template-columns: 1fr 1.1fr; grid-auto-rows: min-content; align-content: center; }
-  .tutorial .palco { grid-column: 1; grid-row: 1 / span 5; align-self: center; }
-  .tutorial > :not(.palco):not(.pular) { grid-column: 2; }
-  .tutorial h2 { font-size: 19px; }
-  .tutorial p { font-size: 14px; }
-  body.idade .tutorial h2 { font-size: 20px; }
-  body.idade .tutorial p { font-size: 15px; }
-  .palco { padding: 6px; gap: 6px; }
-  .palco .carta, body.idade .palco .carta { --w: 34px; }
-  .botoes-tutorial button, body.idade .botoes-tutorial button { padding: 8px; font-size: 16px; }
-  .palco .vazio { height: 56px; }
-}
-
-/* ---------- Escolher cartas da mesa: "+" em cada jogo, botão Novo jogo, campeonato ---------- */
-.mais-aqui {
-  position: absolute; right: -6px; top: -10px; width: 30px; height: 30px; border-radius: 50%; z-index: 4;
-  display: grid; place-items: center; background: var(--ambar); color: #fff; font-size: 22px; font-weight: 800; line-height: 1;
-  box-shadow: 0 2px 6px #0004; cursor: pointer;
-}
-/* Área de toque invisível de ~48 px (a bolinha tem 30): vale também sobre o canto de cima da última carta. */
-.mais-aqui::before { content: ""; position: absolute; inset: -12px; border-radius: 14px; }
-body.idade .mais-aqui { background: #0057d9; border: 2px solid #fff; }
-.baixar-jogo.novo { background: var(--tinta); box-shadow: none; }
-.baixar-jogo.reservado { visibility: hidden; animation: none; }
-body.idade .baixar-jogo.novo { background: #3b2f2a; border-color: #1d1a19; }
-.placar-camp { background: #fff; border-radius: 99px; padding: 4px 12px; font-size: 15px; font-weight: 800; box-shadow: 0 2px 8px #3b2f2a14; white-space: nowrap; }
-.placar-camp .ate { opacity: .55; }
-.placar-camp .pos { opacity: .55; margin-right: 1px; }
-body.idade .placar-camp { border: 2px solid var(--tinta); box-shadow: none; font-size: 17px; }
-.janela-fim { width: min(720px, 100%); }
-.maos-finais { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 4px; text-align: left; }
-.mao-final { background: #f0e8dc; border-radius: 16px; padding: 8px 12px; }
-.nome-final { font-size: 18px; margin-bottom: 6px; }
-.cartas-finais { display: flex; flex-wrap: wrap; gap: 4px; }
-.cartas-finais .carta { --w: 40px; cursor: default; }
-.sem-cartas { font-size: 18px; }
-.nota-camp { font-size: 17px !important; opacity: .75; }
-@media (max-width: 600px), (max-height: 500px) {
-  .placar-camp { font-size: 12px; padding: 3px 8px; }
-  .cartas-finais .carta { --w: 30px; }
-  .nome-final { font-size: 15px; }
-  .mais-aqui { width: 26px; height: 26px; font-size: 19px; right: -4px; top: -9px; }
-}
-/* "!" no jogo que não vale (o motivo está na faixa de aviso) */
-.jogo .erro {
-  left: -6px; top: -10px; margin: 0; width: 24px; height: 24px; padding: 0; border-radius: 50%;
-  display: grid; place-items: center; font-size: 16px; font-weight: 800; white-space: normal;
-}
-/* Campeonato no celular em pé: o placar ganha uma linha só dele, embaixo do topo */
-@media (max-width: 600px) {
-  .campeonato .topo { flex-wrap: wrap; row-gap: 4px; font-size: 14px; }
-  .campeonato .placar-camp { order: 9; flex: 1 0 100%; text-align: center; white-space: normal; line-height: 1.25; border-radius: 14px; } /* com 3 ou 4 jogadores a pílula pode ter 2 linhas */
-  .campeonato .topo .adversario, .campeonato .topo .monte { padding: 3px 8px; }
-  .campeonato .versos .verso { width: 13px; height: 19px; margin-left: -6px; }
-  .campeonato .topo .espaco { flex: 1 1 0; min-width: 0; }
-  body.idade .campeonato .topo .adversario, body.idade .campeonato .topo .monte { font-size: 14px; }
-}
-
-/* ---------- Jogo online ---------- */
-.tempo-vez { background: #fff; border-radius: 99px; padding: 4px 12px; font-size: 15px; font-weight: 800; box-shadow: 0 2px 8px #3b2f2a14; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.tempo-vez.acabando { background: #ffe1e1; color: #8a0f1f; }
-body.idade .tempo-vez { border: 2px solid var(--tinta); box-shadow: none; font-size: 17px; }
+/* ---------- Jogo online (menu, sala de espera) ---------- */
 .janela-sala { width: min(560px, 100%); }
-.janela-sala .codigo { letter-spacing: 6px; background: #fff3d1; border-radius: 12px; padding: 0 12px; }
+.janela-sala .codigo { letter-spacing: 6px; background: var(--ambar-fundo); border-radius: 12px; padding: 0 12px; }
 .janela-sala h3 { margin: 12px 0 4px; text-align: left; font-size: 20px; }
 .link-sala { background: #fff; border-radius: 12px; padding: 8px 12px; font-size: 15px; word-break: break-all; margin: 8px 0; user-select: text; -webkit-user-select: text; }
 .lista-sala { list-style: none; margin: 0 0 6px; padding: 0; text-align: left; }
-.lista-sala li { display: flex; align-items: center; justify-content: space-between; background: #f0e8dc; border-radius: 12px; padding: 8px 14px; margin: 4px 0; font-size: 19px; }
+.lista-sala li { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 12px; padding: 8px 14px; margin: 4px 0; font-size: 18px; }
 .lista-sala small { opacity: .6; font-size: 14px; }
-.lista-sala .tirar { border: 0; border-radius: 10px; background: #fff; padding: 6px 12px; font: inherit; font-size: 15px; font-weight: 800; color: #8a0f1f; }
-.so-ver { flex: 2; font-size: 19px; font-weight: 800; text-align: center; }
-.janela .grande:disabled { opacity: .5; }
-@media (max-height: 500px) {
-  .janela-sala .emoji, .janela-sala > p:first-of-type { display: none; }
-  .lista-sala li { padding: 4px 10px; font-size: 16px; }
-  .tempo-vez { font-size: 12px; padding: 3px 8px; }
-}
+.lista-sala .tirar { border: 0; border-radius: 10px; background: #ffe1e1; padding: 6px 12px; font-size: 15px; font-weight: 800; color: var(--vermelho); }
 
-/* ---------- Ajustes: janela fixa (título em cima, botões embaixo), só o meio rola ---------- */
-.fundo-janela { height: 100dvh; overscroll-behavior: contain; }
-.janela-ajustes { display: flex; flex-direction: column; overflow: hidden; height: min(100%, 760px); padding: 18px 20px 14px; }
-.janela-ajustes h2 { flex: none; margin: 0 0 8px; }
-.corpo-ajustes { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding-right: 2px; }
-.rodape-ajustes { flex: none; display: flex; gap: 10px; padding-top: 10px; border-top: 2px solid #e4d9c8; }
-.rodape-ajustes .grande { flex: 1; margin-top: 0; }
+/* ---------- Janelas no celular ---------- */
 @media (max-width: 600px), (max-height: 500px) {
-  .janela-ajustes { padding: 12px 14px 10px; border-radius: 22px; }
-  .janela-ajustes h2 { font-size: 22px; margin-bottom: 4px; }
-  .rodape-ajustes .grande { padding: 12px 8px; font-size: 18px; }
-  .corpo-ajustes .linha-botoes .grande { font-size: 15px; padding: 10px 4px; }
-  .corpo-ajustes .ajuste { margin: 8px 0; }
-}
-
-/* ---------- Fim da rodada: placar do campeonato (2, 3 ou 4 jogadores) ---------- */
-.janela-fim { display: flex; flex-direction: column; overflow: hidden; height: auto; max-height: 100%; }
-.corpo-fim { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
-.rodape-fim { flex: none; padding-top: 6px; }
-.placar-fim { margin: 6px 0 10px; background: #fff; border: 3px solid var(--tinta); border-radius: 16px; padding: 10px 12px; color: var(--tinta); }
-.placar-fim .dupla { display: flex; align-items: stretch; gap: 10px; }
-.placar-fim .lado { flex: 1; text-align: center; }
-.placar-fim .lado .nome { display: block; font-size: 15px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.placar-fim .lado .total { display: block; font-size: 46px; font-weight: 800; line-height: 1.05; }
-.placar-fim .meio { display: flex; flex-direction: column; justify-content: center; text-align: center; font-size: 14px; font-weight: 800; opacity: .75; }
-.placar-fim .barra { height: 10px; border-radius: 9px; background: #e6dccd; margin-top: 6px; overflow: hidden; }
-.placar-fim .barra i { display: block; height: 100%; background: #1d6b40; }
-.placar-fim .barra i.alta { background: #e8a317; }
-.placar-fim .barra i.perigo { background: #d9541e; }
-.placar-fim .delta { display: inline-block; margin-top: 4px; font-size: 14px; font-weight: 800; border-radius: 10px; padding: 1px 8px; background: #ffe3e0; color: #b3261e; }
-.placar-fim .delta.zero { background: #dff3e4; color: #1b7a3a; }
-.placar-fim .lista { display: flex; flex-direction: column; gap: 8px; }
-.placar-fim .lin { display: grid; grid-template-columns: minmax(96px, 150px) 56px 1fr 72px; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; text-align: left; }
-.placar-fim .lin .quem { white-space: nowrap; }
-.placar-fim .lin .total { font-size: 32px; line-height: 1; text-align: right; }
-.placar-fim .lin .barra { margin: 0; height: 12px; }
-.placar-fim .lin .delta { margin: 0; text-align: center; font-size: 14px; }
-@media (max-width: 600px), (max-height: 500px) {
-  .placar-fim { padding: 6px 8px; margin: 4px 0 6px; border-width: 2px; }
-  .placar-fim .lado .nome { font-size: 12px; }
+  .janela { padding: 16px; border-radius: 22px; }
+  .janela h2 { font-size: 24px; }
+  .janela p { font-size: 17px; }
+  .grande { font-size: 19px; min-height: 52px; }
+  .janela-ajustes { padding: 12px 14px 10px; }
+  .ajuste .nome-ajuste { font-size: 17px; }
+  .opcoes button { font-size: 15px; min-height: 46px; }
+  .retro thead th { font-size: 12px; }
+  .retro { font-size: 17px; }
   .placar-fim .lado .total { font-size: 34px; }
-  .placar-fim .lin { grid-template-columns: minmax(84px, 112px) 38px 1fr 50px; gap: 6px; font-size: 14px; }
-  .placar-fim .lin .total { font-size: 24px; }
-  .placar-fim .lin .delta, .placar-fim .delta { font-size: 12px; }
-  .placar-fim .lista { gap: 4px; }
+  .placar-fim .lin { grid-template-columns: minmax(70px, 1fr) 40px 70px 40px; gap: 6px; font-size: 14px; padding: 6px 10px; }
+  .placar-fim .lin .total { font-size: 20px; }
+  .placar-fim .delta { font-size: 12px; }
+  .cartas-finais .carta { --w: 30px; }
+  .nome-final { font-size: 15px; }
+  .tutorial { padding: 14px 16px 16px; gap: 10px; }
+  .tutorial h2 { font-size: 22px; }
+  .tutorial p { font-size: 16px; }
+  .palco { padding: 10px 6px; }
+  .palco .carta { --w: 46px; }
 }
-/* Celular deitado: a janela de fim é baixa; sem o emoji e com os dois botões lado a lado sobra espaço para o placar */
 @media (max-height: 500px) {
+  .fundo-janela { padding: 8px; }
+  .janela { padding: 10px 16px; }
+  .janela h1 { font-size: 30px; }
+  .janela h2 { font-size: 21px; margin-bottom: 4px; }
+  .janela p { font-size: 15px; margin: 4px 0; }
+  .janela .emoji { font-size: 34px; }
+  .grande { min-height: 44px; font-size: 17px; padding: 6px 12px; margin-top: 6px; }
+  .ajuste { margin: 4px 0; }
+  .ajuste .nome-ajuste { font-size: 15px; }
+  .ajuste .nome-ajuste small { font-size: 11px; }
+  .opcoes button { min-height: 38px; font-size: 14px; padding: 3px; }
+  .opcoes .amostra { display: inline; margin: 0 0 0 4px; font-size: 13px; }
+  .secao { margin-top: 6px; }
+  .janela-menu { width: min(760px, 100%); }
+  .itens-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .itens-menu .grande:first-child { grid-column: 1 / -1; }
+  .formulario input { padding: 8px 12px; font-size: 16px; margin-top: 6px; }
+  .formulario p { display: none; }
+  .retro { font-size: 15px; margin-top: 4px; }
+  .retro th, .retro td { padding: 4px; }
+  .janela-retro h3 { margin-top: 8px; font-size: 17px; }
+  .ultimas { font-size: 14px; }
+  .ultimas li { padding: 4px 0; }
   .janela-fim { padding: 8px 14px 10px; }
   .janela-fim .emoji { display: none; }
   .janela-fim h2 { font-size: 20px; margin-bottom: 2px; }
   .janela-fim .corpo-fim > p { font-size: 14px; margin: 2px 0; }
   .rodape-fim { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .rodape-fim .grande { flex: 1; margin-top: 4px; padding: 8px; font-size: 17px; }
+  .rodape-fim .grande { flex: 1; margin-top: 4px; }
+  .janela-sala .emoji, .janela-sala > p:first-of-type { display: none; }
+  .lista-sala li { padding: 4px 10px; font-size: 15px; }
+  .tutorial { width: min(100%, 860px); padding: 10px 16px 12px; gap: 4px 16px; display: grid; grid-template-columns: 1fr 1.1fr; grid-auto-rows: min-content; align-content: center; }
+  .tutorial .palco { grid-column: 1; grid-row: 1 / span 5; align-self: center; }
+  .tutorial > :not(.palco):not(.pular) { grid-column: 2; }
+  .tutorial h2 { font-size: 19px; }
+  .tutorial p { font-size: 14px; }
+  .palco { padding: 6px; gap: 6px; }
+  .palco .carta { --w: 34px; }
+  .palco .vazio { height: 56px; }
+  .botoes-tutorial button { padding: 8px; font-size: 16px; }
 }
 
-/* ---------- Faixa de aviso com altura FIXA ----------
-   A narração do computador ("O Computador colocou 5♣ no jogo…") muda a toda hora. Se a faixa crescesse
-   e encolhesse com o tamanho do texto, a mesa e a mão pulariam junto. Agora a faixa tem sempre a mesma
-   altura (1 linha; no celular em pé, 2) e o texto que não couber termina em "…". */
-.tela-jogo .aviso { box-sizing: border-box; height: 50px; min-height: 0; overflow: hidden; display: flex; align-items: center; }
-.tela-jogo .aviso > span { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; line-height: 1.2; }
-@media (max-width: 600px) and (min-height: 501px) {
-  .tela-jogo .aviso { height: 62px; }
-  .tela-jogo .aviso > span { -webkit-line-clamp: 2; }
+/* ==========================================================
+   NORMAL (body.bonito): sem bordas pretas, sombras, leve inclinação
+   ========================================================== */
+body.bonito .carta { transition: transform .2s cubic-bezier(.3, 1.5, .6, 1), box-shadow .2s; }
+body.bonito .mao .carta:nth-child(odd) { rotate: -.6deg; }
+body.bonito .mao .carta:nth-child(even) { rotate: .6deg; }
+body.bonito .botoes .comprar { box-shadow: 0 3px 0 #c99a2e, 0 6px 14px #3b2f2a33; }
+body.bonito .botoes button:not(.comprar) { color: #5b4a42; }
+
+/* ==========================================================
+   MELHOR IDADE (body.idade, padrão): bordas pretas, alto contraste, sem enfeite
+   ========================================================== */
+body.idade *, body.idade *::before, body.idade *::after { transition: none !important; }
+body.idade .carta { border: 2.5px solid var(--preto); box-shadow: none; border-radius: 10px; }
+body.idade .carta .valor { font-size: calc(var(--w) * .46); }
+body.idade .carta .naipe-peq { font-size: calc(var(--w) * .34); }
+body.idade .carta.selecionada { box-shadow: 0 0 0 5px var(--azul-sel); }
+body.idade .carta.nova { box-shadow: 0 0 0 4px #1660c9; }
+body.idade .carta.do-computador { box-shadow: 0 0 0 4px #e8730c; }
+body.idade .carta.curinga { border-color: #ffd75e; }
+body.idade .jogo { background: #ffffff24; border: 2.5px solid #ffffff66; }
+body.idade .jogo.invalido { border: 3px solid #ff6b6b; background: #e0242440; }
+body.idade .vazio { border-color: #fff; font-size: 16px; }
+body.idade .botao-menu, body.idade .topo .adversario, body.idade .placar-camp, body.idade .tempo-vez { box-shadow: inset 0 0 0 2px var(--tinta); }
+body.idade .topo .adversario.da-vez { box-shadow: inset 0 0 0 3px var(--ambar); }
+body.idade .topo .adversario.uma { box-shadow: inset 0 0 0 3px var(--vermelho); }
+body.idade .faixa { box-shadow: inset 0 0 0 2px #3b2f2a40; }
+body.idade .faixa.problema { box-shadow: inset 0 0 0 3px var(--vermelho); }
+body.idade .faixa.ok { box-shadow: inset 0 0 0 3px var(--verde-botao); }
+body.idade .faixa .baixar-jogo, body.idade .faixa .acao { animation: none; }
+body.idade .botoes button { box-shadow: inset 0 0 0 2.5px var(--tinta); }
+body.idade .botoes button:disabled { box-shadow: inset 0 0 0 2.5px #3b2f2a55; }
+body.idade .botoes .comprar { background: var(--ambar-claro); }
+body.idade .botoes .comprar.apagado { background: #f3e9d6; }
+body.idade .tutorial p { font-size: 20px; }
+body.idade .tutorial h2 { font-size: 28px; }
+body.idade .palco .carta { --w: 60px; }
+@media (max-width: 600px), (max-height: 500px) {
+  body.idade .tutorial h2 { font-size: 23px; }
+  body.idade .tutorial p { font-size: 17px; }
+  body.idade .palco .carta { --w: 46px; }
 }
 @media (max-height: 500px) {
-  .tela-jogo .aviso { height: 32px; }
+  body.idade .tutorial h2 { font-size: 20px; }
+  body.idade .tutorial p { font-size: 15px; }
+  body.idade .palco .carta { --w: 34px; }
 }
-
-/* Barra de cima: os "chips" nunca quebram o texto em 2 linhas (o aviso "Só 1 carta!" fazia a barra crescer). */
-.topo .adversario, .topo .monte, .topo .alerta-uma { white-space: nowrap; }
-.topo .alerta-uma { flex: none; }
-
-/* Nome do adversário: inteiro nas telas grandes, abreviado ("Adv. 2") no celular, onde as cartinhas viradas somem
-   (o número entre parênteses já diz quantas cartas ele tem). */
-.nome-curto { display: none; }
-@media (max-width: 600px), (max-height: 500px) {
-  .nome-longo { display: none; }
-  .nome-curto { display: inline; }
-  .topo.varios .adversario .versos { display: none; }
-}
-/* 3 adversários: sem as cartinhas viradas, para o topo caber (o número já diz quantas cartas têm). */
-.topo.muitos .adversario .versos { display: none; }
-@media (max-width: 600px), (max-height: 500px) {
-  .topo .adversario { padding: 3px 6px; flex: none; }
-  .topo .adversario .nome { font-size: 13px; }
-}
-@media (max-width: 600px), (max-height: 500px) {
-  .topo { gap: 4px; }
-  .topo .monte { font-size: 14px; padding: 3px 7px; }
-  .botao-ajustes { flex: none; padding: 5px 8px; }
-}
-@media (max-width: 600px), (max-height: 500px) {
-  body.idade .topo .monte, body.bonito .topo .monte { font-size: 13px; padding: 3px 6px; }
-  body.idade .topo .botao-ajustes, body.bonito .topo .botao-ajustes { padding: 4px 7px; font-size: 18px; }
-  body.idade .topo .botao-sair, body.bonito .topo .botao-sair { padding: 4px 7px; font-size: 14px; }
-  body.idade .topo .adversario, body.bonito .topo .adversario { padding: 3px 5px; }
-  body.idade .topo .adversario .nome, body.bonito .topo .adversario .nome { font-size: 12px; }
-}
-
-/* ---------- Frase do momento: dentro da linha "Suas cartas" (e na pílula do adversário) ---------- */
-.rotulo-mao { gap: 8px; }
-.rotulo-mao .msg-mao {
-  flex: 1; min-width: 0; font-size: 14px; font-weight: 800; line-height: 1.15; color: #0c2d57;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-}
-.rotulo-mao .msg-mao.problema { color: #8a0f1f; }
-.rotulo-mao .msg-mao.computador { color: #0c2d57; }
-.espaco-baixar .acao {
-  background: var(--tinta); color: #fff; border: 0; border-radius: 99px; padding: 9px 16px;
-  font-size: 16px; font-weight: 800; white-space: nowrap;
-}
-.topo .adversario .fala { font-size: .8em; font-weight: 700; color: #0c2d57; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw; }
-.topo .adversario.da-vez { background: #dfefff; }
-/* O botão escondido só guarda a altura da linha; não precisa guardar a largura (a frase usa o espaço). */
-.baixar-jogo.reservado { width: 0; padding-left: 0; padding-right: 0; border-width: 0; overflow: hidden; }
-@media (max-width: 600px), (max-height: 500px) {
-  .topo.varios .adversario .fala { max-width: 20vw; }
-}
-/* Altura FIXA da linha "Suas cartas": a frase (1 ou 2 linhas) não pode mexer no tamanho da mesa nem da mão. */
-.tela-jogo .rotulo-mao { box-sizing: border-box; height: 46px; min-height: 0; overflow: hidden; }
-@media (max-height: 500px) { .tela-jogo .rotulo-mao { height: 36px; } }

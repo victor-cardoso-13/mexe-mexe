@@ -3,7 +3,7 @@
 // A mesa é MONTADA (de mentira) com 16 jogos para forçar a rolagem.
 import { chromium } from 'playwright';
 
-const URL = 'http://localhost:5199/';
+const URL = process.env.URL ?? 'http://localhost:5199/';
 const MONTAR = async (vezDoComputador) => {
   const { novaPartida } = await import('/src/motor/partida.ts');
   const { criarRegras } = await import('/src/motor/regras.ts');
