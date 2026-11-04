@@ -187,12 +187,14 @@ export class Divisor {
 
       // Escolhe a carta com MENOS jogos possíveis (se alguma não tem nenhum, já falhou — e cedo).
       let opcoes: Array<{ jogo: Jogo; ig: number; n: number }> | null = null;
-      for (let i = 0; i < CURINGA; i++) {
-        if (qtd[i] === 0) continue;
-        const dela = jogosComACarta(qtd, i, this.regras)
+      const dela = (i: number) =>
+        jogosComACarta(qtd, i, this.regras)
           .map((jogo) => ({ jogo, ig: this.jogosDaMesa.has(assinaturaDe(jogo)) ? 0 : 1, n: jogo.reduce((a, [, x]) => a + x, 0) }))
           .filter((o) => gasto + o.ig <= orcamento);
-        if (!opcoes || dela.length < opcoes.length) opcoes = dela;
+      for (let i = 0; i < CURINGA; i++) {
+        if (qtd[i] === 0) continue;
+        const d = dela(i);
+        if (!opcoes || d.length < opcoes.length) opcoes = d;
         if (opcoes.length <= 1) break;
       }
       if (!opcoes) return false; // só sobraram coringas: não ficam sozinhos

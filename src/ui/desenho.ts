@@ -435,6 +435,8 @@ export function htmlAjustes(a: Ajustes, emJogo: boolean, online: Online | null =
       ${opcoes('nivel', a.nivel, [['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']])}</div>
     <div class="ajuste"><div class="nome-ajuste">Velocidade do computador</div>
       ${opcoes('velocidade', a.velocidade, [['devagar', 'Devagar'], ['normal', 'Normal']])}</div>`;
+  const animacoes = online ? '' : `<div class="ajuste"><div class="nome-ajuste">Ver animações<small>dica e adversário</small></div>
+      ${opcoes('animacoes', String(a.animacoes), [['true', 'Sim'], ['false', 'Não']])}</div>`;
   const regras = online
     ? ''
     : `<div class="ajuste"><div class="nome-ajuste">Coringa<small>vale na próxima partida</small></div>
@@ -449,6 +451,7 @@ export function htmlAjustes(a: Ajustes, emJogo: boolean, online: Online | null =
       <div class="ajuste"><div class="nome-ajuste">Visual</div>
         ${opcoes('visual', a.visual, [['idade', 'Melhor idade'], ['bonito', 'Normal']])}</div>
       ${computador}
+      ${animacoes}
       <div class="ajuste"><div class="nome-ajuste">Cores dos naipes</div>
         ${opcoes('quatroCores', String(a.quatroCores), [['false', '2 cores'], ['true', '4 cores']])}</div>
       ${regras}

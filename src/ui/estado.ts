@@ -7,6 +7,7 @@ import type { NivelIA } from '../motor/regras';
 import type { Campeonato } from '../motor/campeonato';
 import type { Carta } from '../motor/cartas';
 import type { Sala } from '../online/logica';
+import type { Passo } from '../ia';
 
 export type Ordenacao = 'naipe' | 'asBaixo' | 'asAlto' | 'manual';
 
@@ -20,6 +21,8 @@ export interface Aviso {
 export interface Dica {
   texto: string;
   foto: Foto;
+  /** Os passos da jogada, para mostrar a mesa se transformando ("Fazer"). */
+  passos: Passo[];
   /** Cartas da mão que a dica usa (ficam piscando). */
   cartas: string[];
 }
@@ -30,6 +33,8 @@ export interface Ajustes {
   adversarios: number;
   quatroCores: boolean;
   velocidade: 'devagar' | 'normal';
+  /** Ver as animações da dica ("Fazer") e do adversário. Desligado: a mesa muda de uma vez. */
+  animacoes: boolean;
   /** Visual: "idade" (melhor idade, padrão) ou "bonito". */
   visual: 'idade' | 'bonito';
   /** Já viu o tutorial (ele aparece sozinho só na primeira partida). */
@@ -44,6 +49,7 @@ export const AJUSTES_PADRAO: Ajustes = {
   adversarios: 1,
   quatroCores: false,
   velocidade: 'devagar',
+  animacoes: true,
   visual: 'idade',
   tutorialVisto: false,
   modo: 'casual',
