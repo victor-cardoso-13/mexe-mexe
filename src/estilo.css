@@ -126,9 +126,12 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
 
 /* ---------- Mesa: feltro com borda de madeira ---------- */
 .mesa {
-  grid-area: mesa; overflow: hidden; position: relative; padding: 16px 14px 18px; border-radius: 22px;
+  /* A madeira é borda DE VERDADE (margem + sombra de fora + borda), não sombra de dentro: ao rolar a mesa,
+     as cartas somem na beirada do feltro em vez de passar por cima da madeira. Mesmo espaço útil de antes. */
+  grid-area: mesa; overflow: hidden; position: relative; margin: 6px; padding: 8px 6px 10px; border-radius: 16px;
+  border: 2px solid var(--madeira-2);
   background: radial-gradient(ellipse at 50% 35%, var(--feltro-1), var(--feltro-2) 85%);
-  box-shadow: inset 0 0 0 6px var(--madeira), inset 0 0 0 8px var(--madeira-2), inset 0 10px 24px #0004;
+  box-shadow: 0 0 0 6px var(--madeira), inset 0 10px 24px #0004;
 }
 .jogos { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 22px 12px; }
 .jogo { display: flex; padding: 6px; border-radius: 12px; background: #ffffff1c; border: 2px solid #ffffff3a; position: relative; }
@@ -269,7 +272,7 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
 }
 .mao .carta { --w: var(--mao-w); }
 
-/* ---------- Botões: UMA linha. Desfazer · Desfazer tudo · Dica · Comprar e passar (o maior) ---------- */
+/* ---------- Botões: UMA linha. Desfazer · Desfazer tudo · Dica · Comprar (o maior) ---------- */
 .botoes { grid-area: barra; display: grid; grid-template-columns: 1fr 1fr 1fr 2.2fr; gap: 8px; }
 .botoes.sem-dica { grid-template-columns: 1fr 1fr 2.4fr; } /* online: sem Dica, o Comprar cresce */
 .botoes button {
@@ -278,9 +281,7 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
   font-size: 15px; font-weight: 800; line-height: 1.05; text-align: center;
 }
 .botoes .icone { display: grid; font-size: 26px; }
-.botoes .comprar { flex-direction: row; gap: 12px; background: var(--ambar-claro); font-family: var(--titulo); font-size: 19px; font-weight: 700; text-align: left; }
-.botoes .comprar small { display: block; margin-top: 2px; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; color: #6b5a50; }
-.botoes .comprar small.pouco { color: var(--vermelho); }
+.botoes .comprar { flex-direction: row; justify-content: center; gap: 16px; background: var(--ambar-claro); font-family: var(--titulo); font-size: 21px; font-weight: 700; }
 .botoes .comprar.apagado { background: #f3e9d6; opacity: .6; }
 .botoes button:disabled { opacity: .38; }
 /* O monte desenhado dentro do Comprar: 3 cartinhas viradas + quantas restam */
@@ -288,7 +289,8 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
 .monte-ic i { position: absolute; inset: 0; border-radius: 5px; background: linear-gradient(135deg, var(--feltro-1), var(--feltro-2)); border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--tinta); }
 .monte-ic i:nth-child(1) { translate: 5px -4px; }
 .monte-ic i:nth-child(2) { translate: 2.5px -2px; }
-.monte-ic b { position: absolute; right: -10px; bottom: -6px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 99px; background: var(--tinta); color: #fff; font-family: 'Nunito', sans-serif; font-size: 13px; display: grid; place-items: center; }
+.monte-ic b { position: absolute; right: -10px; bottom: -6px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 99px; background: var(--tinta); color: #fff; font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; display: grid; place-items: center; }
+.monte-ic.pouco b { background: var(--vermelho); } /* monte acabando (5 ou menos) */
 
 /* ---------- Telas largas (iPad): ícone ao lado do nome, letras maiores ---------- */
 @media (min-width: 700px) and (min-height: 501px) {
@@ -320,7 +322,7 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
   .topo { gap: 6px; }
   .topo.muitos .botao-menu .palavra { display: none; }
   .topo.muitos .botao-menu { padding: 0 13px; }
-  .mesa { padding: 14px 10px 16px; border-radius: 18px; }
+  .mesa { padding: 6px 2px 8px; border-radius: 12px; }
   .jogos { gap: 20px 9px; }
   .jogo { padding: 4px; }
   .mais-aqui { width: 28px; height: 28px; font-size: 20px; right: -9px; top: -11px; }
@@ -331,7 +333,7 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
   .faixa .baixar-jogo, .faixa .acao { font-size: 16px; height: 44px; padding: 0 12px; gap: 6px; }
   .area-mao { padding: 2px 6px 6px; border-radius: 16px; }
   .botoes { gap: 6px; }
-  .botoes .comprar { font-size: 18px; gap: 10px; }
+  .botoes .comprar { font-size: 19px; gap: 14px; }
 }
 
 /* ---------- iPhone deitado: botões numa COLUNA à direita (sobra altura para mesa e mão) ---------- */
@@ -350,7 +352,7 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
   .topo .adversario .qtd b { font-size: 16px; }
   .tempo-vez { font-size: 16px; padding: 0 10px; }
   .placar-camp { gap: 6px; padding: 0 10px; }
-  .mesa { padding: 10px 8px 10px; border-radius: 16px; box-shadow: inset 0 0 0 5px var(--madeira), inset 0 0 0 6px var(--madeira-2), inset 0 6px 16px #0004; }
+  .mesa { margin: 5px; padding: 4px 2px 4px; border-width: 1px; border-radius: 11px; box-shadow: 0 0 0 5px var(--madeira), inset 0 6px 16px #0004; }
   .jogos { gap: 16px 8px; }
   .jogo { padding: 3px; }
   .mais-aqui { width: 26px; height: 26px; font-size: 18px; right: -9px; top: -10px; }
@@ -367,7 +369,6 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
   .botoes button { min-height: 0; flex-direction: row; justify-content: flex-start; gap: 6px; padding: 0 8px; font-size: 13px; border-radius: 12px; text-align: left; }
   .botoes .icone { font-size: 20px; }
   .botoes .comprar { flex-direction: column; justify-content: center; gap: 4px; text-align: center; font-size: 15px; }
-  .botoes .comprar small { font-size: 11px; }
   .monte-ic { width: 24px; height: 32px; }
   .monte-ic b { min-width: 20px; height: 20px; font-size: 11px; right: -12px; bottom: -4px; }
 }
