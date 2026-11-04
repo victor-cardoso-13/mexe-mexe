@@ -219,3 +219,24 @@ it('escolherJogada usa o nível das regras', () => {
   const j = escolherJogada(p);
   if (j) expect(conferir(p.regras, p.inicioDaVez, j.foto).ok).toBe(true);
 });
+
+describe('guardar o jogo de 3 quando dá', () => {
+  const r = criarRegras({ curinga: { ativo: false, quantidade: 0, pontos: 20, maximoPorJogo: null, permitirLadoALado: false } });
+  const mesa = [{ id: 'j0', cartas: cs('5e 6e 7e') }];
+  it('sugere a carta solta antes do jogo de 3 se ninguém está perto de bater', () => {
+    const mao = cs('2c 2o 2p 8e Kp');
+    const j = pensar(r, { mao, mesa }, 'dificil', 100, { dica: true, menorMaoDosOutros: 8 })!;
+    expect(j.foto.mao).toHaveLength(4);
+    expect(j.foto.mao.filter((x) => !x.curinga && x.valor === 2)).toHaveLength(3);
+  });
+  it('baixa o jogo de 3 se um adversário tem 2 cartas', () => {
+    const mao = cs('2c 2o 2p 8e Kp');
+    const j = pensar(r, { mao, mesa }, 'dificil', 100, { dica: true, menorMaoDosOutros: 2 })!;
+    expect(j.foto.mao).toHaveLength(2);
+  });
+  it('baixa o jogo de 3 se a carta solta não tem onde ir', () => {
+    const mao = cs('2c 2o 2p Kp');
+    const j = pensar(r, { mao, mesa }, 'dificil', 100, { dica: true, menorMaoDosOutros: 8 })!;
+    expect(j.foto.mao).toHaveLength(1);
+  });
+});

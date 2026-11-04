@@ -10,8 +10,12 @@ import {
 } from './motor/partida';
 import { criarRegras, type NivelIA } from './motor/regras';
 import { novoCampeonato, proximaRodada, semOsEliminados, sobreviventes as sobreviventesDoCampeonato, somarRodada } from './motor/campeonato';
-import { escolherJogada, jogadaDoCuringa, ultimaBusca } from './ia';
-import { anotar, baixarDiario, textoCartas, textoMesa } from './ui/diario';
+import { jogadaDoCuringa, ultimaBusca, type Passo } from './ia';
+import { cancelarBusca, escolherJogadaAsync } from './ia/assincrono';
+
+/** Busca a jogada em segundo plano (a tela não trava). */
+const buscarJogada = escolherJogadaAsync;
+import { anotar, baixarDiario, guardarDicaPerdeu, textoCartas, textoMesa } from './ui/diario';
 import { estadoInicial, type Ajustes, type Ordenacao } from './ui/estado';
 import { escapar, htmlAjustes, htmlComoJogar, htmlConfirmarNova, htmlConfirmarSair, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlTutorial, type Mensagem } from './ui/desenho';
 import { encaixar, reiniciarEncaixe } from './ui/encaixe';
@@ -44,6 +48,7 @@ let ordemAutomatica: Ordenacao = 'naipe';
 /** Abre a partida guardada na gaveta (se houver). */
 function abrirGaveta() {
   geracao++;
+  cancelarBusca();
   maoVista = '';
   e.computadorJogando = false;
   reiniciarEncaixe();
@@ -431,6 +436,21 @@ function botaoBaixar() {
     maoDepois: textoCartas(p.jogadores[0].mao),
     mesaDepois: textoMesa(p.mesa),
   });
+  // Pediu dica nesta vez e achou mais do que ela? Guarda o caso à parte para eu poder estudar.
+  const usouNaMao = p.inicioDaVez.mao.length - p.jogadores[0].mao.length;
+  if (dicaDaVez && dicaDaVez.mao === textoCartas(p.inicioDaVez.mao) && dicaDaVez.mesa === textoMesa(p.inicioDaVez.mesa).join(' | ') && usouNaMao > dicaDaVez.usadas) {
+    guardarDicaPerdeu({
+      maoDoInicio: dicaDaVez.mao,
+      mesaDoInicio: textoMesa(p.inicioDaVez.mesa),
+      dicaSugeriu: dicaDaVez.sugestao,
+      dicaBaixou: dicaDaVez.usadas,
+      vocePosBaixou: usouNaMao,
+      maoDepois: textoCartas(p.jogadores[0].mao),
+      mesaDepois: textoMesa(p.mesa),
+      busca: dicaDaVez.busca,
+    });
+  }
+  dicaDaVez = null;
   e.partida = r.partida;
   e.novaCartaId = null;
   e.selecionadas = [];
@@ -440,18 +460,35 @@ function botaoBaixar() {
   else continuarJogo(150);
 }
 
+/** A última dica pedida nesta vez (para comparar com o que o jogador fez no fim). */
+let dicaDaVez: { mao: string; mesa: string; usadas: number; sugestao: string[]; busca: { ms: number; tempoAcabou: boolean } } | null = null;
+
 function botaoDica() {
   if (!minhaVez() || e.online) return; // sem dica no jogo online
   limparMensagens();
   // Mostra que está procurando antes de pensar (a busca pode levar até 2 segundos).
   avisar('💡 Procurando uma jogada…', 'normal');
   desenhar();
-  setTimeout(() => {
+  void (async () => {
+    await esperarMs(50); // deixa o aviso aparecer antes de começar
     if (!minhaVez()) return;
     const p = e.partida!;
-    const jogada = escolherJogada(p, 'dificil', { dica: true });
+    let jogada;
+    try {
+      jogada = await buscarJogada(p, 'dificil', { dica: true });
+    } catch {
+      return; // a busca foi cancelada (nova partida, por exemplo)
+    }
+    if (e.partida !== p || !minhaVez()) return; // você mexeu na mesa enquanto ela pensava: esta resposta já não vale
     e.aviso = null;
     const situacao = { mao: textoCartas(p.inicioDaVez.mao), mesa: textoMesa(p.inicioDaVez.mesa), busca: { ...ultimaBusca } };
+    dicaDaVez = {
+      mao: situacao.mao,
+      mesa: situacao.mesa.join(' | '),
+      usadas: jogada ? jogada.passos.reduce((n, s) => n + s.cartasDaMao.length, 0) : 0,
+      sugestao: jogada ? jogada.passos.map((passo) => descreverPasso(passo, '', p.regras, true)) : [],
+      busca: { ...ultimaBusca },
+    };
     if (!jogada) {
       anotar('dica: não achou', situacao);
       avisar(TEXTOS.semDica, 'normal');
@@ -462,19 +499,47 @@ function botaoDica() {
     e.dica = {
       texto: `💡 ${frases[0]}${frases.length > 1 ? ` (e mais ${frases.length - 1} coisa${frases.length > 2 ? 's' : ''})` : ''}`,
       foto: jogada.foto,
+      passos: jogada.passos,
       cartas: jogada.passos.flatMap((s) => s.cartasDaMao.map((c) => c.id)),
     };
     desenhar();
-  }, 50);
+  })();
 }
 
-function fazerDica() {
+async function fazerDica() {
   if (!minhaVez() || !e.dica) return;
-  const usadas = e.dica.cartas;
-  e.partida = definirFoto(e.partida!, e.dica.foto);
+  const dica = e.dica;
+  const base = e.partida!;
   limparMensagens();
-  e.chegaram = usadas;
   e.selecionadas = [];
+  if (ajustes.animacoes && dica.passos.length > 0) {
+    // Mostra a mesa se transformando, passo a passo (trava os toques até acabar).
+    const minhaGeracao = geracao;
+    const esperar = async (ms: number) => {
+      await esperarMs(ms);
+      if (geracao !== minhaGeracao) throw PAROU;
+    };
+    let visto = base;
+    e.computadorJogando = true;
+    try {
+      await animarPassos(base, dica.passos, 'Você', true, esperar, temposDaAnimacao(), (id) => {
+        // A carta sai da sua mão na hora em que desliza para a mesa.
+        visto = { ...visto, jogadores: visto.jogadores.map((j, i) => (i === 0 ? { ...j, mao: j.mao.filter((c) => c.id !== id) } : j)) };
+        e.partida = visto;
+      });
+    } catch (erro) {
+      if (erro !== PAROU) throw erro;
+      return;
+    } finally {
+      e.mesaExibida = null;
+      e.cartasExibidas = null;
+      e.destaques = [];
+      e.computadorJogando = false;
+    }
+    if (e.partida !== visto) return; // mudou no meio (ex.: nova partida)
+  }
+  e.partida = definirFoto(base, dica.foto);
+  e.chegaram = dica.cartas;
   avisar('Pronto! Confira a mesa e toque em ✔ Passar a vez.', 'normal');
   talvezPassarSozinho();
   salvar();
@@ -484,6 +549,19 @@ function fazerDica() {
 // ---------------------------------------------------------------------------
 // Vez do computador (mostrada devagar, passo a passo)
 // ---------------------------------------------------------------------------
+
+/** Tempos das animações (em milissegundos). Para deixar mais lento ou mais rápido, é só mudar aqui. */
+function temposDaAnimacao() {
+  const devagar = ajustes.velocidade === 'devagar';
+  return {
+    pensando: devagar ? 350 : 200, // "Vez do computador… pensando"
+    frase: devagar ? 650 : 350, // mostra a frase antes de mexer
+    voo: devagar ? 650 : 400, // a carta deslizando pela tela
+    entreCartas: devagar ? 800 : 480, // de uma carta para a próxima
+    fimDoPasso: devagar ? 450 : 250, // depois de arrumar os jogos
+    compra: devagar ? 1100 : 700, // "não tinha jogo e comprou uma carta"
+  };
+}
 
 async function continuarJogo(pausaInicial: number) {
   if (e.online) return; // online, quem joga são as pessoas
@@ -496,15 +574,7 @@ async function continuarJogo(pausaInicial: number) {
   e.baixadasPeloComputador = []; // o selo laranja vale só para a última rodada do computador
   // Tempos da jogada do computador (em milissegundos). Para deixar mais lento ou
   // mais rápido, é só mudar aqui. "Devagar" é o padrão (ajuste da tela de Ajustes).
-  const devagar = ajustes.velocidade === 'devagar';
-  const tempo = {
-    pensando: devagar ? 350 : 200, // "Vez do computador… pensando"
-    frase: devagar ? 650 : 350, // mostra a frase antes de mexer
-    voo: devagar ? 650 : 400, // a carta deslizando pela tela
-    entreCartas: devagar ? 800 : 480, // de uma carta para a próxima
-    fimDoPasso: devagar ? 450 : 250, // depois de arrumar os jogos
-    compra: devagar ? 1100 : 700, // "não tinha jogo e comprou uma carta"
-  };
+  const tempo = temposDaAnimacao();
   // Se a conta mudou no meio (outra gaveta aberta), a jogada para por aqui.
   const esperar = async (ms: number) => {
     await esperarMs(ms);
@@ -544,6 +614,53 @@ async function mostrarNaMesa(jogoId: string | undefined, esperar: (ms: number) =
   await esperar(500); // a carta só desliza depois que a rolagem terminou
 }
 
+/**
+ * Mostra uma jogada passo a passo: diz o que vai fazer, desliza uma carta de cada vez e destaca o que mudou.
+ * Serve para o computador e para a dica ("Fazer"). A partida em si só é trocada por quem chama, no fim.
+ */
+async function animarPassos(
+  p: Partida,
+  passos: Passo[],
+  quem: string,
+  comoDica: boolean,
+  esperar: (ms: number) => Promise<void>,
+  tempo: Record<string, number>,
+  aoSairDaMao?: (cartaId: string) => void,
+) {
+  const daMao = new Set(p.jogadores[p.vez].mao.map((c) => c.id));
+  e.cartasExibidas = p.jogadores.map((j) => j.mao.length);
+  let mesaAnterior = p.mesa;
+  for (const passo of passos) {
+    // 1) Primeiro diz o que vai fazer...
+    e.aviso = { texto: descreverPasso(passo, quem, p.regras, comoDica), tipo: 'computador', curto: resumoDoPasso(passo) };
+    e.destaques = passo.jogoIds;
+    e.mesaExibida = mesaAnterior;
+    desenhar();
+    await mostrarNaMesa(passo.jogoIds[0], esperar);
+    await esperar(tempo.frase);
+    // 2) ...depois mexe uma carta de cada vez, deslizando pela tela.
+    e.destaques = [];
+    for (const mov of movimentosUmAUm(mesaAnterior, passo.mesa)) {
+      const veioDaMao = daMao.has(mov.cartaId);
+      if (veioDaMao) {
+        e.cartasExibidas[p.vez] -= 1;
+        if (!comoDica) e.baixadasPeloComputador.push(mov.cartaId);
+        aoSairDaMao?.(mov.cartaId);
+      }
+      await mostrarNaMesa(mov.mesa.find((j) => j.cartas.some((c) => c.id === mov.cartaId))?.id, esperar);
+      e.mesaExibida = mov.mesa;
+      desenhar({ cartaId: mov.cartaId, deJogador: veioDaMao && !comoDica ? p.vez : null, ms: tempo.voo });
+      await esperar(tempo.entreCartas);
+    }
+    // 3) Arruma os jogos na ordem final e destaca o que mudou.
+    e.mesaExibida = passo.mesa;
+    e.destaques = passo.jogoIds;
+    desenhar({ ms: 300 });
+    await esperar(tempo.fimDoPasso);
+    mesaAnterior = passo.mesa;
+  }
+}
+
 async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo: Record<string, number>) {
   while (e.partida && !e.partida.resultado && e.partida.vez !== 0) {
     const p: Partida = e.partida;
@@ -552,7 +669,13 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
     desenhar();
     await esperar(tempo.pensando);
 
-    const jogada = escolherJogada(p);
+    let jogada;
+    try {
+      jogada = await buscarJogada(p);
+    } catch {
+      throw PAROU;
+    }
+    await esperar(0); // se a partida mudou enquanto ele pensava, para por aqui
     anotar(jogada ? 'computador jogou' : 'computador comprou', {
       nivel: p.regras.nivelIA,
       maoDele: textoCartas(p.inicioDaVez.mao),
@@ -562,37 +685,8 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
     });
     const r = jogada ? aplicarJogada(p, jogada.foto) : null;
     if (jogada && r?.ok) {
-      const daMao = new Set(p.jogadores[p.vez].mao.map((c) => c.id));
-      e.cartasExibidas = p.jogadores.map((j) => j.mao.length);
-      let mesaAnterior = p.mesa;
-      for (const passo of jogada.passos) {
-        // 1) Primeiro diz o que vai fazer...
-        e.aviso = { texto: descreverPasso(passo, `O ${quem}`, p.regras), tipo: 'computador', curto: resumoDoPasso(passo) };
-        e.destaques = passo.jogoIds;
-        e.mesaExibida = mesaAnterior;
-        desenhar();
-        await mostrarNaMesa(passo.jogoIds[0], esperar);
-        await esperar(tempo.frase);
-        // 2) ...depois mexe uma carta de cada vez, deslizando pela tela.
-        e.destaques = [];
-        for (const mov of movimentosUmAUm(mesaAnterior, passo.mesa)) {
-          const veioDaMao = daMao.has(mov.cartaId);
-          if (veioDaMao) {
-            e.cartasExibidas[p.vez] -= 1;
-            e.baixadasPeloComputador.push(mov.cartaId);
-          }
-          await mostrarNaMesa(mov.mesa.find((j) => j.cartas.some((c) => c.id === mov.cartaId))?.id, esperar);
-          e.mesaExibida = mov.mesa;
-          desenhar({ cartaId: mov.cartaId, deJogador: veioDaMao ? p.vez : null, ms: tempo.voo });
-          await esperar(tempo.entreCartas);
-        }
-        // 3) Arruma os jogos na ordem final e destaca o que mudou.
-        e.mesaExibida = passo.mesa;
-        e.destaques = passo.jogoIds;
-        desenhar({ ms: 300 });
-        await esperar(tempo.fimDoPasso);
-        mesaAnterior = passo.mesa;
-      }
+      if (ajustes.animacoes) await animarPassos(p, jogada.passos, `O ${quem}`, false, esperar, tempo);
+      else e.destaques = jogada.passos.flatMap((passo) => passo.jogoIds);
       e.partida = r.partida;
     } else {
       const compra = comprarEPassar(p);
@@ -626,6 +720,7 @@ function mudarAjuste(chave: string, valor: string) {
   }
   if (chave === 'modo') ajustes.modo = valor as Ajustes['modo'];
   if (chave === 'visual') ajustes.visual = valor as Ajustes['visual'];
+  if (chave === 'animacoes') ajustes.animacoes = valor === 'true';
   if (chave === 'velocidade') ajustes.velocidade = valor as Ajustes['velocidade'];
   if (chave === 'quatroCores') ajustes.quatroCores = valor === 'true';
   if (chave === 'curinga') ajustes.curinga = valor === 'true';
@@ -760,6 +855,7 @@ function esperarUsuario(): Promise<NonNullable<ReturnType<typeof usuarioAtual>>>
 /** Pausa a partida contra o computador: guarda tudo e volta ao início (lá tem "Continuar partida"). */
 function pausar() {
   if (e.online || !e.partida) return;
+  cancelarBusca();
   geracao++; // se o computador estava no meio da jogada, ela para; ao continuar ele refaz a vez
   e.computadorJogando = false;
   e.mesaExibida = e.cartasExibidas = null;

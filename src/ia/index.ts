@@ -40,10 +40,24 @@ export interface JogadaIA {
 export const TEMPO_DA_DICA_MS = 12000;
 
 export function escolherJogada(p: Partida, nivel: NivelIA = p.regras.nivelIA, opcoes: { dica?: boolean } = {}): JogadaIA | null {
-  const jogada = pensar(p.regras, p.inicioDaVez, nivel, p.proximoIdJogo, opcoes);
-  // Segurança: nunca devolve uma jogada que as regras não aceitam.
+  return jogadaConferida(p, pensar(p.regras, p.inicioDaVez, nivel, p.proximoIdJogo, opcoesDaPartida(p, opcoes)));
+}
+
+/** Acrescenta às opções o que depende da partida: quantas cartas tem o adversário mais perto de bater. */
+export function opcoesDaPartida(p: Partida, opcoes: OpcoesDaBusca = {}): OpcoesDaBusca {
+  const outros = p.jogadores.filter((_, i) => i !== p.vez).map((j) => j.mao.length);
+  return { ...opcoes, menorMaoDosOutros: outros.length ? Math.min(...outros) : undefined };
+}
+
+/** Segurança: nunca devolve uma jogada que as regras não aceitam. */
+export function jogadaConferida(p: Partida, jogada: JogadaIA | null): JogadaIA | null {
   if (!jogada || !conferir(p.regras, p.inicioDaVez, jogada.foto).ok) return null;
   return jogada;
+}
+
+/** Usado quando a busca rodou em outro lugar (Web Worker): guarda como ela foi, para o diário. */
+export function definirUltimaBusca(busca: { ms: number; tempoAcabou: boolean; exataTerminou?: boolean }) {
+  ultimaBusca = busca;
 }
 
 interface Opcao {
@@ -61,11 +75,66 @@ export function pensar(
   inicio: Foto,
   nivel: NivelIA,
   proximoIdJogo: number,
-  opcoes: { dica?: boolean } = {},
+  opcoes: OpcoesDaBusca = {},
+): JogadaIA | null {
+  const jogada = pensarBase(regras, inicio, nivel, proximoIdJogo, opcoes);
+  return guardarJogoDeTres(jogada, regras, inicio, nivel, proximoIdJogo, opcoes);
+}
+
+export interface OpcoesDaBusca {
+  dica?: boolean;
+  /** Menor número de cartas na mão dos adversários (se faltar, não guarda o jogo de 3). */
+  menorMaoDosOutros?: number;
+  /** Quanto a dica pode pensar (só no Web Worker, onde a tela não trava). */
+  tempoDicaMs?: number;
+  /** Uso interno: já é a busca "só a carta solta". */
+  semGuardar?: boolean;
+}
+
+/**
+ * Se a melhor jogada é só baixar um jogo de 3 da mão (sem mexer na mesa) e nenhum adversário está perto de bater
+ * (3 cartas ou mais), tenta antes baixar UMA carta solta: o jogo de 3 pode esperar (continua na mão, certo),
+ * já a carta solta pode perder o lugar quando a mesa mudar.
+ */
+function guardarJogoDeTres(
+  jogada: JogadaIA | null,
+  regras: Regras,
+  inicio: Foto,
+  nivel: NivelIA,
+  proximoIdJogo: number,
+  opcoes: OpcoesDaBusca,
+): JogadaIA | null {
+  if (!jogada || opcoes.semGuardar) return jogada;
+  if (opcoes.menorMaoDosOutros === undefined || opcoes.menorMaoDosOutros <= 2) return jogada;
+  if (!regras.cartasDaMaoPorVez.includes(1)) return jogada;
+  const passos = jogada.passos;
+  if (passos.length !== 1 || passos[0].tipo !== 'baixou' || passos[0].cartasDaMao.length < 2) return jogada;
+
+  const jogoGuardado = new Set(passos[0].cartasDaMao.map((c) => c.id));
+  const maoSemOJogo = inicio.mao.filter((c) => !jogoGuardado.has(c.id));
+  if (maoSemOJogo.length === 0) return jogada;
+  const solta = pensarBase({ ...regras, cartasDaMaoPorVez: [1] }, { mao: maoSemOJogo, mesa: inicio.mesa }, nivel, proximoIdJogo, {
+    ...opcoes,
+    semGuardar: true,
+  });
+  if (!solta) return jogada;
+  // O jogo de 3 volta para a mão.
+  const guardado = inicio.mao.filter((c) => jogoGuardado.has(c.id));
+  return { ...solta, foto: { mao: [...solta.foto.mao, ...guardado], mesa: solta.foto.mesa } };
+}
+
+function pensarBase(
+  regras: Regras,
+  inicio: Foto,
+  nivel: NivelIA,
+  proximoIdJogo: number,
+  opcoes: OpcoesDaBusca = {},
 ): JogadaIA | null {
   const config = regras.niveis[nivel];
   // A dica pode pensar mais (a tela mostra "Procurando uma jogada…").
-  const tempoMs = opcoes.dica ? Math.max(config.tempoMaximoMs, TEMPO_DA_DICA_MS) : config.tempoMaximoMs;
+  const tempoMs = opcoes.dica ? Math.max(config.tempoMaximoMs, opcoes.tempoDicaMs ?? TEMPO_DA_DICA_MS) : config.tempoMaximoMs;
+  const inicioDaBusca = performance.now();
+  let exataTerminou: boolean | undefined;
   let orcamento = novoOrcamento(tempoMs);
   const mao = inicio.mao;
   const limite = config.maximoDeJogosMexidos ?? Infinity;
@@ -78,7 +147,8 @@ export function pensar(
   // Só se o tempo acabar antes é que caímos nas buscas por tentativas, mais abaixo.
   if (config.maximoDeJogosMexidos === null) {
     const exata = buscaExata(regras, inicio, opcoes.dica ? tempoMs : tempoMs * 0.6);
-    ultimaBusca = { ms: Math.round(performance.now() - (orcamento.fim - tempoMs)), tempoAcabou: !exata.completa };
+    exataTerminou = exata.completa;
+    ultimaBusca = { ms: Math.round(performance.now() - inicioDaBusca), tempoAcabou: !exata.completa, exataTerminou };
     if (exata.completa) return exata.opcao ? montarPassos(inicio, exata.opcao, proximoIdJogo) : null;
     melhor = exata.opcao;
     if (!melhor) orcamento = novoOrcamento(opcoes.dica ? 3000 : tempoMs * 0.4); // a busca exata gastou o tempo; as tentativas ganham um pouco mais
@@ -172,7 +242,7 @@ export function pensar(
 
   if (nivel === 'dificil' && !melhor && !opcoes.dica) buscaDeUmaCarta();
 
-  ultimaBusca = { ms: Math.round(performance.now() - (orcamento.fim - tempoMs)), tempoAcabou: tempoAcabou(orcamento) };
+  ultimaBusca = { ms: Math.round(performance.now() - inicioDaBusca), tempoAcabou: tempoAcabou(orcamento) || exataTerminou === false, exataTerminou };
   if (!melhor) return null;
   return montarPassos(inicio, melhor, proximoIdJogo);
 }
@@ -183,7 +253,18 @@ export function pensar(
  * fica com o que deixa a melhor mão e, nele, com a arrumação que mexe em menos jogos.
  * "completa" = a busca terminou sem o tempo acabar (então "nenhuma jogada" é definitivo).
  */
-function buscaExata(regras: Regras, inicio: Foto, tempoMs: number): { completa: boolean; opcao: Opcao | null } {
+/**
+ * Quantos jogos da mesa a busca pode mexer, do menos para o mais. A jogada mais simples aparece primeiro.
+ * Medido em 149 mesas de partidas simuladas: degraus a mais (4, 6, 8) só gastavam tempo provando de novo que não dava.
+ */
+const DEGRAUS = [0, 1, 3, Infinity];
+
+export function buscaExata(
+  regras: Regras,
+  inicio: Foto,
+  tempoMs: number,
+  degraus: number[] = DEGRAUS,
+): { completa: boolean; opcao: Opcao | null } {
   const relogio: Relogio = { fim: performance.now() + tempoMs, acabou: false };
   const mao = inicio.mao;
   const mesaCartas = inicio.mesa.map((j) => j.cartas);
@@ -211,13 +292,13 @@ function buscaExata(regras: Regras, inicio: Foto, tempoMs: number): { completa: 
   }
 
   // Do maior número de cartas para o menor: o primeiro tamanho que tiver jogada vence.
-  // Para cada tamanho, vai aumentando o número de jogos que pode mexer (0, 1, 2, ... sem limite):
+  // Para cada tamanho, vai aumentando o número de jogos que pode mexer (0, 1, 3 e depois sem limite):
   // assim a jogada mais simples aparece primeiro e só no fim vêm as rearrumações gigantes.
   const buscador = new Buscador(mesaCartas, regras, relogio);
   const tamanhos = [...new Set(grupos.map((g) => g.length))].sort((a, b) => b - a);
   for (const n of tamanhos) {
     const doTamanho = grupos.filter((g) => g.length === n);
-    for (const orcamento of [0, 1, 2, 3, 4, 6, 8, Infinity]) {
+    for (const orcamento of degraus) {
       const achadas: Array<{ baixadas: Carta[]; jogos: string[][] }> = [];
       for (const baixadas of doTamanho) {
         const jogos = buscador.tentar(baixadas, orcamento);
@@ -301,7 +382,7 @@ export function jogadaDoCuringa(p: Partida): JogadaIA | null {
 }
 
 /** Como foi a última busca (para o diário): quanto tempo levou e se o tempo acabou antes. */
-export let ultimaBusca = { ms: 0, tempoAcabou: false };
+export let ultimaBusca: { ms: number; tempoAcabou: boolean; exataTerminou?: boolean } = { ms: 0, tempoAcabou: false };
 
 /** Nota da mão que sobra: primeiro o "futuro" das cartas, depois menos pontos. */
 function notaDaSobra(regras: Regras): Desempate {

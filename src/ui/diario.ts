@@ -36,9 +36,31 @@ export function anotar(evento: string, dados: Record<string, unknown> = {}) {
   }
 }
 
+// Casos em que a dica ficou atrás do que o jogador achou. Guardados à parte (o diário normal apaga os antigos).
+const CHAVE_PERDEU = 'mexe-mexe:dica-perdeu:v1';
+const MAXIMO_PERDEU = 30;
+
+export function lerDicasPerdidas(): Anotacao[] {
+  try {
+    return JSON.parse(localStorage.getItem(CHAVE_PERDEU) ?? '[]') as Anotacao[];
+  } catch {
+    return [];
+  }
+}
+
+export function guardarDicaPerdeu(dados: Record<string, unknown>) {
+  try {
+    const lista = lerDicasPerdidas();
+    lista.push({ hora: new Date().toISOString(), evento: 'dica perdeu', ...dados });
+    localStorage.setItem(CHAVE_PERDEU, JSON.stringify(lista.slice(-MAXIMO_PERDEU)));
+  } catch {
+    // Sem espaço: o jogo continua.
+  }
+}
+
 /** Baixa o diário como arquivo (vai para a pasta Downloads no computador). */
 export function baixarDiario() {
-  const texto = JSON.stringify({ jogo: 'mexe-mexe', baixadoEm: new Date().toISOString(), aparelho: navigator.userAgent, diario: lerDiario() }, null, 2);
+  const texto = JSON.stringify({ jogo: 'mexe-mexe', baixadoEm: new Date().toISOString(), aparelho: navigator.userAgent, diario: lerDiario(), dicasQuePerderam: lerDicasPerdidas() }, null, 2);
   const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
   const a = document.createElement('a');
   a.href = url;

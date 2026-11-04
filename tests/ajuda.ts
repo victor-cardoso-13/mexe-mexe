@@ -18,3 +18,15 @@ export function c(txt: string): Carta {
 export function cs(txt: string): Carta[] {
   return txt.trim().split(/\s+/).map(c);
 }
+
+/** Lê o texto do diário do jogo: "6♥ Q♦ Coringa" (símbolos dos naipes). */
+export function csDiario(txt: string): Carta[] {
+  const mapa: Record<string, string> = { '♥': 'c', '♦': 'o', '♠': 'e', '♣': 'p' };
+  return cs(
+    txt
+      .trim()
+      .split(/\s+/)
+      .map((t) => (t === 'Coringa' ? '*' : t.slice(0, -1) + mapa[t.slice(-1)]))
+      .join(' '),
+  );
+}
