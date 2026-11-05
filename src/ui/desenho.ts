@@ -12,7 +12,7 @@ import type { NivelIA } from '../motor/regras';
 import type { Ajustes, Aviso, Estado, Online } from './estado';
 import type { Contagem, Resumo } from './retrospecto';
 import { podeBaixarJogo } from './baixarJogo';
-import { NOMES_ORDENACAO, ordenarMao, TEXTOS } from './textos';
+import { NOMES_ORDENACAO, ordenarMao, resumoDaVez, TEXTOS } from './textos';
 import { passosDoTutorial } from './tutorial';
 import { ativos, MAX_JOGADORES, MIN_JOGADORES } from '../online/logica';
 import { escapar } from './seguranca';
@@ -61,7 +61,13 @@ export function htmlJogo(e: Estado, a: Ajustes): string {
   </div>${e.menuOrdenar ? htmlOrdenar(e) : ''}`;
 }
 
-/** Letra da bolinha do adversário: o número ("Adversário 2" → 2), "A" para o primeiro, ou a 1ª letra do nome (online). */
+/** Letra da bolinha do adversário: o número ("Adversário 2" → 2), "A" se ele é o único, ou a 1ª letra do nome (online). */
+/** Cor da bolinha: segue o número do adversário, para não mudar de cor quando alguém sai do campeonato. */
+function corDoJogador(nome: string, i: number): string {
+  const numero = Number(nome.match(/\d+$/)?.[0]);
+  return `cor-${((numero || i) - 1) % 3}`;
+}
+
 function letraDoJogador(nome: string): string {
   const numero = nome.match(/\d+$/)?.[0];
   if (numero) return numero;
@@ -74,7 +80,7 @@ function htmlPlacar(c: Campeonato, p: Partida): string {
     .map((l) => {
       const quem = l.jogador === 0
         ? '<span class="bol voce">Você</span>'
-        : `<span class="bol cor-${(l.jogador - 1) % 3}">${letraDoJogador(p.jogadores[l.jogador].nome)}</span>`;
+        : `<span class="bol ${corDoJogador(p.jogadores[l.jogador].nome, l.jogador)}">${letraDoJogador(p.jogadores[l.jogador].nome)}</span>`;
       return `<span class="ficha ${l.posicao === 1 ? 'lider' : ''}">${l.posicao === 1 ? '👑' : ''}${quem}<b>${l.pontos}</b></span>`;
     })
     .join('');
@@ -106,11 +112,12 @@ function htmlTopo(e: Estado, p: Partida): string {
       if (i === 0) return '';
       const qtd = e.cartasExibidas?.[i] ?? j.mao.length;
       const alerta = qtd === 1 ? '<span class="alerta-uma">⚠️<span class="longo"> Só 1 carta!</span></span>' : '';
-      const daVez = p.vez === i && e.computadorJogando ? 'da-vez' : '';
+      const revendoEle = e.revendo !== null && e.ultimasJogadas[e.revendo]?.jogador === i;
+      const daVez = (p.vez === i && e.computadorJogando) || revendoEle ? 'da-vez' : '';
       const fala = daVez && !e.online && e.aviso?.curto ? `<span class="fala">· ${e.aviso.curto}</span>` : '';
       // ".versos" fica: é de lá que sai voando a carta que o computador joga (veja main.ts).
       return `<div class="adversario ${daVez} ${qtd === 1 ? 'uma' : ''}" data-jogador="${i}">
-        <span class="avatar cor-${(i - 1) % 3}">${letraDoJogador(j.nome)}</span>
+        <span class="avatar ${corDoJogador(j.nome, i)}">${letraDoJogador(j.nome)}</span>
         <span class="nome">${escapar(j.nome)}</span>
         <span class="qtd"><span class="versos"><span class="verso"></span></span><b>${qtd}</b></span>${fala}${alerta}</div>`;
     })
@@ -140,15 +147,28 @@ function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: 
   if (p.resultado) return { texto: 'A partida acabou.', tipo: 'normal', icone: '🏁', acao: '<button class="acao" data-acao="novaPartida">Jogar de novo</button>' };
   if (e.online && p.resultado === null && e.online.sala?.fase === 'contando') return { texto: 'Contando os pontos…', tipo: 'computador', icone: '⏳' };
   if (!minhaVez) return { texto: e.online ? `Vez de ${escapar(jogadorDaVez(p).nome)}…` : 'Vez do computador…', tipo: 'computador', icone: '⏳' };
+  if (e.revendo !== null && e.ultimasJogadas[e.revendo] && !e.selecionadas.length && !mexeuNaVez(p)) {
+    const r = e.ultimasJogadas[e.revendo];
+    const ultimo = e.revendo === e.ultimasJogadas.length - 1;
+    const nome = escapar(p.jogadores[r.jogador]?.nome ?? 'Adversário');
+    return {
+      texto: `O ${nome} ${resumoDaVez(r.passos, p.regras)}.`,
+      tipo: 'computador',
+      icone: '👀',
+      acao: `<button class="acao" data-acao="reverProxima">${ultimo ? 'Pronto ✔' : 'Próxima ▶'}</button>`,
+    };
+  }
   if (e.dica) return { texto: e.dica.texto.replace(/^💡\s*/, ''), tipo: 'normal', icone: '💡', acao: `<button class="acao" data-acao="fazerDica">${ICONES.passar}Fazer</button>` };
   if (e.selecionadas.length) {
     const daMesa = e.selecionadas.some((id) => ondeEstaCarta(p, id) !== 'mao');
     return { texto: daMesa ? TEXTOS.escolheuDaMesa : TEXTOS.escolheuCartas, tipo: 'normal', icone: '👆' };
   }
   if (!mexeuNaVez(p)) {
-    // Só aparece se existir mesmo um jogo da mesa onde o coringa entra.
-    const curinga = e.lugarCuringa ? '<button class="acao" data-acao="curingaSolto">🃏 Jogar o coringa</button>' : '';
-    return { texto: TEXTOS.suaVez, tipo: 'normal', icone: '✋', acao: curinga };
+    // "O que ele fez?": resumo da última vez de cada adversário (só contra o computador).
+    const rever = e.ultimasJogadas.length && !e.online
+      ? `<button class="acao" data-acao="rever">👀 ${p.jogadores.length > 2 ? 'O que fizeram?' : 'O que ele fez?'}</button>`
+      : '';
+    return { texto: TEXTOS.suaVez, tipo: 'normal', icone: '✋', acao: rever };
   }
   const c = conferirJogada(p);
   if (c.ok) return { texto: TEXTOS.tudoCerto, tipo: 'normal', icone: '✔' };
@@ -238,7 +258,15 @@ function htmlMao(e: Estado, p: Partida): string {
       return htmlCarta(c, classes.join(' '));
     })
     .join('');
-  return `<div class="area-mao" data-destino="mao"><div class="mao">${cartas}</div></div>`;
+  return `<div class="area-mao" data-destino="mao">${htmlContaDaMao(p)}<div class="mao">${cartas}</div></div>`;
+}
+
+/** Etiqueta em cima da mão: quantas cartas e quantos pontos ela vale agora (mesma conta do fim da partida). */
+export function htmlContaDaMao(p: Partida): string {
+  const mao = p.jogadores[0].mao;
+  const pontos = pontosDaMao(mao, p.regras);
+  const n = mao.length;
+  return `<div class="conta-mao" aria-live="polite"><b>${n}</b> ${n === 1 ? 'carta' : 'cartas'} · <b>${pontos}</b> ${pontos === 1 ? 'ponto' : 'pontos'}</div>`;
 }
 
 /** Ícones de traço (os mesmos do mock aprovado). */
@@ -473,8 +501,8 @@ export function htmlComoJogar(a: Ajustes): string {
         ${opcoes('curinga', String(a.curinga), [['false', 'Sem'], ['true', 'Com ★']])}</div>
     </div>
     <div class="rodape-ajustes">
-      <button class="grande" data-acao="comecarComoEscolhido">▶ Começar</button>
       <button class="grande secundario" data-acao="fecharJanela">Voltar</button>
+      <button class="grande" data-acao="comecarComoEscolhido">▶ Começar</button>
     </div>
   </div></div>`;
 }
@@ -523,6 +551,8 @@ export function htmlAjustes(a: Ajustes, online: Online | null = null, email: str
         ${opcoes('visual', a.visual, [['idade', 'Melhor idade'], ['bonito', 'Normal']])}</div>
       <div class="ajuste"><div class="nome-ajuste">Cores dos naipes</div>
         ${opcoes('quatroCores', String(a.quatroCores), [['false', `2 cores${duas}`], ['true', `4 cores${quatro}`]])}</div>
+      <div class="ajuste"><div class="nome-ajuste">Som de "sua vez"<small>no silencioso, não toca</small></div>
+        ${opcoes('sons', String(a.sons), [['true', 'Ligado'], ['false', 'Desligado']])}</div>
       ${computador}
       ${online ? htmlTirarJogadores(online) : ''}
       <div class="secao">Mais</div>
@@ -594,7 +624,7 @@ export function htmlFim(p: Partida, camp: Campeonato | null = null, online: Onli
     </div>
     <div class="rodape-fim">
       ${botao}
-      <button class="grande secundario" data-acao="fecharJanela">Ver a mesa</button>
+      <button class="grande secundario voltar" data-acao="fecharJanela">Ver a mesa</button>
       ${online ? '<button class="link-diario" data-acao="onlineSair">Sair da sala</button>' : ''}
     </div>
   </div></div>`;

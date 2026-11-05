@@ -20,6 +20,8 @@ export interface Contexto {
   /** Volta para a tela inicial (e abre de novo a partida do computador, se houver). */
   voltarAoInicio(): void;
   mensagem(m: { emoji: string; titulo: string; texto: string }): void;
+  /** Começou a minha vez (som e tela). */
+  suaVez(): void;
 }
 
 export const nomeSalvo = () => localStorage.getItem(CHAVE_NOME) ?? '';
@@ -181,10 +183,9 @@ export function criarOnline(ctx: Contexto) {
     e.selecionadas = [];
     e.dica = null;
     e.menuOrdenar = false;
-    e.lugarCuringa = null;
-    e.lugarCuringaVez = '';
     e.tela = 'jogo';
     if (e.janela === 'fim' || e.janela === 'online') e.janela = null;
+    const chegouMinhaVez = jaTinhaPartida && e.computadorJogando && sala.vez === dados.eu && sala.fase === 'jogando';
     e.computadorJogando = sala.vez !== dados.eu;
     // cartas que os outros acabaram de baixar ficam com o selo "NOVA"
     e.baixadasPeloComputador = jaTinhaPartida ? nova.mesa.flatMap((j) => j.cartas.map((c) => c.id)).filter((id) => !idsAntes.has(id)) : [];
@@ -193,6 +194,7 @@ export function criarOnline(ctx: Contexto) {
       ? { texto: 'Acabou o seu tempo: o jogo comprou uma carta por você.', tipo: 'problema' }
       : null;
     ctx.desenhar();
+    if (chegouMinhaVez) ctx.suaVez();
   }
 
   async function revelarMinhaMao(sala: Sala) {

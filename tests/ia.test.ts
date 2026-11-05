@@ -123,21 +123,6 @@ describe('computador: casos simples', () => {
     expect(j!.foto.mao).toHaveLength(0);
   });
 
-  it('curinga solto: acha o lugar do curinga (4-5-6 🃏 8-9-10♥) e não acha quando não há', async () => {
-    const { jogadaDoCuringa } = await import('../src/ia');
-    const montar = (mesaTxt: string[], maoTxt: string) => {
-      const p0 = novaPartida(comCuringa, 1);
-      const mesa = mesaTxt.map((t, i) => ({ id: `j${i}`, cartas: cs(t) }));
-      const mao = cs(maoTxt);
-      return { ...p0, mesa, inicioDaVez: { mao, mesa }, jogadores: [{ ...p0.jogadores[0], mao }, p0.jogadores[1]] };
-    };
-    const com = jogadaDoCuringa(montar(['4c 5c 6c', '8c 9c 10c'], '* Kp 2o'));
-    expect(com).not.toBeNull();
-    expect(com!.foto.mao).toHaveLength(2);
-    expect(com!.foto.mesa).toHaveLength(1);
-    expect(jogadaDoCuringa(montar(['4c 5c 6c', '9e 9o 9p'], '* Kp 2o'))).toBeNull();
-  });
-
   it('quadra na mão: baixa só 3 cartas', () => {
     const j = jogar(cs('Jc Je Jo Jp'), [], 'dificil')!;
     expect(j.foto.mao).toHaveLength(1);

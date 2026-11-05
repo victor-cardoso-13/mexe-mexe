@@ -429,19 +429,6 @@ function opcaoDaDivisao(inicio: Foto, baixadas: Carta[], divisao: string[][]): O
   };
 }
 
-/**
- * "Deixar o curinga solto": procura um lugar na mesa para o curinga da mão
- * (pode rearrumar a mesa). Devolve a jogada pronta só com o curinga, ou null se não há lugar.
- */
-export function jogadaDoCuringa(p: Partida): JogadaIA | null {
-  const curinga = p.inicioDaVez.mao.find((c) => c.curinga);
-  if (!curinga || !p.regras.curinga.ativo) return null;
-  const j = pensar(p.regras, { mao: [curinga], mesa: p.inicioDaVez.mesa }, 'dificil', p.proximoIdJogo, { dica: true });
-  if (!j) return null;
-  const foto: Foto = { mao: p.inicioDaVez.mao.filter((c) => c.id !== curinga.id), mesa: j.foto.mesa };
-  return conferir(p.regras, p.inicioDaVez, foto).ok ? { ...j, foto } : null;
-}
-
 /** Como foi a última busca (para o diário): quanto tempo levou e se o tempo acabou antes. */
 export let ultimaBusca: { ms: number; tempoAcabou: boolean; exataTerminou?: boolean } = { ms: 0, tempoAcabou: false };
 

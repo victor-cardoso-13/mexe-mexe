@@ -83,3 +83,19 @@ export function ordenarMao(mao: Carta[], modo: Ordenacao, ordemManual: string[])
   const asAlto = modo === 'asAlto';
   return lista.sort((a, b) => valor(a, asAlto) - valor(b, asAlto) || naipe(a) - naipe(b));
 }
+
+/**
+ * Resumo curto da vez de um adversário (botão "O que ele fez?"):
+ * jogo novo só com cartas da mão → "baixou o jogo 2♥ 3♥ 4♥"; qualquer outra coisa → "mexeu na mesa e colocou 2 cartas".
+ * Sem jogada → "comprou uma carta".
+ */
+export function resumoDaVez(passos: Passo[] | null, regras: Regras): string {
+  if (!passos?.length) return 'comprou uma carta';
+  const jogos = passos.filter((p) => p.tipo === 'baixou').map((p) => listaDeCartas(cartasNaOrdemDaMesa(p, regras)));
+  const naMesa = passos.filter((p) => p.tipo !== 'baixou').reduce((n, p) => n + p.cartasDaMao.length, 0);
+  const partes: string[] = [];
+  if (jogos.length === 1) partes.push(`baixou o jogo ${jogos[0]}`);
+  if (jogos.length > 1) partes.push(`baixou os jogos ${jogos.slice(0, -1).join(', ')} e ${jogos[jogos.length - 1]}`);
+  if (naMesa) partes.push(`mexeu na mesa e colocou ${naMesa} ${naMesa === 1 ? 'carta' : 'cartas'}`);
+  return partes.join('; ');
+}

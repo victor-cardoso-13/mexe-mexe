@@ -10,7 +10,7 @@ import {
 } from './motor/partida';
 import { criarRegras, type NivelIA } from './motor/regras';
 import { novoCampeonato, proximaRodada, semOsEliminados, sobreviventes as sobreviventesDoCampeonato, somarRodada } from './motor/campeonato';
-import { jogadaDoCuringa, ultimaBusca, type Passo } from './ia';
+import { ultimaBusca, type Passo } from './ia';
 import { cancelarBusca, escolherJogadaAsync } from './ia/assincrono';
 
 /** Busca a jogada em segundo plano (a tela não trava). */
@@ -29,6 +29,8 @@ import {
 } from './nuvem/sincronia';
 import { descreverPasso, ordenarMao, resumoDoPasso, TEXTOS } from './ui/textos';
 import { ligarToque } from './ui/toque';
+import { prepararSom, tocarSuaVez } from './ui/som';
+import { acordar, iniciarTelaAcesa, telaAcesa } from './ui/telaAcesa';
 import { animarMovimento, capturarPosicoes, movimentosUmAUm } from './ui/animacao';
 
 const app = document.getElementById('app')!;
@@ -55,8 +57,8 @@ function abrirGaveta() {
   reiniciarEncaixe();
   e.mesaExibida = e.cartasExibidas = null;
   e.selecionadas = [];
-  e.lugarCuringaVez = '';
   limparMensagens();
+  e.ultimasJogadas = [];
   const salvo = gaveta.jogo;
   if (!salvo) {
     Object.assign(e, { partida: null, partidaId: '', campeonato: null, ordemManual: [], novaCartaId: null, baixadasPeloComputador: [] });
@@ -71,7 +73,12 @@ function abrirGaveta() {
     curinga: { ...criarRegras().curinga, ativo: antigas.curinga.ativo },
   });
   // Partidas guardadas antes da troca de nome: "Computador" virou "Adversário".
-  const jogadores = salvo.partida.jogadores.map((j) => ({ ...j, nome: j.nome.replace('Computador', 'Adversário') }));
+  // E, com vários adversários, o primeiro "Adversário" virou "Adversário 1" (antes ficava "A, 2, 3").
+  const numerados = salvo.partida.jogadores.some((j) => /^Adversário \d$/.test(j.nome));
+  const jogadores = salvo.partida.jogadores.map((j) => {
+    const nome = j.nome.replace('Computador', 'Adversário');
+    return { ...j, nome: numerados && nome === 'Adversário' ? 'Adversário 1' : nome };
+  });
   e.partida = { ...salvo.partida, jogadores, regras };
   e.partidaId = salvo.id ?? `antiga-${salvo.partida.semente}`; // partidas de antes do retrospecto
   e.ordenacao = salvo.ordenacao;
@@ -136,6 +143,7 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   const antes = movimento ? capturarPosicoes(app) : null;
   const rolagem = app.querySelector('.mesa')?.scrollTop ?? 0;
   localStorage.setItem(CHAVE_TELA, e.online ? 'inicio' : e.tela);
+  telaAcesa(e.tela === 'jogo');
   document.body.classList.toggle('idade', ajustes.visual === 'idade');
   document.body.classList.toggle('bonito', ajustes.visual === 'bonito');
   let html = '';
@@ -166,7 +174,6 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   const chegou = e.chegaram.length ? app.querySelector(`.mesa [data-carta="${e.chegaram[0]}"]`) : null;
   chegou?.closest('.jogo')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   e.chegaram = []; // a animação de "chegou" só toca uma vez
-  prepararCuringa();
   if (movimento && antes) {
     // Carta que sai da mão do computador: parte das cartinhas dele lá em cima.
     const versos = movimento.deJogador != null ? app.querySelector(`[data-jogador="${movimento.deJogador}"] .versos`) : null;
@@ -239,9 +246,41 @@ const minhaVez = () => !!e.partida && e.partida.vez === 0 && !e.partida.resultad
 
 /** Limpa avisos e dica antes de cada nova ação da jogadora. */
 function limparMensagens() {
+  pararDeRever();
   e.aviso = null;
   e.dica = null;
   e.menuOrdenar = false;
+}
+
+/** "O que ele fez?": mostra na faixa o resumo da vez de cada adversário, um de cada vez. */
+function rever(proximo: boolean) {
+  if (!minhaVez() || !e.ultimasJogadas.length) return;
+  const i = proximo && e.revendo !== null ? e.revendo + 1 : 0;
+  if (i >= e.ultimasJogadas.length) {
+    pararDeRever();
+    return desenhar();
+  }
+  e.aviso = null;
+  e.dica = null;
+  e.revendo = i;
+  const passos = e.ultimasJogadas[i].passos ?? [];
+  const naMesa = new Set(e.partida!.mesa.map((j) => j.id));
+  e.destaques = passos.flatMap((p) => p.jogoIds).filter((id) => naMesa.has(id));
+  desenhar();
+  const primeiro = e.destaques[0] && app.querySelector(`.mesa [data-destino="jogo:${e.destaques[0]}"]`);
+  if (primeiro) primeiro.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function pararDeRever() {
+  if (e.revendo === null) return;
+  e.revendo = null;
+  e.destaques = [];
+}
+
+/** Começou a sua vez: "plim" (se ligado) e a tela volta a contar os 30 s. */
+function comecouSuaVez() {
+  if (ajustes.sons) tocarSuaVez();
+  acordar();
 }
 
 function avisar(texto: string, tipo: 'normal' | 'problema' = 'problema') {
@@ -256,20 +295,25 @@ function avisar(texto: string, tipo: 'normal' | 'problema' = 'problema') {
 function comecarPartida(proxima = false, semEliminados = false) {
   // Continuando só com quem não chegou ao alvo, a mesa tem menos jogadores (e eles guardam os nomes).
   const nomesVivos = semEliminados && e.campeonato && e.partida ? sobreviventesDoCampeonato(e.campeonato).map((i) => e.partida!.jogadores[i].nome) : null;
+  // Próxima rodada do campeonato: os MESMOS jogadores da rodada anterior (quem saiu não volta).
+  const nomesDaRodada = !nomesVivos && proxima && e.campeonato && e.partida && e.partida.jogadores.length === e.campeonato.totais.length
+    ? e.partida.jogadores.map((j) => j.nome)
+    : null;
+  const nomes = nomesVivos ?? nomesDaRodada;
   const regras = criarRegras({
-    adversarios: nomesVivos ? nomesVivos.length - 1 : ajustes.adversarios,
+    adversarios: nomes ? nomes.length - 1 : ajustes.adversarios,
     nivelIA: ajustes.nivel,
     curinga: { ...criarRegras().curinga, ativo: ajustes.curinga },
   });
   reiniciarEncaixe();
   maoVista = '';
   const semente = Math.floor(Math.random() * 2 ** 31);
-  e.partida = novaPartida(regras, semente, nomesVivos ?? undefined);
+  e.partida = novaPartida(regras, semente, nomes ?? undefined);
   e.partidaId = `${Date.now().toString(36)}-${semente.toString(36)}`;
   if (nomesVivos) e.campeonato = semOsEliminados(e.campeonato!);
   else if (proxima && e.campeonato) e.campeonato = proximaRodada(e.campeonato);
   else e.campeonato = ajustes.modo === 'campeonato' ? novoCampeonato(e.partida.jogadores.length) : null;
-  Object.assign(e, { tela: 'jogo', janela: null, selecionadas: [], novaCartaId: null, ordemManual: [], baixadasPeloComputador: [] });
+  Object.assign(e, { tela: 'jogo', janela: null, selecionadas: [], novaCartaId: null, ordemManual: [], baixadasPeloComputador: [], ultimasJogadas: [], revendo: null });
   limparMensagens();
   if (e.ordenacao === 'manual') e.ordenacao = 'naipe';
   salvar();
@@ -387,34 +431,6 @@ function soltar(ids: string[], alvo: Element | null, x: number) {
 // ---------------------------------------------------------------------------
 // Botões da jogadora
 // ---------------------------------------------------------------------------
-
-/**
- * No começo da vez da jogadora, se ela tem curinga na mão, procura (uma vez só) um lugar para ele.
- * Se achar, aparece o botão "Jogar o coringa".
- */
-function prepararCuringa() {
-  const p = e.partida;
-  if (!p || !minhaVez()) return;
-  const vez = `${p.monte.length}-${p.jogadores[0].mao.length}-${p.mesa.length}`;
-  if (vez === e.lugarCuringaVez) return;
-  e.lugarCuringaVez = vez;
-  e.lugarCuringa = null;
-  if (!p.inicioDaVez.mao.some((c) => c.curinga)) return;
-  setTimeout(() => {
-    if (!minhaVez() || e.lugarCuringaVez !== vez) return;
-    e.lugarCuringa = jogadaDoCuringa(e.partida!)?.foto ?? null;
-    desenhar();
-  }, 150);
-}
-
-/** Botão "Jogar o coringa": o jogo coloca o curinga num jogo da mesa (o lugar achado; pode rearrumar) e passa a vez. Ele nunca fica sozinho. */
-function curingaSolto() {
-  if (!minhaVez() || !e.lugarCuringa || mexeuNaVez(e.partida!)) return;
-  anotar('jogar o coringa', { mesaAntes: textoMesa(e.partida!.mesa), mesaDepois: textoMesa(e.lugarCuringa.mesa) });
-  e.partida = definirFoto(e.partida!, e.lugarCuringa);
-  e.lugarCuringa = null;
-  botaoBaixar();
-}
 
 function botaoDesfazer(tudo: boolean) {
   if (!minhaVez()) return;
@@ -625,6 +641,7 @@ async function continuarJogo(pausaInicial: number) {
   e.aviso = null;
   if (e.partida?.resultado) return mostrarFim();
   desenhar();
+  if (e.partida?.vez === 0) comecouSuaVez();
 }
 
 const PAROU = Symbol('parou');
@@ -695,6 +712,7 @@ async function animarPassos(
 }
 
 async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo: Record<string, number>) {
+  if (e.partida && e.partida.vez !== 0) e.ultimasJogadas = [];
   while (e.partida && !e.partida.resultado && e.partida.vez !== 0) {
     const p: Partida = e.partida;
     const quem = jogadorDaVez(p).nome;
@@ -717,6 +735,7 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
       busca: { ...ultimaBusca },
     });
     const r = jogada ? aplicarJogada(p, jogada.foto) : null;
+    e.ultimasJogadas.push({ jogador: p.vez, passos: jogada && r?.ok ? jogada.passos : null });
     if (jogada && r?.ok) {
       if (ajustes.animacoes) {
         travarTamanhoNoFim(r.partida);
@@ -764,6 +783,13 @@ function mudarAjuste(chave: string, valor: string) {
   if (chave === 'quatroCores') ajustes.quatroCores = valor === 'true';
   if (chave === 'curinga') ajustes.curinga = valor === 'true';
   if (chave === 'adversarios') ajustes.adversarios = Number(valor);
+  if (chave === 'sons') {
+    ajustes.sons = valor === 'true';
+    if (ajustes.sons) {
+      prepararSom();
+      tocarSuaVez(); // para a pessoa ouvir como é
+    }
+  }
   salvarAjustes(ajustes);
   salvar();
   desenhar();
@@ -998,7 +1024,8 @@ app.addEventListener('click', (ev) => {
       case 'comprar': return botaoComprar();
       case 'dica': return botaoDica();
       case 'fazerDica': return fazerDica();
-      case 'curingaSolto': return curingaSolto();
+      case 'rever': return rever(false);
+      case 'reverProxima': return rever(true);
       case 'abrirMenu':
         e.menuOrdenar = false;
         e.janela = 'menu';
@@ -1088,6 +1115,10 @@ app.addEventListener('click', (ev) => {
   if (destino) tocarDestino(destino);
 });
 
+// Som: o iPhone só libera depois de um toque. Tela acesa: 30 s sem tocar, escurece e deixa o iPhone apagar.
+document.addEventListener('pointerdown', () => { if (ajustes.sons) prepararSom(); }, { capture: true, passive: true });
+iniciarTelaAcesa(() => e.computadorJogando);
+
 ligarToque(app, {
   podeMexer: minhaVez,
   tocarCarta,
@@ -1113,6 +1144,7 @@ let codigoConvite = codigoNoLink() ?? '';
 
 const online = criarOnline({
   e,
+  suaVez: () => comecouSuaVez(),
   desenhar: () => desenhar(),
   voltarAoInicio: () => {
     abrirGaveta();
