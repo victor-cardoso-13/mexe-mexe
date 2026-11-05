@@ -637,7 +637,7 @@ async function animarPassos(
   let mesaAnterior = p.mesa;
   for (const passo of passos) {
     // 1) Primeiro diz o que vai fazer...
-    e.aviso = { texto: descreverPasso(passo, quem, p.regras, comoDica), tipo: 'computador', curto: resumoDoPasso(passo) };
+    e.aviso = { texto: descreverPasso(passo, quem, p.regras, comoDica), tipo: 'computador', curto: resumoDoPasso(passo, p.regras) };
     e.destaques = passo.jogoIds;
     e.mesaExibida = mesaAnterior;
     desenhar();
