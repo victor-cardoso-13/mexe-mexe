@@ -127,8 +127,9 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
 /* ---------- Mesa: feltro com borda de madeira ---------- */
 .mesa {
   /* A madeira é borda DE VERDADE (margem + sombra de fora + borda), não sombra de dentro: ao rolar a mesa,
-     as cartas somem na beirada do feltro em vez de passar por cima da madeira. Mesmo espaço útil de antes. */
-  grid-area: mesa; overflow: hidden; position: relative; margin: 6px; padding: 8px 6px 10px; border-radius: 16px;
+     as cartas somem na beirada do feltro em vez de passar por cima da madeira. O espaço de cima é maior
+     para o "+" dos jogos da 1ª fila (que fica um pouco acima do jogo) não ser cortado pela madeira. */
+  grid-area: mesa; overflow: hidden; position: relative; margin: 6px; padding: 15px 6px 10px; border-radius: 16px;
   border: 2px solid var(--madeira-2);
   background: radial-gradient(ellipse at 50% 35%, var(--feltro-1), var(--feltro-2) 85%);
   box-shadow: 0 0 0 6px var(--madeira), inset 0 10px 24px #0004;
@@ -159,9 +160,11 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
 /* "+" de cada jogo (escolheu cartas): bolinha âmbar com borda; área de toque invisível de ~52 px */
 .mais-aqui {
   position: absolute; right: -11px; top: -13px; width: 32px; height: 32px; border-radius: 50%; z-index: 4;
-  display: grid; place-items: center; background: var(--ambar-claro); color: var(--tinta); border: 2.5px solid var(--tinta);
-  font-family: var(--titulo); font-size: 23px; line-height: 1; cursor: pointer; box-shadow: 0 2px 6px #0004;
+  /* A cruz é um SVG (desenho.ts, CRUZ), não a letra "+": fica no centro exato e simétrica em qualquer tamanho. */
+  display: grid; place-items: center; background: var(--ambar-claro);
+  border: 2.5px solid var(--tinta); cursor: pointer; box-shadow: 0 2px 6px #0004;
 }
+.mais-aqui svg { width: 68%; height: 68%; stroke: var(--tinta); fill: none; display: block; }
 .mais-aqui::before { content: ""; position: absolute; inset: -12px; border-radius: 14px; }
 /* Espaço vazio: só aparece com carta escolhida ou arrastando (o lugar fica reservado: nada se mexe) */
 .vazio {
@@ -325,7 +328,7 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
   .topo { gap: 6px; }
   .topo.muitos .botao-menu .palavra { display: none; }
   .topo.muitos .botao-menu { padding: 0 13px; }
-  .mesa { padding: 6px 2px 8px; border-radius: 12px; }
+  .mesa { padding: 13px 2px 8px; border-radius: 12px; }
   .jogos { gap: 20px 9px; }
   .jogo { padding: 4px; }
   .mais-aqui { width: 28px; height: 28px; font-size: 20px; right: -9px; top: -11px; }
@@ -355,7 +358,7 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
   .topo .adversario .qtd b { font-size: 16px; }
   .tempo-vez { font-size: 16px; padding: 0 10px; }
   .placar-camp { gap: 6px; padding: 0 10px; }
-  .mesa { margin: 5px; padding: 4px 2px 4px; border-width: 1px; border-radius: 11px; box-shadow: 0 0 0 5px var(--madeira), inset 0 6px 16px #0004; }
+  .mesa { margin: 5px; padding: 11px 2px 4px; border-width: 1px; border-radius: 11px; box-shadow: 0 0 0 5px var(--madeira), inset 0 6px 16px #0004; }
   .jogos { gap: 16px 8px; }
   .jogo { padding: 3px; }
   .mais-aqui { width: 26px; height: 26px; font-size: 18px; right: -9px; top: -10px; }

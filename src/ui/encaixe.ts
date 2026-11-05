@@ -29,8 +29,15 @@ let telaAnterior = '';
 /** Celular = tela estreita (em pé) ou baixa (deitado). */
 const ehCelular = () => window.innerWidth <= 600 || window.innerHeight <= 500;
 
+/**
+ * Tamanho TRAVADO durante uma jogada animada (adversário ou "Fazer" da dica): veja prepararTamanho().
+ * Enquanto travado, nada muda de tamanho; se uma etapa do meio não couber, só a mesa rola.
+ */
+let travado = false;
+
 /** Nova partida: tudo volta a ser calculado do zero (as cartas podem crescer de novo). */
 export function reiniciarEncaixe() {
+  travado = false;
   atual = null;
   alturaTopo = 0;
   ultimaChave = '';
@@ -67,6 +74,11 @@ export function encaixar(chave = '', podeCrescer = true, congelar = false) {
   const mao = document.querySelector<HTMLElement>('.mao');
   if (!mesa || !mao) return;
   fixarTopo();
+  if (travado && atual) {
+    const transborda = mesa.scrollHeight > mesa.clientHeight + 1 || mesa.scrollWidth > mesa.clientWidth + 1;
+    mesa.classList.toggle('rolavel', transborda || (ultimaRolavel && ehCelular()));
+    return;
+  }
   if (congelar && atual && ehCelular()) {
     // Vez do computador no celular: nada muda de tamanho (as jogadas passam por estados intermediários que
     // fariam a mesa e a mão "respirarem"). A mesa fica rolável para qualquer jogo novo continuar acessível.
@@ -177,4 +189,35 @@ function encaixarTudo(mesa: HTMLElement, mao: HTMLElement) {
     definir('--mesa-w', MESA_CELULAR);
     mesa.classList.add('rolavel');
   }
+}
+
+/**
+ * Chamado com a tela mostrando a mesa (e a mão) como vão ficar no FIM de uma jogada animada, antes de
+ * ela começar: acerta o tamanho das cartas UMA vez para esse fim e trava até soltarTamanho().
+ * Assim a mesa não encolhe durante a jogada nem cresce de novo no começo da sua vez.
+ * (Mesmas regras de "encaixar": encolhe se precisar; só cresce se o ganho for visível.)
+ */
+export function prepararTamanho() {
+  const mesa = document.querySelector<HTMLElement>('.mesa');
+  const mao = document.querySelector<HTMLElement>('.mao');
+  if (!mesa || !mao) return;
+  travado = false;
+  fixarTopo();
+  encaixarTudo(mesa, mao);
+  const ideal = { mao: lerTamanho('--mao-w'), mesa: lerTamanho('--mesa-w') };
+  if (atual) {
+    const escolher = (id: number, at: number, ganho: number) => (id < at || id - at >= ganho ? id : at);
+    definir('--mao-w', escolher(ideal.mao, atual.mao, GANHO_MINIMO_MAO));
+    definir('--mesa-w', escolher(ideal.mesa, atual.mesa, GANHO_MINIMO_MESA));
+  }
+  atual = { mao: lerTamanho('--mao-w'), mesa: lerTamanho('--mesa-w') };
+  ultimaRolavel = mesa.classList.contains('rolavel');
+  ultimaChave = '';
+  travado = true;
+}
+
+/** Fim da jogada animada: o tamanho volta a ser calculado normalmente (e já está certo para a mesa final). */
+export function soltarTamanho() {
+  travado = false;
+  ultimaChave = '';
 }
