@@ -2,6 +2,7 @@
  * Monta o HTML de cada tela a partir do estado.
  * Aqui só se DESENHA; quem decide o que acontece é o src/main.ts.
  */
+import { pedacosDoJogoErrado } from '../motor/jogoErrado';
 import { ehVermelha, nomeDoValor, SIMBOLO_NAIPE, type Carta, type CartaNormal } from '../motor/cartas';
 import { conferirJogada, jogadorDaVez, mesaMexidaEstaCerta, mexeuNaVez, ondeEstaCarta, type Partida } from '../motor/partida';
 import { ordemDoPlacar, pontosDaRodada, situacaoDoCampeonato, type Campeonato } from '../motor/campeonato';
@@ -179,6 +180,9 @@ function htmlMesa(e: Estado, p: Partida): string {
         cartas =
           `<div class="colunas">${colunas.map((col) => `<div class="coluna">${col.map(carta).join('')}</div>`).join('')}</div>` +
           (base.length ? `<div class="base">${base.map(carta).join('')}</div>` : '');
+      } else if (!r.valido) {
+        // Jogo que não vale: em pedaços, com um vão onde dá para separar (src/motor/jogoErrado.ts).
+        cartas = pedacosDoJogoErrado(j.cartas, p.regras).map((pedaco) => pedaco.map(carta).join('')).join('<div class="vao" aria-hidden="true"></div>');
       } else {
         cartas = ordemParaMostrar(j.cartas, p.regras).map(carta).join('');
       }

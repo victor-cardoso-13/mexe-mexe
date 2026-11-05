@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock — jogo errado: vão onde separar (Mexe-Mexe)</title>
+<style>
+  body { margin:0; background:#fbf6ee; font-family:'Nunito',system-ui,sans-serif; color:#3b2f2a; padding:16px 20px 40px; }
+  h1 { font-family:'Fredoka','Nunito',system-ui; font-size:26px; margin:0 0 4px; }
+  h2 { font-family:'Fredoka','Nunito',system-ui; font-size:21px; margin:26px 0 2px; }
+  p { margin:4px 0 10px; font-size:17px; max-width:900px; }
+  table { border-collapse:separate; border-spacing:14px 10px; margin-left:-14px; }
+  th { text-align:left; font-size:16px; vertical-align:bottom; } th small { display:block; color:#8a7a70; font-weight:700; font-size:13px; }
+  td.ex { font-weight:800; font-size:15px; max-width:150px; } td.ex small { display:block; color:#8a7a70; font-weight:700; }
+  .quadro { background:radial-gradient(ellipse at 50% 35%,#237a50,#17583a 85%); border-radius:14px; padding:18px 14px 12px; box-shadow:0 0 0 5px #8a5a2e; display:flex; gap:10px; align-items:center; min-height:104px; }
+  .jogo { display:flex; padding:5px; border-radius:11px; position:relative; border:3px solid #ff6b6b; background:#e0242440; }
+  .jogo.ok { border:2px solid #ffffff3a; background:#ffffff1c; }
+  .erro { position:absolute; left:-10px; top:-12px; width:24px; height:24px; border-radius:50%; background:#c8102e; color:#fff; border:2px solid #fff; display:grid; place-items:center; font-weight:800; font-size:14px; }
+  .carta { width:46px; height:66px; background:#fff; border:2.5px solid #1d1a19; border-radius:8px; color:#c8102e; font:700 20px/1 'Fredoka',system-ui; padding:3px 4px; flex:none; }
+  .carta.p { color:#1d1a19; }
+  .carta + .carta { margin-left:-18px; }
+  .carta small { display:block; font-size:15px; }
+  .carta.cor { background:linear-gradient(135deg,#fff3d6,#f3c969); color:#3b2f2a; font-size:22px; text-align:center; padding-top:16px; }
+  .vao { width:12px; flex:none; position:relative; }
+  .vao::after { content:""; position:absolute; left:5px; top:-4px; bottom:-4px; border-left:2px dashed #fff9; }
+  .vao + .carta { margin-left:0; }
+  .rec { outline:3px solid #e7a400; outline-offset:6px; border-radius:14px; }
+  .tag { display:inline-block; background:#f3c969; border-radius:99px; padding:1px 8px; font-size:12px; margin-left:4px; }
+</style></head><body>
+<h1>Jogo errado (vermelho): em ordem + um vão onde dá para separar</h1>
+<p>O vão é só um espacinho com uma linha tracejada entre as cartas. O jogo continua vermelho e com "!" até você arrumar.</p>
+
+<h2>1. Sem coringa (proposta B — o que você escolheu)</h2>
+<p>Regra: primeiro os pedaços que JÁ são jogo, depois o que sobra, com vão entre eles. O que sobra fica em ordem, e também ganha vão onde a sequência quebra (número repetido ou buraco).</p>
+<table id="sem"></table>
+
+<h2>2. Com coringa — 3 jeitos</h2>
+<p><b>C1 · Coringa onde ele ajuda:</b> o jogo usa o coringa para formar o MAIOR jogo possível e separa o resto.<br>
+<b>C2 · Coringa sempre à parte:</b> arruma só as cartas normais (como na B) e o coringa fica sozinho no fim, depois de um vão. O jogo não "adivinha" o que o coringa vale.<br>
+<b>C3 · Com coringa, sem vão:</b> só põe em ordem (proposta A) e o coringa no fim, sem vão.</p>
+<table id="com"></table>
+
+<script>
+  const NA = { c:['♥',''], o:['♦',''], e:['♠','p'], p:['♣','p'] };
+  const carta = (t) => t === 'J*' ? '<div class="carta cor">🃏</div>' : `<div class="carta ${NA[t.slice(-1)][1]}">${t.slice(0,-1)}<small>${NA[t.slice(-1)][0]}</small></div>`;
+  // "|" = vão. Pedaços separados por " / " = jogos diferentes (só no "depois").
+  const jogo = (s, ok) => `<div class="jogo ${ok ? 'ok' : ''}">${ok ? '' : '<div class="erro">!</div>'}${s.split(' ').map(t => t === '|' ? '<div class="vao"></div>' : carta(t)).join('')}</div>`;
+  const quadro = (s, rec) => `<div class="quadro ${rec ? 'rec' : ''}">${s.split(' / ').map(p => p.startsWith('ok:') ? jogo(p.slice(3), true) : jogo(p)).join('')}</div>`;
+  const linha = (ex, sub, cols, rec = -1) => `<tr><td class="ex">${ex}<small>${sub}</small></td>${cols.map((c, i) => `<td>${quadro(c, i === rec)}</td>`).join('')}</tr>`;
+
+  document.getElementById('sem').innerHTML =
+    '<tr><th></th><th>Hoje<small>ordem em que chegaram</small></th><th>Proposta B</th></tr>' +
+    linha('8♦ a mais', 'na mesa 6 7 8 9♦', ['8o 6o 7o 9o 8o', '6o 7o 8o | 8o 9o']) +
+    linha('Tirou o 7♦', 'de 5 6 7 8 9♦', ['5o 6o 8o 9o', '5o 6o | 8o 9o']) +
+    linha('9♣ numa trinca', 'de 7♥ 7♠ 7♣', ['7c 9p 7e 7p', '7c 7e 7p | 9p']) +
+    linha('Naipe trocado', '4♠ em 2 3 4 5♥', ['2c 3c 4e 4c 5c', '2c 3c 4c 5c | 4e']);
+
+  document.getElementById('com').innerHTML =
+    '<tr><th></th><th>Hoje</th><th>C1 · Coringa onde ajuda</th><th>C2 · Coringa à parte</th><th>C3 · Sem vão</th></tr>' +
+    linha('Dois 9♦', 'na mesa 6 7 🃏 9♦', ['9o 6o 7o J* 9o', '6o 7o J* 9o | 9o', '6o 7o | 9o | 9o | J*', '6o 7o 9o 9o J*']) +
+    linha('Coringa sobrando', 'você pôs 🃏 e 5♣ em 7♥ 7♠ 7♣', ['7c J* 7e 5p 7p', '7c 7e 7p J* | 5p', '7c 7e 7p | 5p | J*', '7c 7e 7p 5p J*']) +
+    linha('Sobra pouco', '🃏 com 3♠ 9♠', ['3e J* 9e', '3e J* | 9e', '3e | 9e | J*', '3e 9e J*']);
+</script>
+</body></html>
