@@ -242,7 +242,15 @@ function htmlMao(e: Estado, p: Partida): string {
       return htmlCarta(c, classes.join(' '));
     })
     .join('');
-  return `<div class="area-mao" data-destino="mao"><div class="mao">${cartas}</div></div>`;
+  return `<div class="area-mao" data-destino="mao">${htmlContaDaMao(p)}<div class="mao">${cartas}</div></div>`;
+}
+
+/** Etiqueta em cima da mão: quantas cartas e quantos pontos ela vale agora (mesma conta do fim da partida). */
+export function htmlContaDaMao(p: Partida): string {
+  const mao = p.jogadores[0].mao;
+  const pontos = pontosDaMao(mao, p.regras);
+  const n = mao.length;
+  return `<div class="conta-mao" aria-live="polite"><b>${n}</b> ${n === 1 ? 'carta' : 'cartas'} · <b>${pontos}</b> ${pontos === 1 ? 'ponto' : 'pontos'}</div>`;
 }
 
 /** Ícones de traço (os mesmos do mock aprovado). */
