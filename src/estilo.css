@@ -140,6 +140,9 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
 @keyframes brilho { 50% { box-shadow: 0 0 0 5px #f3c969aa, 0 0 18px #f3c969; } }
 /* Sequência: cartas sobrepostas (o canto com o valor sempre aparece). */
 .jogo:not(.trinca) > .carta + .carta { margin-left: calc(var(--w) * -0.42); }
+/* Jogo que não vale: vão tracejado onde dá para separar (src/motor/jogoErrado.ts) */
+.jogo .vao { flex: none; align-self: stretch; width: calc(var(--mesa-w) * 0.24); position: relative; }
+.jogo .vao::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; border-left: 2px dashed #ffffffa0; }
 /* Trinca: naipes lado a lado, sem sobrepor; repetidas empilhadas na vertical. */
 .jogo.trinca { flex-direction: column; align-items: center; }
 .colunas { display: flex; align-items: flex-start; gap: calc(var(--mesa-w) * 0.08); }
