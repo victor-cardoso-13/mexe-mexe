@@ -162,8 +162,8 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
   position: absolute; right: -11px; top: -13px; width: 32px; height: 32px; border-radius: 50%; z-index: 4;
   /* A cruz é desenhada (duas barras no centro exato), não é a letra "+", que fica fora do meio dependendo da fonte. */
   background:
-    linear-gradient(var(--tinta), var(--tinta)) center / 50% 3px no-repeat,
-    linear-gradient(var(--tinta), var(--tinta)) center / 3px 50% no-repeat,
+    linear-gradient(var(--tinta), var(--tinta)) center / 56% 5px no-repeat,
+    linear-gradient(var(--tinta), var(--tinta)) center / 5px 56% no-repeat,
     var(--ambar-claro);
   border: 2.5px solid var(--tinta); cursor: pointer; box-shadow: 0 2px 6px #0004;
 }
