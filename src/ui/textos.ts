@@ -29,9 +29,24 @@ export function listaDeCartas(cartas: Carta[]): string {
   return cartas.map(nomeDaCarta).join(' ');
 }
 
+/**
+ * As cartas da mão de um passo na MESMA ordem em que ficam na mesa depois dele (6♣ 7♣ 8♣, e não 8♣ 7♣ 6♣;
+ * numa trinca, a ordem dos naipes). Os jogos mexidos no passo vêm primeiro, na ordem em que aparecem.
+ */
+export function cartasNaOrdemDaMesa(passo: Passo, regras: Regras): Carta[] {
+  const mexidos = passo.jogoIds.map((id) => passo.mesa.find((j) => j.id === id)).filter((j) => !!j);
+  const resto = passo.mesa.filter((j) => !passo.jogoIds.includes(j.id));
+  const posicao = new Map<string, number>();
+  for (const jogo of [...mexidos, ...resto]) {
+    for (const c of ordemParaMostrar(jogo.cartas, regras)) if (!posicao.has(c.id)) posicao.set(c.id, posicao.size);
+  }
+  const lugar = (c: Carta) => posicao.get(c.id) ?? Number.MAX_SAFE_INTEGER;
+  return [...passo.cartasDaMao].sort((a, b) => lugar(a) - lugar(b));
+}
+
 /** Versão curta de um passo, para a pílula do adversário ("pôs 5♣"). */
-export function resumoDoPasso(passo: Passo): string {
-  const cartas = listaDeCartas(passo.cartasDaMao);
+export function resumoDoPasso(passo: Passo, regras: Regras): string {
+  const cartas = listaDeCartas(cartasNaOrdemDaMesa(passo, regras));
   if (passo.tipo === 'baixou') return `baixou ${cartas}`;
   if (passo.tipo === 'encostou') return `pôs ${cartas}`;
   return 'rearrumou a mesa';
@@ -39,7 +54,7 @@ export function resumoDoPasso(passo: Passo): string {
 
 /** Frase sobre um passo da jogada ("O computador colocou 5♣ no jogo 2♣ 3♣ 4♣."). */
 export function descreverPasso(passo: Passo, quem: string, regras: Regras, comoDica = false): string {
-  const cartas = listaDeCartas(passo.cartasDaMao);
+  const cartas = listaDeCartas(cartasNaOrdemDaMesa(passo, regras));
   if (comoDica) quem = 'Você pode';
   const [baixou, colocou, rearrumou] = comoDica ? ['baixar', 'colocar', 'rearrumar'] : ['baixou', 'colocou', 'rearrumou'];
   if (passo.tipo === 'baixou') return `${quem} ${baixou} um jogo novo: ${cartas}.`;
