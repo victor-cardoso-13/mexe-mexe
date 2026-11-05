@@ -190,7 +190,7 @@ function htmlMesa(e: Estado, p: Partida): string {
       const classes = ['jogo', tipo, r.valido ? '' : 'invalido', e.destaques.includes(j.id) ? 'destaque' : ''].join(' ');
       // Só um "!" no jogo: o motivo aparece na faixa da vez (um texto comprido aqui empurrava a mesa e encolhia as cartas).
       const erro = r.valido ? '' : '<div class="erro" aria-hidden="true">!</div>';
-      const mais = selecionadas.size ? '<div class="mais-aqui" aria-hidden="true">+</div>' : '';
+      const mais = selecionadas.size ? '<div class="mais-aqui" aria-hidden="true"></div>' : '';
       return `<div class="${classes}" data-destino="jogo:${j.id}">${cartas}${erro}${mais}</div>`;
     })
     .join('');

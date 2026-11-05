@@ -70,17 +70,31 @@ for (const [nome, w, h] of telas.filter((_, i) => !so || so.includes(i))) {
       const m = await pg.evaluate(() => window.__mudancas);
       // conta mudanças de tamanho de carta (não de altura de caixa) e inversões (A→B→A)
       const tam = m.map((x) => `${x.mesaW}/${x.maoW}`).filter((v, i, a) => i === 0 || v !== a[i - 1]);
+      // Mudanças de tamanho que acontecem na vez do adversário (ou no "Fazer"), quando ninguém tocou em nada.
+      const naVezDele = m.filter((x, i) => i > 0 && x.pc && `${x.mesaW}/${x.maoW}` !== `${m[i - 1].mesaW}/${m[i - 1].maoW}`).length;
+      // Por jogada animada: a 1ª mudança pode ser a planejada (antes de mexer); as outras são "no meio".
+      // E "cresceu depois": mudou logo que a sua vez voltou, sem você ter tocado em nada.
+      let noMeio = 0, depois = 0, mudouNoBloco = 0;
+      for (let i = 1; i < m.length; i++) {
+        const mudou = `${m[i].mesaW}/${m[i].maoW}` !== `${m[i - 1].mesaW}/${m[i - 1].maoW}`;
+        // Cada jogada animada é um bloco: começa quando a vez muda (o "Fazer" passa direto para o adversário).
+        if (m[i].pc && (!m[i - 1].pc || m[i].vez !== m[i - 1].vez)) mudouNoBloco = 0;
+        if (!mudou || m[i].aviso.startsWith('Você comprou')) continue; // comprar muda a SUA mão: é toque seu
+        if (m[i].pc) { if (mudouNoBloco++ > 0) noMeio++; }
+        else if (m[i - 1].pc || (m[i].sel === 0 && m[i].jogos === m[i - 1].jogos && m[i].mao === m[i - 1].mao)) depois++;
+      }
       let inversoes = 0;
       for (let i = 2; i < tam.length; i++) if (tam[i] === tam[i - 2]) inversoes++;
       const alturas = m.map((x) => `${x.mesaH}|${x.maoH}|${x.topoH}|${x.avisoH}|${x.botoesH}`).filter((v, i, a) => i === 0 || v !== a[i - 1]).length - 1;
-      console.log(`${nome} · ${adversarios + 1} jogadores · semente ${semente}: ${turnos} turnos → tamanhos de carta mudaram ${tam.length - 1}× (inversões ${inversoes}); altura de mesa/mão mudou ${alturas}×`);
+      console.log(`${nome} · ${adversarios + 1} jogadores · semente ${semente}: ${turnos} turnos → tamanhos de carta mudaram ${tam.length - 1}× (inversões ${inversoes}; ${noMeio} no meio da jogada, ${depois} logo depois); altura de mesa/mão mudou ${alturas}×`);
       if (process.env.DETALHE) console.log(tam.join('  '));
+      if (process.env.MUDANCAS) m.forEach((x, i) => { if (i && `${x.mesaW}/${x.maoW}` !== `${m[i - 1].mesaW}/${m[i - 1].maoW}`) console.log(`  ${m[i - 1].mesaW}/${m[i - 1].maoW} → ${x.mesaW}/${x.maoW}  pc=${x.pc} vez=${x.vez} jogos=${m[i - 1].jogos}→${x.jogos} mão=${x.mao} "${x.aviso}"`); });
       if (process.env.ALT) { const ev = []; m.forEach((x, i) => { if (i && (x.mesaH !== m[i-1].mesaH || x.maoH !== m[i-1].maoH || x.topoH !== m[i-1].topoH || x.avisoH !== m[i-1].avisoH || x.botoesH !== m[i-1].botoesH)) ev.push(`mesa ${m[i-1].mesaH}→${x.mesaH} mão ${m[i-1].maoH}→${x.maoH} topo ${m[i-1].topoH}→${x.topoH} aviso ${m[i-1].avisoH}→${x.avisoH} botões ${m[i-1].botoesH}→${x.botoesH} [pc=${x.pc} sel=${x.sel} jogos=${x.jogos} mão=${x.mao} "${x.aviso}"]`); }); console.log(ev.slice(0, 40).join('\n')); }
-      resumo.push({ nome, mudancas: tam.length - 1, inversoes, turnos, alturas });
+      resumo.push({ nome, mudancas: tam.length - 1, inversoes, turnos, alturas, noMeio, depois });
       await ctx.close();
     }
   }
 }
 await b.close();
 const soma = (k) => resumo.reduce((s, r) => s + r[k], 0);
-console.log(`\nTOTAL: ${soma('turnos')} turnos, ${soma('mudancas')} mudanças de tamanho (${soma('inversoes')} inversões), ${soma('alturas')} mudanças de altura`);
+console.log(`\nTOTAL: ${soma('turnos')} turnos, ${soma('mudancas')} mudanças de tamanho (${soma('inversoes')} inversões, ${soma('noMeio')} no meio da jogada, ${soma('depois')} logo depois), ${soma('alturas')} mudanças de altura`);

@@ -19,7 +19,7 @@ import { anotar, baixarDiario, diarioParaEnviar, guardarDicaPerdeu, textoCartas,
 import { abrirSugestao } from './ui/sugestao';
 import { estadoInicial, type Ajustes, type Ordenacao } from './ui/estado';
 import { escapar, htmlAjustes, htmlComoJogar, htmlConfirmarNova, htmlConfirmarSair, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenu, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlTutorial, type Mensagem } from './ui/desenho';
-import { encaixar, reiniciarEncaixe } from './ui/encaixe';
+import { encaixar, prepararTamanho, reiniciarEncaixe, soltarTamanho } from './ui/encaixe';
 import { codigoNoLink, criarOnline, linkDaSalaAtual, nomeSalvo, LIMITE_PADRAO_SEG } from './online/controle';
 import { carregarAjustes, carregarGaveta, salvarAjustes, salvarGaveta, type Gaveta } from './ui/salvar';
 import { resultadoDaPartida, resumir } from './ui/retrospecto';
@@ -106,8 +106,33 @@ function reordenarMaoSeMudou() {
   maoVista = assinatura;
 }
 
+/** true enquanto a tela é desenhada "escondida" no estado final de uma jogada, só para medir (travarTamanhoNoFim). */
+let medindoFim = false;
+
+/**
+ * Antes de uma jogada animada (adversário ou "Fazer" da dica): desenha a tela como ela vai ficar no FIM,
+ * acerta o tamanho das cartas para esse fim e trava (encaixe.ts). Tudo no mesmo instante, sem aparecer na tela
+ * (o navegador só pinta depois). Assim a mesa não encolhe no meio da jogada nem cresce de novo depois.
+ */
+function travarTamanhoNoFim(partidaFinal: Partida) {
+  const guardado = { partida: e.partida, mesa: e.mesaExibida, cartas: e.cartasExibidas, chegaram: e.chegaram };
+  e.partida = partidaFinal;
+  e.mesaExibida = null;
+  e.cartasExibidas = null;
+  medindoFim = true;
+  try {
+    desenhar();
+  } finally {
+    medindoFim = false;
+    e.partida = guardado.partida;
+    e.mesaExibida = guardado.mesa;
+    e.cartasExibidas = guardado.cartas;
+    e.chegaram = guardado.chegaram;
+  }
+}
+
 function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms: number }) {
-  reordenarMaoSeMudou();
+  if (!medindoFim) reordenarMaoSeMudou();
   const antes = movimento ? capturarPosicoes(app) : null;
   const rolagem = app.querySelector('.mesa')?.scrollTop ?? 0;
   localStorage.setItem(CHAVE_TELA, e.online ? 'inicio' : e.tela);
@@ -132,6 +157,7 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   if (e.janela === 'comoJogar') html += htmlComoJogar(ajustes);
   if (e.janela === 'fim' && e.partida) html += htmlFim(e.partida, e.campeonato, e.online);
   app.innerHTML = html;
+  if (medindoFim) return prepararTamanho();
   encaixar(chaveDoEncaixe(), podeCrescerAsCartas(), e.computadorJogando);
   // Se a mesa rola (celular), ela fica onde estava (não volta para o topo a cada toque).
   const mesaEl = app.querySelector<HTMLElement>('.mesa');
@@ -525,6 +551,7 @@ async function fazerDica() {
       if (geracao !== minhaGeracao) throw PAROU;
     };
     let visto = base;
+    travarTamanhoNoFim(definirFoto(base, dica.foto));
     e.computadorJogando = true;
     try {
       await animarPassos(base, dica.passos, 'Você', true, esperar, temposDaAnimacao(), (id) => {
@@ -540,6 +567,7 @@ async function fazerDica() {
       e.cartasExibidas = null;
       e.destaques = [];
       e.computadorJogando = false;
+      soltarTamanho();
     }
     if (e.partida !== visto) return; // mudou no meio (ex.: nova partida)
   }
@@ -690,8 +718,14 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
     });
     const r = jogada ? aplicarJogada(p, jogada.foto) : null;
     if (jogada && r?.ok) {
-      if (ajustes.animacoes) await animarPassos(p, jogada.passos, `O ${quem}`, false, esperar, tempo);
-      else e.destaques = jogada.passos.flatMap((passo) => passo.jogoIds);
+      if (ajustes.animacoes) {
+        travarTamanhoNoFim(r.partida);
+        try {
+          await animarPassos(p, jogada.passos, `O ${quem}`, false, esperar, tempo);
+        } finally {
+          soltarTamanho();
+        }
+      } else e.destaques = jogada.passos.flatMap((passo) => passo.jogoIds);
       e.partida = r.partida;
     } else {
       const compra = comprarEPassar(p);
