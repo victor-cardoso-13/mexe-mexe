@@ -61,7 +61,13 @@ export function htmlJogo(e: Estado, a: Ajustes): string {
   </div>${e.menuOrdenar ? htmlOrdenar(e) : ''}`;
 }
 
-/** Letra da bolinha do adversário: o número ("Adversário 2" → 2), "A" para o primeiro, ou a 1ª letra do nome (online). */
+/** Letra da bolinha do adversário: o número ("Adversário 2" → 2), "A" se ele é o único, ou a 1ª letra do nome (online). */
+/** Cor da bolinha: segue o número do adversário, para não mudar de cor quando alguém sai do campeonato. */
+function corDoJogador(nome: string, i: number): string {
+  const numero = Number(nome.match(/\d+$/)?.[0]);
+  return `cor-${((numero || i) - 1) % 3}`;
+}
+
 function letraDoJogador(nome: string): string {
   const numero = nome.match(/\d+$/)?.[0];
   if (numero) return numero;
@@ -74,7 +80,7 @@ function htmlPlacar(c: Campeonato, p: Partida): string {
     .map((l) => {
       const quem = l.jogador === 0
         ? '<span class="bol voce">Você</span>'
-        : `<span class="bol cor-${(l.jogador - 1) % 3}">${letraDoJogador(p.jogadores[l.jogador].nome)}</span>`;
+        : `<span class="bol ${corDoJogador(p.jogadores[l.jogador].nome, l.jogador)}">${letraDoJogador(p.jogadores[l.jogador].nome)}</span>`;
       return `<span class="ficha ${l.posicao === 1 ? 'lider' : ''}">${l.posicao === 1 ? '👑' : ''}${quem}<b>${l.pontos}</b></span>`;
     })
     .join('');
@@ -110,7 +116,7 @@ function htmlTopo(e: Estado, p: Partida): string {
       const fala = daVez && !e.online && e.aviso?.curto ? `<span class="fala">· ${e.aviso.curto}</span>` : '';
       // ".versos" fica: é de lá que sai voando a carta que o computador joga (veja main.ts).
       return `<div class="adversario ${daVez} ${qtd === 1 ? 'uma' : ''}" data-jogador="${i}">
-        <span class="avatar cor-${(i - 1) % 3}">${letraDoJogador(j.nome)}</span>
+        <span class="avatar ${corDoJogador(j.nome, i)}">${letraDoJogador(j.nome)}</span>
         <span class="nome">${escapar(j.nome)}</span>
         <span class="qtd"><span class="versos"><span class="verso"></span></span><b>${qtd}</b></span>${fala}${alerta}</div>`;
     })
@@ -146,9 +152,7 @@ function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: 
     return { texto: daMesa ? TEXTOS.escolheuDaMesa : TEXTOS.escolheuCartas, tipo: 'normal', icone: '👆' };
   }
   if (!mexeuNaVez(p)) {
-    // Só aparece se existir mesmo um jogo da mesa onde o coringa entra.
-    const curinga = e.lugarCuringa ? '<button class="acao" data-acao="curingaSolto">🃏 Jogar o coringa</button>' : '';
-    return { texto: TEXTOS.suaVez, tipo: 'normal', icone: '✋', acao: curinga };
+    return { texto: TEXTOS.suaVez, tipo: 'normal', icone: '✋' };
   }
   const c = conferirJogada(p);
   if (c.ok) return { texto: TEXTOS.tudoCerto, tipo: 'normal', icone: '✔' };
@@ -473,8 +477,8 @@ export function htmlComoJogar(a: Ajustes): string {
         ${opcoes('curinga', String(a.curinga), [['false', 'Sem'], ['true', 'Com ★']])}</div>
     </div>
     <div class="rodape-ajustes">
-      <button class="grande" data-acao="comecarComoEscolhido">▶ Começar</button>
       <button class="grande secundario" data-acao="fecharJanela">Voltar</button>
+      <button class="grande" data-acao="comecarComoEscolhido">▶ Começar</button>
     </div>
   </div></div>`;
 }
@@ -594,7 +598,7 @@ export function htmlFim(p: Partida, camp: Campeonato | null = null, online: Onli
     </div>
     <div class="rodape-fim">
       ${botao}
-      <button class="grande secundario" data-acao="fecharJanela">Ver a mesa</button>
+      <button class="grande secundario voltar" data-acao="fecharJanela">Ver a mesa</button>
       ${online ? '<button class="link-diario" data-acao="onlineSair">Sair da sala</button>' : ''}
     </div>
   </div></div>`;

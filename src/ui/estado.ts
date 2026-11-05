@@ -93,10 +93,6 @@ export interface Estado {
   /** Cartas que o computador baixou da mão dele na última rodada (selo laranja "NOVA"). */
   baixadasPeloComputador: string[];
   menuOrdenar: boolean;
-  /** Onde o curinga da mão pode ficar nesta vez (botão "Jogar o coringa"). */
-  lugarCuringa: Foto | null;
-  /** Para qual vez o lugar do curinga já foi calculado. */
-  lugarCuringaVez: string;
   aviso: Aviso | null;
   dica: Dica | null;
   /** Enquanto o computador joga, a tela mostra a mesa passo a passo. */
@@ -125,8 +121,6 @@ export function estadoInicial(): Estado {
     novaCartaId: null,
     baixadasPeloComputador: [],
     menuOrdenar: false,
-    lugarCuringa: null,
-    lugarCuringaVez: '',
     aviso: null,
     dica: null,
     computadorJogando: false,

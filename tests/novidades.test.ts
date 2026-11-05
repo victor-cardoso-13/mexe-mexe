@@ -138,3 +138,14 @@ describe('janela de fim de rodada', () => {
     expect(html.indexOf('>18<') === -1 ? true : html.indexOf('>18<') < html.indexOf('>35<')).toBe(true);
   });
 });
+
+describe('nomes dos adversários', () => {
+  it('um adversário: "Adversário"; vários: "Adversário 1, 2, 3" (bolinhas 1, 2, 3, não A, 2, 3)', () => {
+    expect(novaPartida(criarRegras({ adversarios: 1 }), 1).jogadores.map((j) => j.nome)).toEqual(['Você', 'Adversário']);
+    expect(novaPartida(criarRegras({ adversarios: 3 }), 1).jogadores.map((j) => j.nome)).toEqual(['Você', 'Adversário 1', 'Adversário 2', 'Adversário 3']);
+  });
+  it('depois que alguém sai do campeonato, os que ficam guardam o nome', () => {
+    const nomes = ['Você', 'Adversário 1', 'Adversário 2'];
+    expect(novaPartida(criarRegras({ adversarios: 2 }), 7, nomes).jogadores.map((j) => j.nome)).toEqual(nomes);
+  });
+});

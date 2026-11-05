@@ -181,8 +181,6 @@ export function criarOnline(ctx: Contexto) {
     e.selecionadas = [];
     e.dica = null;
     e.menuOrdenar = false;
-    e.lugarCuringa = null;
-    e.lugarCuringaVez = '';
     e.tela = 'jogo';
     if (e.janela === 'fim' || e.janela === 'online') e.janela = null;
     e.computadorJogando = sala.vez !== dados.eu;
