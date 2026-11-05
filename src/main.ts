@@ -29,6 +29,8 @@ import {
 } from './nuvem/sincronia';
 import { descreverPasso, ordenarMao, resumoDoPasso, TEXTOS } from './ui/textos';
 import { ligarToque } from './ui/toque';
+import { prepararSom, tocarSuaVez } from './ui/som';
+import { acordar, iniciarTelaAcesa, telaAcesa } from './ui/telaAcesa';
 import { animarMovimento, capturarPosicoes, movimentosUmAUm } from './ui/animacao';
 
 const app = document.getElementById('app')!;
@@ -56,6 +58,7 @@ function abrirGaveta() {
   e.mesaExibida = e.cartasExibidas = null;
   e.selecionadas = [];
   limparMensagens();
+  e.ultimasJogadas = [];
   const salvo = gaveta.jogo;
   if (!salvo) {
     Object.assign(e, { partida: null, partidaId: '', campeonato: null, ordemManual: [], novaCartaId: null, baixadasPeloComputador: [] });
@@ -140,6 +143,7 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   const antes = movimento ? capturarPosicoes(app) : null;
   const rolagem = app.querySelector('.mesa')?.scrollTop ?? 0;
   localStorage.setItem(CHAVE_TELA, e.online ? 'inicio' : e.tela);
+  telaAcesa(e.tela === 'jogo');
   document.body.classList.toggle('idade', ajustes.visual === 'idade');
   document.body.classList.toggle('bonito', ajustes.visual === 'bonito');
   let html = '';
@@ -242,9 +246,41 @@ const minhaVez = () => !!e.partida && e.partida.vez === 0 && !e.partida.resultad
 
 /** Limpa avisos e dica antes de cada nova ação da jogadora. */
 function limparMensagens() {
+  pararDeRever();
   e.aviso = null;
   e.dica = null;
   e.menuOrdenar = false;
+}
+
+/** "O que ele fez?": mostra na faixa o resumo da vez de cada adversário, um de cada vez. */
+function rever(proximo: boolean) {
+  if (!minhaVez() || !e.ultimasJogadas.length) return;
+  const i = proximo && e.revendo !== null ? e.revendo + 1 : 0;
+  if (i >= e.ultimasJogadas.length) {
+    pararDeRever();
+    return desenhar();
+  }
+  e.aviso = null;
+  e.dica = null;
+  e.revendo = i;
+  const passos = e.ultimasJogadas[i].passos ?? [];
+  const naMesa = new Set(e.partida!.mesa.map((j) => j.id));
+  e.destaques = passos.flatMap((p) => p.jogoIds).filter((id) => naMesa.has(id));
+  desenhar();
+  const primeiro = e.destaques[0] && app.querySelector(`.mesa [data-destino="jogo:${e.destaques[0]}"]`);
+  if (primeiro) primeiro.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function pararDeRever() {
+  if (e.revendo === null) return;
+  e.revendo = null;
+  e.destaques = [];
+}
+
+/** Começou a sua vez: "plim" (se ligado) e a tela volta a contar os 30 s. */
+function comecouSuaVez() {
+  if (ajustes.sons) tocarSuaVez();
+  acordar();
 }
 
 function avisar(texto: string, tipo: 'normal' | 'problema' = 'problema') {
@@ -277,7 +313,7 @@ function comecarPartida(proxima = false, semEliminados = false) {
   if (nomesVivos) e.campeonato = semOsEliminados(e.campeonato!);
   else if (proxima && e.campeonato) e.campeonato = proximaRodada(e.campeonato);
   else e.campeonato = ajustes.modo === 'campeonato' ? novoCampeonato(e.partida.jogadores.length) : null;
-  Object.assign(e, { tela: 'jogo', janela: null, selecionadas: [], novaCartaId: null, ordemManual: [], baixadasPeloComputador: [] });
+  Object.assign(e, { tela: 'jogo', janela: null, selecionadas: [], novaCartaId: null, ordemManual: [], baixadasPeloComputador: [], ultimasJogadas: [], revendo: null });
   limparMensagens();
   if (e.ordenacao === 'manual') e.ordenacao = 'naipe';
   salvar();
@@ -605,6 +641,7 @@ async function continuarJogo(pausaInicial: number) {
   e.aviso = null;
   if (e.partida?.resultado) return mostrarFim();
   desenhar();
+  if (e.partida?.vez === 0) comecouSuaVez();
 }
 
 const PAROU = Symbol('parou');
@@ -675,6 +712,7 @@ async function animarPassos(
 }
 
 async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo: Record<string, number>) {
+  if (e.partida && e.partida.vez !== 0) e.ultimasJogadas = [];
   while (e.partida && !e.partida.resultado && e.partida.vez !== 0) {
     const p: Partida = e.partida;
     const quem = jogadorDaVez(p).nome;
@@ -697,6 +735,7 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
       busca: { ...ultimaBusca },
     });
     const r = jogada ? aplicarJogada(p, jogada.foto) : null;
+    e.ultimasJogadas.push({ jogador: p.vez, passos: jogada && r?.ok ? jogada.passos : null });
     if (jogada && r?.ok) {
       if (ajustes.animacoes) {
         travarTamanhoNoFim(r.partida);
@@ -744,6 +783,13 @@ function mudarAjuste(chave: string, valor: string) {
   if (chave === 'quatroCores') ajustes.quatroCores = valor === 'true';
   if (chave === 'curinga') ajustes.curinga = valor === 'true';
   if (chave === 'adversarios') ajustes.adversarios = Number(valor);
+  if (chave === 'sons') {
+    ajustes.sons = valor === 'true';
+    if (ajustes.sons) {
+      prepararSom();
+      tocarSuaVez(); // para a pessoa ouvir como é
+    }
+  }
   salvarAjustes(ajustes);
   salvar();
   desenhar();
@@ -978,6 +1024,8 @@ app.addEventListener('click', (ev) => {
       case 'comprar': return botaoComprar();
       case 'dica': return botaoDica();
       case 'fazerDica': return fazerDica();
+      case 'rever': return rever(false);
+      case 'reverProxima': return rever(true);
       case 'abrirMenu':
         e.menuOrdenar = false;
         e.janela = 'menu';
@@ -1067,6 +1115,10 @@ app.addEventListener('click', (ev) => {
   if (destino) tocarDestino(destino);
 });
 
+// Som: o iPhone só libera depois de um toque. Tela acesa: 30 s sem tocar, escurece e deixa o iPhone apagar.
+document.addEventListener('pointerdown', () => { if (ajustes.sons) prepararSom(); }, { capture: true, passive: true });
+iniciarTelaAcesa(() => e.computadorJogando);
+
 ligarToque(app, {
   podeMexer: minhaVez,
   tocarCarta,
@@ -1092,6 +1144,7 @@ let codigoConvite = codigoNoLink() ?? '';
 
 const online = criarOnline({
   e,
+  suaVez: () => comecouSuaVez(),
   desenhar: () => desenhar(),
   voltarAoInicio: () => {
     abrirGaveta();

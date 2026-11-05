@@ -269,15 +269,19 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
 /* ---------- Mão, numa bandeja ---------- */
 .area-mao {
   position: relative; /* para a etiqueta "9 cartas · 65 pontos" */
-  grid-area: mao; border-radius: 18px; padding: 14px 10px 8px; /* 14 em cima: lugar da etiqueta */
+  grid-area: mao; border-radius: 18px; padding: 4px 10px 8px;
   background: linear-gradient(#efe2cc, #e6d5b8); box-shadow: inset 0 2px 6px #3b2f2a26;
 }
 .conta-mao {
-  position: absolute; top: -17px; right: 14px; z-index: 5; pointer-events: none; white-space: nowrap;
-  background: #fff; border-radius: 999px; padding: 3px 12px; font-size: 15px; font-weight: 800; color: var(--tinta);
-  box-shadow: 0 1px 4px #3b2f2a40, inset 0 0 0 2px #3b2f2a22;
+  /* Dentro da bandeja, na linha de cima, à direita: não cobre a faixa nem as cartas. */
+  width: fit-content; margin: 0 2px 0 auto; pointer-events: none; white-space: nowrap;
+  background: #fff; border-radius: 999px; padding: 1px 12px; font-size: 15px; font-weight: 800; color: var(--tinta);
+  box-shadow: inset 0 0 0 2px #3b2f2a22;
 }
 .conta-mao b { font-family: var(--titulo); font-size: 17px; }
+/* Tela escurecida depois de 30 s sem tocar (um toque clareia). */
+.veu-esmaecer { position: fixed; inset: 0; z-index: 9999; background: #000; opacity: .6; animation: esmaecer 1.2s ease; }
+@keyframes esmaecer { from { opacity: 0; } to { opacity: .6; } }
 .mao {
   display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
   padding-top: calc(var(--mao-w) * 0.2);
@@ -344,7 +348,7 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
   .faixa .chip { width: 38px; height: 38px; font-size: 20px; }
   .faixa .msg { font-size: 17px; }
   .faixa .baixar-jogo, .faixa .acao { font-size: 16px; height: 44px; padding: 0 12px; gap: 6px; }
-  .area-mao { padding: 12px 6px 6px; border-radius: 16px; }
+  .area-mao { padding: 2px 6px 6px; border-radius: 16px; }
   .botoes { gap: 6px; }
   .botoes .comprar { font-size: 19px; gap: 14px; }
 }
@@ -376,7 +380,7 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
   .faixa .baixar-jogo, .faixa .acao { font-size: 14px; height: 32px; padding: 0 10px; gap: 5px; border-width: 2px; }
   .faixa .icone-baixar { font-size: 17px; }
   .area-mao { padding: 0 6px 4px; border-radius: 12px; }
-  .conta-mao { top: -9px; right: 10px; padding: 1px 8px; font-size: 12px; }
+  .conta-mao { padding: 0 8px; font-size: 12px; }
   .conta-mao b { font-size: 13px; }
   .mao { gap: 5px; }
   .botoes { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr 1.6fr; gap: 5px; }

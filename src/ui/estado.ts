@@ -3,11 +3,11 @@
  * O estado do JOGO em si fica em "partida" (motor de regras).
  */
 import type { Foto, Jogo, Partida } from '../motor/partida';
+import type { Passo } from '../ia';
 import type { NivelIA } from '../motor/regras';
 import type { Campeonato } from '../motor/campeonato';
 import type { Carta } from '../motor/cartas';
 import type { Sala } from '../online/logica';
-import type { Passo } from '../ia';
 
 export type Ordenacao = 'naipe' | 'asBaixo' | 'asAlto' | 'manual';
 
@@ -41,6 +41,8 @@ export interface Ajustes {
   tutorialVisto: boolean;
   /** Casual (uma partida) ou campeonato até 100 pontos (vale na próxima partida). */
   modo: 'casual' | 'campeonato';
+  /** Som de "sua vez". Começa DESLIGADO para todo mundo. */
+  sons: boolean;
 }
 
 export const AJUSTES_PADRAO: Ajustes = {
@@ -53,6 +55,7 @@ export const AJUSTES_PADRAO: Ajustes = {
   visual: 'idade',
   tutorialVisto: false,
   modo: 'casual',
+  sons: false,
 };
 
 /** Sala online em que a pessoa está (null = jogando sozinha contra o computador). */
@@ -93,6 +96,10 @@ export interface Estado {
   /** Cartas que o computador baixou da mão dele na última rodada (selo laranja "NOVA"). */
   baixadasPeloComputador: string[];
   menuOrdenar: boolean;
+  /** Última vez de cada adversário (botão "O que ele fez?"), na ordem em que jogaram. passos null = comprou. */
+  ultimasJogadas: { jogador: number; passos: Passo[] | null }[];
+  /** Qual delas está aparecendo na faixa agora (null = nenhuma). */
+  revendo: number | null;
   aviso: Aviso | null;
   dica: Dica | null;
   /** Enquanto o computador joga, a tela mostra a mesa passo a passo. */
@@ -127,6 +134,8 @@ export function estadoInicial(): Estado {
     mesaExibida: null,
     cartasExibidas: null,
     destaques: [],
+    ultimasJogadas: [],
+    revendo: null,
     chegaram: [],
   };
 }

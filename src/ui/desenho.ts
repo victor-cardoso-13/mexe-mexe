@@ -12,7 +12,7 @@ import type { NivelIA } from '../motor/regras';
 import type { Ajustes, Aviso, Estado, Online } from './estado';
 import type { Contagem, Resumo } from './retrospecto';
 import { podeBaixarJogo } from './baixarJogo';
-import { NOMES_ORDENACAO, ordenarMao, TEXTOS } from './textos';
+import { NOMES_ORDENACAO, ordenarMao, resumoDaVez, TEXTOS } from './textos';
 import { passosDoTutorial } from './tutorial';
 import { ativos, MAX_JOGADORES, MIN_JOGADORES } from '../online/logica';
 import { escapar } from './seguranca';
@@ -112,7 +112,8 @@ function htmlTopo(e: Estado, p: Partida): string {
       if (i === 0) return '';
       const qtd = e.cartasExibidas?.[i] ?? j.mao.length;
       const alerta = qtd === 1 ? '<span class="alerta-uma">⚠️<span class="longo"> Só 1 carta!</span></span>' : '';
-      const daVez = p.vez === i && e.computadorJogando ? 'da-vez' : '';
+      const revendoEle = e.revendo !== null && e.ultimasJogadas[e.revendo]?.jogador === i;
+      const daVez = (p.vez === i && e.computadorJogando) || revendoEle ? 'da-vez' : '';
       const fala = daVez && !e.online && e.aviso?.curto ? `<span class="fala">· ${e.aviso.curto}</span>` : '';
       // ".versos" fica: é de lá que sai voando a carta que o computador joga (veja main.ts).
       return `<div class="adversario ${daVez} ${qtd === 1 ? 'uma' : ''}" data-jogador="${i}">
@@ -146,13 +147,28 @@ function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: 
   if (p.resultado) return { texto: 'A partida acabou.', tipo: 'normal', icone: '🏁', acao: '<button class="acao" data-acao="novaPartida">Jogar de novo</button>' };
   if (e.online && p.resultado === null && e.online.sala?.fase === 'contando') return { texto: 'Contando os pontos…', tipo: 'computador', icone: '⏳' };
   if (!minhaVez) return { texto: e.online ? `Vez de ${escapar(jogadorDaVez(p).nome)}…` : 'Vez do computador…', tipo: 'computador', icone: '⏳' };
+  if (e.revendo !== null && e.ultimasJogadas[e.revendo] && !e.selecionadas.length && !mexeuNaVez(p)) {
+    const r = e.ultimasJogadas[e.revendo];
+    const ultimo = e.revendo === e.ultimasJogadas.length - 1;
+    const nome = escapar(p.jogadores[r.jogador]?.nome ?? 'Adversário');
+    return {
+      texto: `O ${nome} ${resumoDaVez(r.passos, p.regras)}.`,
+      tipo: 'computador',
+      icone: '👀',
+      acao: `<button class="acao" data-acao="reverProxima">${ultimo ? 'Pronto ✔' : 'Próxima ▶'}</button>`,
+    };
+  }
   if (e.dica) return { texto: e.dica.texto.replace(/^💡\s*/, ''), tipo: 'normal', icone: '💡', acao: `<button class="acao" data-acao="fazerDica">${ICONES.passar}Fazer</button>` };
   if (e.selecionadas.length) {
     const daMesa = e.selecionadas.some((id) => ondeEstaCarta(p, id) !== 'mao');
     return { texto: daMesa ? TEXTOS.escolheuDaMesa : TEXTOS.escolheuCartas, tipo: 'normal', icone: '👆' };
   }
   if (!mexeuNaVez(p)) {
-    return { texto: TEXTOS.suaVez, tipo: 'normal', icone: '✋' };
+    // "O que ele fez?": resumo da última vez de cada adversário (só contra o computador).
+    const rever = e.ultimasJogadas.length && !e.online
+      ? `<button class="acao" data-acao="rever">👀 ${p.jogadores.length > 2 ? 'O que fizeram?' : 'O que ele fez?'}</button>`
+      : '';
+    return { texto: TEXTOS.suaVez, tipo: 'normal', icone: '✋', acao: rever };
   }
   const c = conferirJogada(p);
   if (c.ok) return { texto: TEXTOS.tudoCerto, tipo: 'normal', icone: '✔' };
@@ -535,6 +551,8 @@ export function htmlAjustes(a: Ajustes, online: Online | null = null, email: str
         ${opcoes('visual', a.visual, [['idade', 'Melhor idade'], ['bonito', 'Normal']])}</div>
       <div class="ajuste"><div class="nome-ajuste">Cores dos naipes</div>
         ${opcoes('quatroCores', String(a.quatroCores), [['false', `2 cores${duas}`], ['true', `4 cores${quatro}`]])}</div>
+      <div class="ajuste"><div class="nome-ajuste">Som de "sua vez"<small>no silencioso, não toca</small></div>
+        ${opcoes('sons', String(a.sons), [['true', 'Ligado'], ['false', 'Desligado']])}</div>
       ${computador}
       ${online ? htmlTirarJogadores(online) : ''}
       <div class="secao">Mais</div>
