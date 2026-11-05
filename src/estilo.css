@@ -160,13 +160,11 @@ svg.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width
 /* "+" de cada jogo (escolheu cartas): bolinha âmbar com borda; área de toque invisível de ~52 px */
 .mais-aqui {
   position: absolute; right: -11px; top: -13px; width: 32px; height: 32px; border-radius: 50%; z-index: 4;
-  /* A cruz é desenhada (duas barras no centro exato), não é a letra "+", que fica fora do meio dependendo da fonte. */
-  background:
-    linear-gradient(var(--tinta), var(--tinta)) center / 56% 5px no-repeat,
-    linear-gradient(var(--tinta), var(--tinta)) center / 5px 56% no-repeat,
-    var(--ambar-claro);
+  /* A cruz é um SVG (desenho.ts, CRUZ), não a letra "+": fica no centro exato e simétrica em qualquer tamanho. */
+  display: grid; place-items: center; background: var(--ambar-claro);
   border: 2.5px solid var(--tinta); cursor: pointer; box-shadow: 0 2px 6px #0004;
 }
+.mais-aqui svg { width: 68%; height: 68%; stroke: var(--tinta); fill: none; display: block; }
 .mais-aqui::before { content: ""; position: absolute; inset: -12px; border-radius: 14px; }
 /* Espaço vazio: só aparece com carta escolhida ou arrastando (o lugar fica reservado: nada se mexe) */
 .vazio {

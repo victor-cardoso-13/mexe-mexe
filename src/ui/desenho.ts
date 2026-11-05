@@ -157,6 +157,9 @@ function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: 
   return { texto: c.problemas[0], tipo: 'problema', icone: '!' };
 }
 
+/** Cruz do "+" de cada jogo: desenho vetorial (fica no centro exato em qualquer tamanho de tela). */
+const CRUZ = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-width="4.5" stroke-linecap="round"/></svg>';
+
 function htmlMesa(e: Estado, p: Partida): string {
   const mesa = e.mesaExibida ?? p.mesa;
   const selecionadas = new Set(e.selecionadas);
@@ -190,7 +193,7 @@ function htmlMesa(e: Estado, p: Partida): string {
       const classes = ['jogo', tipo, r.valido ? '' : 'invalido', e.destaques.includes(j.id) ? 'destaque' : ''].join(' ');
       // Só um "!" no jogo: o motivo aparece na faixa da vez (um texto comprido aqui empurrava a mesa e encolhia as cartas).
       const erro = r.valido ? '' : '<div class="erro" aria-hidden="true">!</div>';
-      const mais = selecionadas.size ? '<div class="mais-aqui" aria-hidden="true"></div>' : '';
+      const mais = selecionadas.size ? `<div class="mais-aqui" aria-hidden="true">${CRUZ}</div>` : '';
       return `<div class="${classes}" data-destino="jogo:${j.id}">${cartas}${erro}${mais}</div>`;
     })
     .join('');
