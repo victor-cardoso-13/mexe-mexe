@@ -7,6 +7,8 @@
  * navegador deslizar até o lugar novo.
  */
 import type { Jogo } from '../motor/partida';
+import type { Regras } from '../motor/regras';
+import { ordemParaMostrar } from '../motor/validacao';
 
 /** Guarda a posição de todas as cartas na tela. */
 export function capturarPosicoes(raiz: HTMLElement): Map<string, DOMRect> {
@@ -62,13 +64,14 @@ export function animarMovimento(
  * Primeiro as cartas que trocam de jogo na mesa, depois as que vêm da mão.
  * Devolve, para cada movimento, como a mesa fica e qual carta se mexeu.
  */
-export function movimentosUmAUm(antes: Jogo[], depois: Jogo[]): Array<{ mesa: Jogo[]; cartaId: string }> {
+export function movimentosUmAUm(antes: Jogo[], depois: Jogo[], regras?: Regras): Array<{ mesa: Jogo[]; cartaId: string }> {
   const origem = new Map<string, string>();
   for (const j of antes) for (const c of j.cartas) origem.set(c.id, j.id);
   const destino = new Map<string, string>();
   for (const j of depois) for (const c of j.cartas) destino.set(c.id, j.id);
 
-  const todas = depois.flatMap((j) => j.cartas);
+  // As cartas entram na ordem em que ficam na mesa (6 7 8, e não 7 6 8), como a pessoa esperaria.
+  const todas = depois.flatMap((j) => (regras ? ordemParaMostrar(j.cartas, regras) : j.cartas));
   const ordem = [
     ...todas.filter((c) => origem.has(c.id) && origem.get(c.id) !== destino.get(c.id)),
     ...todas.filter((c) => !origem.has(c.id)),
