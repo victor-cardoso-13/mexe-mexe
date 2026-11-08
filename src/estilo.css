@@ -749,3 +749,14 @@ body.idade .palco .carta { --w: 60px; }
 .sorteio-quem .carta.verso { background: repeating-linear-gradient(45deg, var(--ambar) 0 7px, var(--ambar-claro) 7px 14px); border: 3px solid #fff; }
 .sorteio-quem.ganha .carta { box-shadow: 0 0 0 5px #ffd75e, 0 0 18px #ffd75e; }
 .sorteio-quem.fora { opacity: .5; }
+
+/* ---------- Distribuição das cartas (animação) ---------- */
+.carta.aguardando { visibility: hidden; }
+.deck-dist { position: fixed; z-index: 45; width: 52px; height: 73px; pointer-events: none; }
+.deck-dist i { position: absolute; inset: 0; border-radius: 7px; border: 3px solid #fff; background: repeating-linear-gradient(45deg, var(--ambar) 0 6px, var(--ambar-claro) 6px 12px); }
+.deck-dist i:nth-child(2) { transform: translate(2px, 2px); }
+.deck-dist i:nth-child(3) { transform: translate(4px, 4px); }
+.carta-voando { position: fixed; z-index: 46; pointer-events: none; border-radius: 6px; border: 2.5px solid #fff; background: repeating-linear-gradient(45deg, var(--ambar) 0 5px, var(--ambar-claro) 5px 10px); box-shadow: 0 3px 8px #0006; }
+
+/* Frase do 1 contra 1: a letra encolhe sozinha (ajustarFaixa em main.ts) até caber na faixa. */
+.faixa .msg.ajustar { display: block; -webkit-line-clamp: unset; }

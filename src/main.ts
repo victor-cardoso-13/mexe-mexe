@@ -37,6 +37,9 @@ const app = document.getElementById('app')!;
 /** Em que tela estava (se o navegador recarregar a página, volta para o jogo, não para o início). */
 const CHAVE_TELA = 'mexe-mexe:tela';
 const e = estadoInicial();
+/** Distribuição das cartas: identifica a animação em andamento e se a pessoa tocou para pulá-la. */
+let tokenDistribuicao = 0;
+let pularDistribuicao = false;
 let ajustes: Ajustes = carregarAjustes();
 
 /** Partida e retrospecto de quem está jogando (troca quando alguém entra ou sai da conta). */
@@ -54,6 +57,8 @@ function abrirGaveta() {
   cancelarBusca();
   maoVista = '';
   e.computadorJogando = false;
+  e.distribuindo = null;
+  tokenDistribuicao++;
   reiniciarEncaixe();
   e.mesaExibida = e.cartasExibidas = null;
   e.selecionadas = [];
@@ -166,6 +171,7 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   if (e.janela === 'comoJogar') html += htmlComoJogar(ajustes);
   if (e.janela === 'fim' && e.partida) html += htmlFim(e.partida, e.campeonato, e.online);
   app.innerHTML = html;
+  ajustarFaixa();
   if (medindoFim) return prepararTamanho();
   encaixar(chaveDoEncaixe(), podeCrescerAsCartas(), e.computadorJogando);
   // Se a mesa rola (celular), ela fica onde estava (não volta para o topo a cada toque).
@@ -179,6 +185,20 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
     // Carta que sai da mão do computador: parte das cartinhas dele lá em cima.
     const versos = movimento.deJogador != null ? app.querySelector(`[data-jogador="${movimento.deJogador}"] .versos`) : null;
     animarMovimento(app, antes, movimento.ms, movimento.cartaId, versos?.getBoundingClientRect() ?? null);
+  }
+}
+
+/** Frase longa na faixa (1 contra 1): encolhe a letra, até 13 px, até caber em até 2 linhas sem cortar. */
+function ajustarFaixa() {
+  const msg = app.querySelector<HTMLElement>('.faixa .msg.ajustar');
+  const faixa = msg?.parentElement;
+  if (!msg || !faixa) return;
+  const estilo = getComputedStyle(faixa);
+  const limite = faixa.clientHeight - parseFloat(estilo.paddingTop) - parseFloat(estilo.paddingBottom);
+  let tamanho = parseFloat(getComputedStyle(msg).fontSize);
+  while (tamanho > 13 && msg.getBoundingClientRect().height > limite + 0.5) {
+    tamanho -= 1;
+    msg.style.fontSize = `${tamanho}px`;
   }
 }
 
@@ -243,7 +263,7 @@ function talvezPassarSozinho() {
     if (minhaVez() && e.partida!.historico.length === momento && conferirJogada(e.partida!).ok) botaoBaixar();
   }, ESPERA_PARA_PASSAR_MS);
 }
-const minhaVez = () => !!e.partida && e.partida.vez === 0 && !e.partida.resultado && !e.computadorJogando;
+const minhaVez = () => !!e.partida && e.partida.vez === 0 && !e.partida.resultado && !e.computadorJogando && !e.distribuindo;
 
 /** Limpa avisos e dica antes de cada nova ação da jogadora. */
 function limparMensagens() {
@@ -329,12 +349,107 @@ function comecarPartida(proxima = false, semEliminados = false) {
   Object.assign(e, { tela: 'jogo', janela: e.sorteio ? 'sorteio' : null, selecionadas: [], novaCartaId: null, ordemManual: [], baixadasPeloComputador: [], ultimasJogadas: [], revendo: null });
   limparMensagens();
   if (e.ordenacao === 'manual') e.ordenacao = 'naipe';
+  prepararDistribuicao();
   salvar();
   // Primeira partida: mostra o tutorial (a pessoa pode pular).
   if (!ajustes.tutorialVisto) Object.assign(e, { janela: 'tutorial', tutorialPasso: 0 });
   desenhar();
-  // Se o computador começa (e não há sorteio nem tutorial na tela), ele joga já.
-  if (!e.janela && primeiro !== 0) void continuarJogo(700);
+  // Sem sorteio nem tutorial na tela: distribui as cartas e, se o computador começa, ele joga.
+  if (!e.janela) void iniciarRodada();
+}
+
+// ---------------------------------------------------------------------------
+// Distribuição das cartas (animação): uma carta para cada jogador, começando por quem joga primeiro
+// ---------------------------------------------------------------------------
+
+// Um toque na tela pula a animação.
+document.addEventListener('pointerdown', () => { if (e.distribuindo) pularDistribuicao = true; }, { capture: true, passive: true });
+
+/** Esconde as cartas até elas "chegarem" (só se as animações estão ligadas). */
+function prepararDistribuicao() {
+  const p = e.partida;
+  if (!p || !ajustes.animacoes) {
+    e.distribuindo = null;
+    return;
+  }
+  e.distribuindo = { dadas: p.jogadores.map(() => 0) };
+  e.cartasExibidas = p.jogadores.map(() => 0);
+}
+
+async function distribuirAnimado() {
+  const d = e.distribuindo;
+  const inicial = e.partida;
+  if (!d || !inicial) return;
+  const meu = ++tokenDistribuicao;
+  const id = e.partidaId;
+  pularDistribuicao = false;
+  const vivo = () => meu === tokenDistribuicao && !!e.partida && e.partidaId === id && e.distribuindo === d;
+  const n = inicial.jogadores.length;
+  const ordem = Array.from({ length: n }, (_, k) => (inicial.vez + k) % n);
+  const esperar = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  const mesa = app.querySelector<HTMLElement>('.mesa');
+  const deck = document.createElement('div');
+  deck.className = 'deck-dist';
+  deck.innerHTML = '<i></i><i></i><i></i>';
+  const m = mesa?.getBoundingClientRect();
+  deck.style.left = `${(m ? m.left + m.width / 2 : window.innerWidth / 2) - 26}px`;
+  deck.style.top = `${(m ? m.top + m.height / 2 : window.innerHeight / 2) - 36}px`;
+  document.body.appendChild(deck);
+  const total = (i: number) => e.partida?.jogadores[i]?.mao.length ?? 0;
+  const chegou = (j: number) => {
+    if (!vivo()) return;
+    d.dadas[j] = Math.min(d.dadas[j] + 1, total(j));
+    e.cartasExibidas = [...d.dadas];
+    desenhar();
+  };
+  const voar = (j: number) => {
+    const p = e.partida!;
+    const alvo = j === 0
+      ? app.querySelector<HTMLElement>(`.mao [data-carta="${p.jogadores[0].mao[d.dadas[0]]?.id}"]`)
+      : app.querySelector<HTMLElement>(`.adversario[data-jogador="${j}"] .versos`);
+    if (!alvo) return chegou(j);
+    const a = deck.getBoundingClientRect();
+    const b = alvo.getBoundingClientRect();
+    const w = j === 0 ? b.width : 26;
+    const h = j === 0 ? b.height : 36;
+    const voa = document.createElement('div');
+    voa.className = 'carta-voando';
+    voa.style.cssText = `left:${a.left + a.width / 2 - w / 2}px;top:${a.top + a.height / 2 - h / 2}px;width:${w}px;height:${h}px`;
+    document.body.appendChild(voa);
+    const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+    const dy = b.top + b.height / 2 - (a.top + a.height / 2);
+    const fim = () => { voa.remove(); chegou(j); };
+    const anim = voa.animate([{ transform: 'translate(0,0)' }, { transform: `translate(${dx}px,${dy}px)` }], { duration: 300, easing: 'ease-in-out', fill: 'forwards' });
+    anim.onfinish = fim;
+  };
+  try {
+    const maximo = Math.max(...inicial.jogadores.map((j) => j.mao.length));
+    laco: for (let r = 0; r < maximo; r++) {
+      for (const j of ordem) {
+        if (!vivo()) return;
+        if (pularDistribuicao) break laco;
+        if (d.dadas[j] >= total(j)) continue;
+        voar(j);
+        await esperar(140);
+      }
+    }
+    if (!pularDistribuicao) await esperar(420);
+  } finally {
+    deck.remove();
+    document.querySelectorAll('.carta-voando').forEach((el) => el.remove());
+    if (meu === tokenDistribuicao && e.distribuindo === d) {
+      e.distribuindo = null;
+      e.cartasExibidas = null;
+      desenhar();
+    }
+  }
+}
+
+/** Começo de uma rodada: distribui as cartas (animado) e, se o computador começa, ele joga. */
+async function iniciarRodada() {
+  if (e.distribuindo) await distribuirAnimado();
+  if (e.online || e.janela || e.tela !== 'jogo' || !e.partida || e.partida.resultado) return;
+  if (e.partida.vez !== 0) void continuarJogo(500);
 }
 
 /** Sorteio de quem começa: virar, tirar de novo, jogar. */
@@ -347,7 +462,7 @@ function sorteioAcao(acao: 'virar' | 'outra' | 'fechar') {
     e.sorteio = null;
     e.janela = null;
     desenhar();
-    if (e.partida && e.partida.vez !== 0) void continuarJogo(500);
+    void iniciarRodada();
     return;
   }
   desenhar();
@@ -371,7 +486,7 @@ function fecharTutorial() {
   e.janela = e.voltarPara ?? (e.sorteio ? 'sorteio' : null);
   e.voltarPara = null;
   desenhar();
-  if (!e.janela && e.partida && e.tela === 'jogo' && e.partida.vez !== 0 && !e.partida.resultado) void continuarJogo(700);
+  if (!e.janela && e.partida && e.tela === 'jogo' && !e.partida.resultado) void iniciarRodada();
 }
 
 // ---------------------------------------------------------------------------
@@ -776,7 +891,11 @@ async function jogadasDoComputador(esperar: (ms: number) => Promise<void>, tempo
         } finally {
           soltarTamanho();
         }
-      } else e.destaques = jogada.passos.flatMap((passo) => passo.jogoIds);
+      } else {
+        // Animações desligadas: a mesa muda de uma vez, mas as cartas que ele baixou continuam com o selo laranja.
+        e.destaques = jogada.passos.flatMap((passo) => passo.jogoIds);
+        e.baixadasPeloComputador = jogada.passos.flatMap((passo) => passo.cartasDaMao.map((c) => c.id));
+      }
       e.partida = r.partida;
     } else {
       const compra = comprarEPassar(p);
@@ -978,6 +1097,8 @@ function pausar() {
   cancelarBusca();
   geracao++; // se o computador estava no meio da jogada, ela para; ao continuar ele refaz a vez
   e.computadorJogando = false;
+  e.distribuindo = null;
+  tokenDistribuicao++;
   e.mesaExibida = e.cartasExibidas = null;
   e.destaques = [];
   e.aviso = null;
@@ -1180,6 +1301,8 @@ let codigoConvite = codigoNoLink() ?? '';
 const online = criarOnline({
   e,
   suaVez: () => comecouSuaVez(),
+  prepararDistribuicao: () => prepararDistribuicao(),
+  iniciarRodada: () => void iniciarRodada(),
   desenhar: () => desenhar(),
   voltarAoInicio: () => {
     abrirGaveta();

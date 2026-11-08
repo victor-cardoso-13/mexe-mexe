@@ -12,7 +12,7 @@ import type { NivelIA } from '../motor/regras';
 import type { Ajustes, Aviso, Estado, Online } from './estado';
 import type { Contagem, Resumo } from './retrospecto';
 import { podeBaixarJogo } from './baixarJogo';
-import { NOMES_ORDENACAO, ordenarMao, resumoDaVez, TEXTOS } from './textos';
+import { NOMES_ORDENACAO, ordenarMao, resumoDaVez, resumoUmContraUm, TEXTOS } from './textos';
 import { passosDoTutorial } from './tutorial';
 import { ativos, MAX_JOGADORES, MIN_JOGADORES } from '../online/logica';
 import { escapar } from './seguranca';
@@ -43,7 +43,7 @@ export function htmlCarta(c: Carta, classes = ''): string {
 
 export function htmlJogo(e: Estado, a: Ajustes): string {
   const p = e.partida!;
-  const minhaVez = p.vez === 0 && !e.computadorJogando && !p.resultado;
+  const minhaVez = p.vez === 0 && !e.computadorJogando && !p.resultado && !e.distribuindo;
   const classes = [
     'tela-jogo',
     a.quatroCores ? 'quatro-cores' : '',
@@ -57,7 +57,7 @@ export function htmlJogo(e: Estado, a: Ajustes): string {
     ${htmlMesa(e, p)}
     ${htmlFaixa(e, p, minhaVez)}
     ${htmlMao(e, p)}
-    ${htmlBotoes(p, minhaVez, !!e.online)}
+    ${htmlBotoes(p, minhaVez, !!e.online, e.distribuindo ? p.jogadores.reduce((n, j, i) => n + j.mao.length - Math.min(j.mao.length, e.distribuindo!.dadas[i] ?? 0), 0) : 0)}
   </div>${e.menuOrdenar ? htmlOrdenar(e) : ''}`;
 }
 
@@ -111,7 +111,7 @@ function htmlTopo(e: Estado, p: Partida): string {
     .map((j, i) => {
       if (i === 0) return '';
       const qtd = e.cartasExibidas?.[i] ?? j.mao.length;
-      const alerta = qtd === 1 ? '<span class="alerta-uma">⚠️<span class="longo"> Só 1 carta!</span></span>' : '';
+      const alerta = qtd === 1 && !e.distribuindo ? '<span class="alerta-uma">⚠️<span class="longo"> Só 1 carta!</span></span>' : '';
       const revendoEle = e.revendo !== null && e.ultimasJogadas[e.revendo]?.jogador === i;
       const daVez = (p.vez === i && e.computadorJogando) || revendoEle ? 'da-vez' : '';
       const fala = daVez && !e.online && e.aviso?.curto ? `<span class="fala">· ${e.aviso.curto}</span>` : '';
@@ -133,7 +133,8 @@ function htmlTopo(e: Estado, p: Partida): string {
 }
 
 /** Qual frase mostrar na faixa da vez, com o ícone do quadradinho e o botão do momento. */
-function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: string; icone: string } {
+function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: string; icone: string; ajustar?: boolean } {
+  if (e.distribuindo) return { texto: 'Distribuindo as cartas…', tipo: 'computador', icone: '🃏' };
   const icone = (a: Aviso) => (a.tipo === 'problema' ? '!' : a.tipo === 'computador' ? '⏳' : a.texto.startsWith('Você comprou') ? '🃏' : '👉');
   // Vez do computador: a narração curta fica na pílula dele; a faixa só diz de quem é a vez.
   // (p.vez !== 0: durante o "Fazer" da dica a vez é sua e a faixa mostra a narração "Você pode…".)
@@ -164,6 +165,12 @@ function avisoAtual(e: Estado, p: Partida, minhaVez: boolean): Aviso & { acao?: 
     return { texto: daMesa ? TEXTOS.escolheuDaMesa : TEXTOS.escolheuCartas, tipo: 'normal', icone: '👆' };
   }
   if (!mexeuNaVez(p)) {
+    // 1 contra 1 (contra o computador): a própria faixa diz o que o adversário fez, sem o botão "O que ele fez?".
+    const ultima = e.ultimasJogadas[e.ultimasJogadas.length - 1];
+    if (!e.online && p.jogadores.length === 2 && ultima) {
+      const nome = escapar(p.jogadores[ultima.jogador]?.nome ?? 'Adversário');
+      return { texto: `${nome} ${resumoUmContraUm(ultima.passos, p.regras)}.\u00A0${TEXTOS.suaVez.replace(' ', '\u00A0')}`, tipo: 'normal', icone: '👉', ajustar: true };
+    }
     // "O que ele fez?": resumo da última vez de cada adversário (só contra o computador).
     const rever = e.ultimasJogadas.length && !e.online
       ? `<button class="acao" data-acao="rever">👀 ${p.jogadores.length > 2 ? 'O que fizeram?' : 'O que ele fez?'}</button>`
@@ -239,7 +246,7 @@ function htmlFaixa(e: Estado, p: Partida, minhaVez: boolean): string {
   const ok = av.texto === TEXTOS.tudoCerto ? 'ok' : '';
   return `<div class="faixa ${av.tipo} ${ok}">
     <span class="chip" aria-hidden="true">${av.icone}</span>
-    <span class="msg">${av.texto}</span>
+    <span class="msg ${av.ajustar ? 'ajustar' : ''}">${av.texto}</span>
     ${botao}
   </div>`;
 }
@@ -248,22 +255,24 @@ function htmlMao(e: Estado, p: Partida): string {
   const mao = ordenarMao(p.jogadores[0].mao, e.ordenacao, e.ordemManual);
   const selecionadas = new Set(e.selecionadas);
   const daDica = new Set(e.dica?.cartas ?? []);
+  // Distribuindo: as cartas já têm o lugar final, mas só aparecem quando a carta "chega" (veja distribuirAnimado em main.ts).
+  const chegadas = e.distribuindo ? new Set(p.jogadores[0].mao.slice(0, e.distribuindo.dadas[0]).map((c) => c.id)) : null;
   const cartas = mao
     .map((c) => {
       const classes = [
         selecionadas.has(c.id) ? 'selecionada' : '',
         c.id === e.novaCartaId ? 'nova' : '',
         daDica.has(c.id) ? 'dica' : '',
+        chegadas && !chegadas.has(c.id) ? 'aguardando' : '',
       ];
       return htmlCarta(c, classes.join(' '));
     })
     .join('');
-  return `<div class="area-mao" data-destino="mao">${htmlContaDaMao(p)}<div class="mao">${cartas}</div></div>`;
+  return `<div class="area-mao" data-destino="mao">${htmlContaDaMao(p, e.distribuindo ? p.jogadores[0].mao.slice(0, e.distribuindo.dadas[0]) : undefined)}<div class="mao">${cartas}</div></div>`;
 }
 
 /** Etiqueta em cima da mão: quantas cartas e quantos pontos ela vale agora (mesma conta do fim da partida). */
-export function htmlContaDaMao(p: Partida): string {
-  const mao = p.jogadores[0].mao;
+export function htmlContaDaMao(p: Partida, mao: Carta[] = p.jogadores[0].mao): string {
   const pontos = pontosDaMao(mao, p.regras);
   const n = mao.length;
   return `<div class="conta-mao" aria-live="polite"><b>${n}</b> ${n === 1 ? 'carta' : 'cartas'} · <b>${pontos}</b> ${pontos === 1 ? 'ponto' : 'pontos'}</div>`;
@@ -288,12 +297,12 @@ const ICONES = Object.fromEntries(
  * Desfazer · Desfazer tudo · Dica · Comprar (o maior, com o monte desenhado e o número de cartas nele).
  * Não existe botão de passar a vez: ela passa sozinha quando a mesa fica certa (main.ts, talvezPassarSozinho).
  */
-function htmlBotoes(p: Partida, minhaVez: boolean, online = false): string {
+function htmlBotoes(p: Partida, minhaVez: boolean, online = false, aindaNoMonte = 0): string {
   const off = minhaVez ? '' : 'disabled';
   const podeDesfazer = minhaVez && mexeuNaVez(p) ? '' : 'disabled';
   const b = (acao: string, icone: string, nome: string, extra = '') =>
     `<button data-acao="${acao}" ${extra}><span class="icone">${icone}</span><span class="nome-botao">${nome}</span></button>`;
-  const n = p.monte.length;
+  const n = p.monte.length + aindaNoMonte;
   // O número fica só na bolinha do montinho (vermelha quando o monte está acabando).
   const monte = `<span class="monte-ic ${n <= 5 ? 'pouco' : ''}" aria-hidden="true"><i></i><i></i><i></i><b>${n}</b></span>`;
   const apagado = minhaVez && mexeuNaVez(p) && !mesaMexidaEstaCerta(p) ? 'apagado' : '';

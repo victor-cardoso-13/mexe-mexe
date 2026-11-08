@@ -52,6 +52,16 @@ export function resumoDoPasso(passo: Passo, regras: Regras): string {
   return 'rearrumou a mesa';
 }
 
+/**
+ * Frase curta da faixa no 1 contra 1 ("Adversário ___. Sua vez"): comprou, ou o que baixou da mão
+ * (1 carta: "abaixou o 5♥"; 3 cartas: "abaixou 3♥ 4♥ 5♥"). Não fala de mexer na mesa.
+ */
+export function resumoUmContraUm(passos: Passo[] | null, regras: Regras): string {
+  if (!passos?.length) return 'comprou uma carta';
+  const cartas = passos.flatMap((p) => cartasNaOrdemDaMesa(p, regras));
+  return cartas.length === 1 ? `abaixou o ${nomeDaCarta(cartas[0])}` : `abaixou ${listaDeCartas(cartas)}`;
+}
+
 /** Frase sobre um passo da jogada ("O computador colocou 5♣ no jogo 2♣ 3♣ 4♣."). */
 export function descreverPasso(passo: Passo, quem: string, regras: Regras, comoDica = false): string {
   const cartas = listaDeCartas(cartasNaOrdemDaMesa(passo, regras));

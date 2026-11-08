@@ -72,13 +72,14 @@ export function novaPartida(regras: Regras, semente: number, nomes?: string[], p
 
   const { lista: monte, semente: s } = embaralhar(criarMonte(regras), semente);
 
+  // As cartas são dadas UMA PARA CADA jogador, começando por quem joga primeiro e seguindo a ordem da mesa.
   const jogadores: Jogador[] = [];
   for (let i = 0; i <= qtdAdversarios; i++) {
-    jogadores.push({
-      nome: nomes?.[i] ?? nomesPadrao[i],
-      humano: i === 0,
-      mao: monte.splice(0, regras.cartasPorJogador),
-    });
+    jogadores.push({ nome: nomes?.[i] ?? nomesPadrao[i], humano: i === 0, mao: [] });
+  }
+  const quantos = jogadores.length;
+  for (let rodada = 0; rodada < regras.cartasPorJogador; rodada++) {
+    for (let k = 0; k < quantos; k++) jogadores[(primeiro + k) % quantos].mao.push(monte.shift()!);
   }
 
   return {
