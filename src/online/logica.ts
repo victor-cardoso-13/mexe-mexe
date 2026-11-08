@@ -166,7 +166,8 @@ export function sorteioLocal(s: Sala, eu: number, rodada: number): { tiradas: Ti
 export function distribuir(s: Sala, semente: number, agora: number): Distribuicao {
   const lista = ativos(s);
   const regras = regrasDaSala(s);
-  const p = novaPartida(regras, semente);
+  const comeca = sorteioDaRodada(s, s.rodada + 1).primeiro;
+  const p = novaPartida(regras, semente, undefined, Math.max(0, lista.indexOf(comeca)));
   const maos: Record<string, Carta[]> = {};
   const cartas = s.jogadores.map(() => 0);
   lista.forEach((idx, k) => {
@@ -183,7 +184,7 @@ export function distribuir(s: Sala, semente: number, agora: number): Distribuica
       monte: JSON.stringify(p.monte),
       proximoId: 1,
       cartas,
-      vez: sorteioDaRodada(s, rodada).primeiro,
+      vez: comeca,
       vezDesde: agora,
       versao: s.versao + 1,
       motivoFim: null,

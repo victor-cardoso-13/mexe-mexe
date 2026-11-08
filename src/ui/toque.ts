@@ -17,8 +17,18 @@ export interface AcoesDeToque {
 
 /** Distância (em pixels) que o dedo precisa andar para virar "arrasto". */
 const DISTANCIA_ARRASTO = 12;
+/**
+ * Mesa que rola (celular, mesa cheia): as cartas dela deixam o dedo "puxar" na vertical para rolar a mesa.
+ * Para também poder ARRASTAR essas cartas em qualquer direção: segurar o dedo parado um instante e então mover.
+ */
+const TEMPO_SEGURAR_MS = 180;
+
+/** Enquanto é true, o toque não rola a tela (a carta está sendo levada). */
+let travarRolagem = false;
 
 export function ligarToque(raiz: HTMLElement, acoes: AcoesDeToque) {
+  // Precisa existir ANTES do toque começar (iOS) e não pode ser "passive", senão não consegue segurar a rolagem.
+  window.addEventListener('touchmove', (ev) => { if (travarRolagem && ev.cancelable) ev.preventDefault(); }, { passive: false });
   raiz.addEventListener('pointerdown', (ev) => {
     const cartaEl = (ev.target as Element).closest<HTMLElement>('[data-carta]');
     if (!cartaEl || !acoes.podeMexer() || ev.button > 0) return;
@@ -30,12 +40,20 @@ export function ligarToque(raiz: HTMLElement, acoes: AcoesDeToque) {
     let fantasma: HTMLElement | null = null;
     let ids: string[] = [];
     let alvoAtual: Element | null = null;
+    // Carta de mesa que rola, tocada com o dedo: segurar um instante libera o arrasto em qualquer direção.
+    const naMesaQueRola = ev.pointerType === 'touch' && !!cartaEl.closest('.mesa.rolavel');
+    let segurou = false;
+    const relogio = naMesaQueRola
+      ? window.setTimeout(() => { segurou = true; travarRolagem = true; navigator.vibrate?.(8); }, TEMPO_SEGURAR_MS)
+      : 0;
 
     const alvoEm = (x: number, y: number) => document.elementFromPoint(x, y)?.closest('[data-destino]') ?? null;
 
     const mover = (e: PointerEvent) => {
       if (!fantasma) {
-        if (Math.hypot(e.clientX - inicioX, e.clientY - inicioY) < DISTANCIA_ARRASTO) return;
+        if (Math.hypot(e.clientX - inicioX, e.clientY - inicioY) < (segurou ? 4 : DISTANCIA_ARRASTO)) return;
+        clearTimeout(relogio);
+        travarRolagem = true;
         // Começou a arrastar: cria uma cópia das cartas que segue o dedo.
         ids = acoes.cartasParaArrastar(id);
         fantasma = document.createElement('div');
@@ -65,6 +83,8 @@ export function ligarToque(raiz: HTMLElement, acoes: AcoesDeToque) {
     };
 
     const terminar = (e: PointerEvent, cancelado: boolean) => {
+      clearTimeout(relogio);
+      travarRolagem = false;
       window.removeEventListener('pointermove', mover);
       window.removeEventListener('pointerup', aoSoltar);
       window.removeEventListener('pointercancel', aoCancelar);

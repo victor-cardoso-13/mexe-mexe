@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mock — faixa no 1 contra 1</title>
+<style>
+:root{--tinta:#3b2f2a;--creme:#fbf6ee;--ambar-claro:#f3c969;--titulo:'Fredoka','Nunito',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{font-family:Nunito,system-ui,sans-serif;background:#e9e2d6;margin:0;padding:16px;color:var(--tinta)}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:22px 0 6px}p{margin:2px 0 8px;font-size:15px;max-width:860px}
+.linha{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.tela{background:var(--creme);border:3px solid var(--tinta);border-radius:20px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.rot{font-weight:800;font-size:12px;margin-bottom:3px}
+.mesa{height:92px;border-radius:12px;background:radial-gradient(#237a50,#17583a);border:4px solid #8a5a2e;display:flex;gap:10px;padding:10px;align-items:flex-start}
+.jogo{display:flex;border:2px solid #ffffff66;border-radius:8px;padding:3px;background:#ffffff24}
+.c{--w:34px;width:var(--w);height:calc(var(--w)*1.4);background:#fff;border:2px solid #1d1a19;border-radius:6px;font-family:var(--titulo);font-weight:700;font-size:14px;padding:1px 3px;position:relative;margin-left:-8px}
+.c:first-child{margin-left:0}.c.v{color:#c8102e}.c small{display:block;font-size:11px;line-height:.8}
+.c.lar{box-shadow:0 0 0 3px #e8730c}
+.c.lar::after{content:'NOVA';position:absolute;left:0;right:0;bottom:0;height:11px;display:grid;place-items:center;background:#e8730c;color:#fff;font:800 7px Nunito;letter-spacing:.06em;border-radius:0 0 4px 4px}
+/* faixa: altura fixa de 60px, texto encolhe até caber em 2 linhas */
+.faixa{display:flex;align-items:center;gap:10px;height:60px;overflow:hidden;padding:6px;border-radius:16px;background:#fff;box-shadow:0 2px 8px #3b2f2a14}
+.chip{flex:none;width:46px;height:46px;border-radius:14px;background:#ebe4da;display:grid;place-items:center;font-size:24px}
+.msg{flex:1;min-width:0;font-weight:800;color:#6b5a50;line-height:1.1;font-size:22px;overflow:hidden}
+.msg b{color:var(--tinta);white-space:nowrap}
+.faixa.mais .acao{flex:none;height:48px;border-radius:14px;background:var(--ambar-claro);border:2.5px solid var(--tinta);font:800 18px Nunito;padding:0 12px;color:var(--tinta);display:flex;align-items:center}
+</style>
+<h1>Mock — faixa da "Sua vez" no 1 contra 1</h1>
+<p>Com <b>um adversário só</b>, a própria faixa diz o que ele fez e já termina com "Sua vez". Só existem estas jogadas (regra da casa: 1 ou 3 cartas da mão por vez). Some o botão "O que ele fez?" (não precisa mais). O texto <b>encolhe sozinho</b> até caber certinho em até 2 linhas, e o destaque laranja nas cartas da mesa continua igual. Com 2 ou 3 adversários nada muda (pílula + botão).</p>
+<div id="casos"></div>
+<h2>Com 2 ou 3 adversários (continua como está)</h2>
+<div class="linha"><div class="tela" style="width:390px"><div class="faixa mais"><span class="chip">👉</span><span class="msg">Sua vez</span><span class="acao">👀 O que ele fez?</span></div></div></div>
+<script>
+const C=(v,n,r,l)=>`<div class="c ${r?'v':''} ${l?'lar':''}">${v}<small>${n}</small></div>`;
+const casos=[
+ {t:'Comprou uma carta',txt:'<b>Adversário</b> comprou uma carta. <b>Sua vez</b>',ic:'🃏',mesa:[]},
+ {t:'Baixou uma carta num jogo',txt:'<b>Adversário</b> abaixou o <b>5♥</b>. <b>Sua vez</b>',ic:'👉',mesa:[[C(2,'♥',1),C(3,'♥',1),C(4,'♥',1),C(5,'♥',1,1)]]},
+ {t:'Baixou um jogo novo',txt:'<b>Adversário</b> abaixou o jogo <b>3♥ 4♥ 5♥</b>. <b>Sua vez</b>',ic:'👉',mesa:[[C(3,'♥',1,1),C(4,'♥',1,1),C(5,'♥',1,1)]]},
+ {t:'Mexeu na mesa e baixou 1 carta (a mais comprida que existe)',txt:'<b>Adversário</b> mexeu na mesa e abaixou o <b>5♥</b>. <b>Sua vez</b>',ic:'👉',mesa:[[C(2,'♥',1),C(3,'♥',1),C(4,'♥',1)],[C(5,'♥',1,1),C(5,'♣',0,1),C(5,'♦',1,1)]]},
+ {t:'Mexeu na mesa e baixou 3 cartas (a mais comprida que existe)',txt:'<b>Adversário</b> mexeu na mesa e abaixou <b>3♥ 4♥ 5♥</b>. <b>Sua vez</b>',ic:'👉',mesa:[[C(3,'♥',1,1),C(4,'♥',1,1),C(5,'♥',1,1)],[C(7,'♣',0),C(7,'♦',1),C(7,'♠',0)]]},
+];
+const larguras=[['iPhone 360',360],['iPhone 440',440],['iPad (faixa larga)',640]];
+document.getElementById('casos').innerHTML=casos.map(c=>`<h2>${c.t}</h2><div class="linha">${larguras.map(([n,w])=>`<div><div class="rot">${n}</div><div class="tela" style="width:${w}px"><div class="mesa">${c.mesa.map(j=>`<div class="jogo">${j.join('')}</div>`).join('')}</div><div class="faixa"><span class="chip">${c.ic}</span><span class="msg">${c.txt}</span></div></div></div>`).join('')}</div>`).join('');
+// encolhe a letra até caber em 2 linhas (no jogo de verdade faço igual, mínimo 13px)
+document.querySelectorAll('.faixa:not(.mais) .msg').forEach(m=>{let f=22;m.style.fontSize=f+'px';while(f>13&&m.scrollHeight>m.clientHeight+1){f-=1;m.style.fontSize=f+'px'}m.title=f+'px'});
+</script>

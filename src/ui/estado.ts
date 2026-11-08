@@ -98,6 +98,8 @@ export interface Estado {
   campeonato: Campeonato | null;
   online: Online | null;
   sorteio: Sorteio | null;
+  /** Distribuindo as cartas (animação): quantas cartas cada jogador já recebeu. */
+  distribuindo: { dadas: number[] } | null;
   /** Cartas tocadas (escolhidas) pela jogadora. */
   selecionadas: string[];
   ordenacao: Ordenacao;
@@ -135,6 +137,7 @@ export function estadoInicial(): Estado {
     campeonato: null,
     online: null,
     sorteio: null,
+    distribuindo: null,
     selecionadas: [],
     ordenacao: 'naipe',
     ordemManual: [],
