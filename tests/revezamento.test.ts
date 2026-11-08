@@ -101,3 +101,15 @@ describe('online: quem começa', () => {
     for (let eu = 0; eu < 3; eu++) expect(sorteioLocal(s, eu, 4).primeiro).toBe((g - eu + 3) % 3);
   });
 });
+
+import { movimentosUmAUm } from '../src/ui/animacao';
+import { cs } from './ajuda';
+
+describe('animação: ordem em que o computador baixa as cartas', () => {
+  it('um jogo novo entra na ordem da mesa (6 7 8), mesmo que o computador o tenha guardado como 7 6 8', () => {
+    const [c7, c6, c8] = cs('7p 6p 8p');
+    const depois = [{ id: 'j1', cartas: [c7, c6, c8] }];
+    const ordem = movimentosUmAUm([], depois, criarRegras()).map((m) => m.cartaId);
+    expect(ordem).toEqual([c6.id, c7.id, c8.id]);
+  });
+});

@@ -837,7 +837,7 @@ async function animarPassos(
     await esperar(tempo.frase);
     // 2) ...depois mexe uma carta de cada vez, deslizando pela tela.
     e.destaques = [];
-    for (const mov of movimentosUmAUm(mesaAnterior, passo.mesa)) {
+    for (const mov of movimentosUmAUm(mesaAnterior, passo.mesa, p.regras)) {
       const veioDaMao = daMao.has(mov.cartaId);
       if (veioDaMao) {
         e.cartasExibidas[p.vez] -= 1;
