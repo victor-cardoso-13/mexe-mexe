@@ -64,7 +64,8 @@ export type RespostaAcao = { ok: true; partida: Partida } | { ok: false; motivo:
 // Começo da partida
 // ---------------------------------------------------------------------------
 
-export function novaPartida(regras: Regras, semente: number, nomes?: string[]): Partida {
+/** "primeiro" é quem joga primeiro (0 = você). */
+export function novaPartida(regras: Regras, semente: number, nomes?: string[], primeiro = 0): Partida {
   const qtdAdversarios = Math.min(3, Math.max(1, regras.adversarios));
   // Um adversário só: "Adversário". Vários: "Adversário 1", "2", "3" (as bolinhas mostram 1, 2, 3).
   const nomesPadrao = qtdAdversarios === 1 ? ['Você', 'Adversário'] : ['Você', 'Adversário 1', 'Adversário 2', 'Adversário 3'];
@@ -85,10 +86,10 @@ export function novaPartida(regras: Regras, semente: number, nomes?: string[]): 
     jogadores,
     mesa: [],
     monte,
-    vez: 0,
+    vez: primeiro,
     semente: s,
     proximoIdJogo: 1,
-    inicioDaVez: { mao: jogadores[0].mao, mesa: [] },
+    inicioDaVez: { mao: jogadores[primeiro].mao, mesa: [] },
     historico: [],
     resultado: null,
   };

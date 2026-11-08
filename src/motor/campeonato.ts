@@ -5,6 +5,8 @@
  * (O modo casual é só uma partida, sem nada disto.)
  */
 import type { Resultado } from './partida';
+import { criarMonte, embaralhar, type CartaNormal } from './cartas';
+import { criarRegras } from './regras';
 
 export const PONTOS_DO_CAMPEONATO = 100;
 
@@ -17,6 +19,8 @@ export interface Campeonato {
   contada: string;
   /** A pessoa escolheu terminar o campeonato ali mesmo (ganha quem tem menos pontos). */
   encerrado?: boolean;
+  /** Quem começou a rodada atual (índice). Falta nos campeonatos antigos: vale 0. */
+  primeiro?: number;
 }
 
 export function novoCampeonato(jogadores: number, alvo = PONTOS_DO_CAMPEONATO): Campeonato {
@@ -87,4 +91,51 @@ export function ordemDoPlacar(totais: number[]): LinhaDoPlacar[] {
   const linhas: LinhaDoPlacar[] = [];
   ordem.forEach((l, k) => linhas.push({ ...l, posicao: k > 0 && ordem[k - 1].pontos === l.pontos ? linhas[k - 1].posicao : k + 1 }));
   return linhas;
+}
+
+/**
+ * Quem começa a próxima rodada: o jogador seguinte ao que começou a anterior (de 1 em 1).
+ * Com "vivos" (continuando só com quem não chegou ao alvo), pula quem saiu; o resultado já vem no
+ * número novo de cada jogador (a lista dos que ficaram).
+ */
+export function proximoAComecar(c: Campeonato, vivos?: number[]): number {
+  const n = c.totais.length;
+  const anterior = c.primeiro ?? 0;
+  if (!vivos) return (anterior + 1) % n;
+  for (let k = 1; k <= n; k++) {
+    const candidato = (anterior + k) % n;
+    const i = vivos.indexOf(candidato);
+    if (i >= 0) return i;
+  }
+  return 0;
+}
+
+/** Uma tirada do sorteio: quem participou, a carta de cada um e quem ganhou (null = empate). */
+export interface TiradaDoSorteio {
+  jogadores: number[];
+  cartas: CartaNormal[];
+  vencedor: number | null;
+}
+
+/** Força de uma carta no sorteio: o Ás é a maior; o naipe não conta. */
+export const forcaNoSorteio = (c: CartaNormal) => (c.valor === 1 ? 14 : c.valor);
+
+/**
+ * Sorteio de quem começa a 1ª rodada: cada um tira 1 carta (sem coringa); ganha a maior.
+ * Empate: só os empatados tiram de novo, até sobrar um. Devolve todas as tiradas (a última tem vencedor).
+ */
+export function sortearQuemComeca(n: number, semente: number): TiradaDoSorteio[] {
+  const regras = criarRegras({ curinga: { ...criarRegras().curinga, ativo: false } });
+  const monte = embaralhar(criarMonte(regras), semente).lista as CartaNormal[];
+  const tiradas: TiradaDoSorteio[] = [];
+  let na_disputa = Array.from({ length: n }, (_, i) => i);
+  while (true) {
+    const cartas = na_disputa.map(() => monte.pop()!);
+    const maior = Math.max(...cartas.map(forcaNoSorteio));
+    const empatados = na_disputa.filter((_, k) => forcaNoSorteio(cartas[k]) === maior);
+    const vencedor = empatados.length === 1 ? empatados[0] : null;
+    tiradas.push({ jogadores: na_disputa, cartas, vencedor });
+    if (vencedor !== null) return tiradas;
+    na_disputa = empatados;
+  }
 }

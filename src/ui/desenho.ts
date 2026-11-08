@@ -5,7 +5,7 @@
 import { pedacosDoJogoErrado } from '../motor/jogoErrado';
 import { ehVermelha, nomeDoValor, SIMBOLO_NAIPE, type Carta, type CartaNormal } from '../motor/cartas';
 import { conferirJogada, jogadorDaVez, mesaMexidaEstaCerta, mexeuNaVez, ondeEstaCarta, type Partida } from '../motor/partida';
-import { ordemDoPlacar, pontosDaRodada, situacaoDoCampeonato, type Campeonato } from '../motor/campeonato';
+import { forcaNoSorteio, ordemDoPlacar, pontosDaRodada, situacaoDoCampeonato, type Campeonato } from '../motor/campeonato';
 import { pontosDaMao } from '../motor/cartas';
 import { ordemDaTrinca, ordemParaMostrar, validarJogo } from '../motor/validacao';
 import type { NivelIA } from '../motor/regras';
@@ -720,4 +720,39 @@ function htmlTirarJogadores(o: Online): string {
   return `<div class="ajuste"><div class="nome-ajuste">Tirar da sala<small>quem sumiu ou saiu</small></div><div class="opcoes">${outros
     .map((i) => `<button data-acao="onlineTirar" data-idx="${i}">${escapar(s.jogadores[i].nome)}</button>`)
     .join('')}</div></div>`;
+}
+
+/** Janela "Quem começa?": cada um vira uma carta; a maior começa (empate: os empatados tiram de novo). */
+export function htmlSorteio(e: Estado, p: Partida): string {
+  const s = e.sorteio!;
+  const t = s.tiradas[s.atual];
+  const nome = (i: number) => (i === 0 ? 'Você' : escapar(p.jogadores[i].nome));
+  const colunas = t.jogadores
+    .map((j, k) => {
+      const ganhou = s.viradas && t.vencedor === j;
+      const fora = s.viradas && t.vencedor !== null && t.vencedor !== j;
+      const carta = s.viradas ? htmlCarta(t.cartas[k]).replace(/ data-carta="[^"]*"/, '') : '<div class="carta verso"></div>';
+      return `<div class="sorteio-quem ${ganhou ? 'ganha' : ''} ${fora ? 'fora' : ''}">${nome(j)}${carta}</div>`;
+    })
+    .join('');
+  let titulo = 'Quem começa?';
+  let texto = s.atual === 0 ? 'Cada um tira uma carta. A maior começa.' : 'Só os empatados tiram outra carta.';
+  let botao = '<button class="grande" data-acao="sorteioVirar">Virar as cartas</button>';
+  if (s.viradas && t.vencedor === null) {
+    const maior = Math.max(...t.cartas.map(forcaNoSorteio));
+    const quais = t.jogadores.filter((_, k) => forcaNoSorteio(t.cartas[k]) === maior);
+    titulo = 'Empate!';
+    texto = `${quais.map(nome).join(' e ')} tiraram a mesma carta. Tiram de novo.`;
+    botao = '<button class="grande" data-acao="sorteioOutra">Tirar de novo</button>';
+  } else if (s.viradas) {
+    const v = t.vencedor!;
+    titulo = v === 0 ? 'Você começa! 🎉' : `${nome(v)} começa!`;
+    texto = 'A maior carta ganhou. Nas próximas rodadas, a vez de começar passa para o jogador do lado.';
+    botao = '<button class="grande" data-acao="sorteioFechar">Jogar</button>';
+  }
+  return `<div class="fundo-janela"><div class="janela janela-sorteio">
+    <h2>${titulo}</h2><p>${texto}</p>
+    <div class="sorteio-tira">${colunas}</div>
+    ${botao}
+  </div></div>`;
 }

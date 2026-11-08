@@ -5,7 +5,7 @@
 import type { Foto, Jogo, Partida } from '../motor/partida';
 import type { Passo } from '../ia';
 import type { NivelIA } from '../motor/regras';
-import type { Campeonato } from '../motor/campeonato';
+import type { Campeonato, TiradaDoSorteio } from '../motor/campeonato';
 import type { Carta } from '../motor/cartas';
 import type { Sala } from '../online/logica';
 
@@ -73,9 +73,18 @@ export interface Online {
   erro: string;
 }
 
+/** Sorteio de quem começa o campeonato (só na tela, não é guardado). */
+export interface Sorteio {
+  tiradas: TiradaDoSorteio[];
+  /** Qual tirada está na tela. */
+  atual: number;
+  /** As cartas já foram viradas? */
+  viradas: boolean;
+}
+
 export interface Estado {
   tela: 'inicio' | 'jogo' | 'sala';
-  janela: null | 'menu' | 'ajustes' | 'fim' | 'confirmarNova' | 'confirmarSair' | 'comoJogar' | 'conta' | 'retrospecto' | 'mensagem' | 'tutorial' | 'online';
+  janela: null | 'menu' | 'ajustes' | 'fim' | 'confirmarNova' | 'confirmarSair' | 'comoJogar' | 'conta' | 'retrospecto' | 'mensagem' | 'tutorial' | 'online' | 'sorteio';
   /** Para onde o botão "Voltar" das janelas de conta e retrospecto leva. */
   voltarPara: null | 'ajustes';
   /** Passo do tutorial que está na tela (0 a 6). */
@@ -86,6 +95,7 @@ export interface Estado {
   /** Campeonato em andamento (null = modo casual). */
   campeonato: Campeonato | null;
   online: Online | null;
+  sorteio: Sorteio | null;
   /** Cartas tocadas (escolhidas) pela jogadora. */
   selecionadas: string[];
   ordenacao: Ordenacao;
@@ -122,6 +132,7 @@ export function estadoInicial(): Estado {
     partidaId: '',
     campeonato: null,
     online: null,
+    sorteio: null,
     selecionadas: [],
     ordenacao: 'naipe',
     ordemManual: [],
