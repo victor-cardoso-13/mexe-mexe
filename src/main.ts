@@ -315,10 +315,11 @@ function comecarPartida(proxima = false, semEliminados = false) {
   e.sorteio = null;
   if (nomesVivos && antigo) primeiro = proximoAComecar(antigo, sobreviventesDoCampeonato(antigo));
   else if (proxima && antigo) primeiro = proximoAComecar(antigo);
-  else if (ajustes.modo === 'campeonato') {
+  else {
+    // Partida casual (sem continuidade) e começo de campeonato: sorteio de cartas.
     const tiradas = sortearQuemComeca(Math.min(3, Math.max(1, regras.adversarios)) + 1, Math.floor(Math.random() * 2 ** 31));
     primeiro = tiradas[tiradas.length - 1].vencedor!;
-    e.sorteio = { tiradas, atual: 0, viradas: false };
+    e.sorteio = { tiradas, atual: 0, viradas: false, casual: ajustes.modo !== 'campeonato' };
   }
   e.partida = novaPartida(regras, semente, nomes ?? undefined, primeiro);
   e.partidaId = `${Date.now().toString(36)}-${semente.toString(36)}`;

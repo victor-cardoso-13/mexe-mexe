@@ -59,3 +59,45 @@ describe('sorteio de quem começa', () => {
     for (let s = 1; s < 50; s++) expect(sortearQuemComeca(4, s).every((t) => t.cartas.every((c) => !c.curinga))).toBe(true);
   });
 });
+
+import { distribuir, salaInicial, sorteioDaRodada, sorteioLocal, ativos, type Sala } from '../src/online/logica';
+
+function salaCom(n: number, modo: 'casual' | 'campeonato'): Sala {
+  let s = salaInicial({ uid: 'u0', nome: 'A' }, { curinga: false, modo, limiteSeg: 180 }, 1_700_000_000_000 + 12345);
+  for (let i = 1; i < n; i++) s = { ...s, jogadores: [...s.jogadores, { uid: `u${i}`, nome: `J${i}` }], uids: [...s.uids, `u${i}`], cartas: [...s.cartas, 0], totais: [...s.totais, 0] };
+  return s;
+}
+
+describe('online: quem começa', () => {
+  it('campeonato: sorteio só na 1ª rodada e depois a vez passa de 1 em 1 (o sorteado, o do lado, o seguinte...)', () => {
+    for (const n of [2, 3, 4]) {
+      const s = salaCom(n, 'campeonato');
+      const primeiro = sorteioDaRodada(s, 1).primeiro;
+      for (let r = 1; r <= 7; r++) expect(sorteioDaRodada(s, r).primeiro).toBe((primeiro + r - 1) % n);
+      expect(distribuir({ ...s, rodada: 2 }, 5, 0).patch.vez).toBe((primeiro + 2) % n);
+    }
+  });
+  it('campeonato: quem saiu da sala é pulado e o sorteio não muda', () => {
+    const s = salaCom(4, 'campeonato');
+    const p1 = sorteioDaRodada(s, 1).primeiro;
+    const sem = { ...s, jogadores: s.jogadores.map((j, i) => (i === (p1 + 1) % 4 ? { ...j, removido: true } : j)) };
+    expect(sorteioDaRodada(sem, 1).primeiro).toBe(p1);
+    expect(sorteioDaRodada(sem, 2).primeiro).toBe((p1 + 2) % 4);
+    expect(ativos(sem)).not.toContain((p1 + 1) % 4);
+  });
+  it('casual: sorteia de novo a cada rodada, e todo aparelho vê o mesmo sorteio', () => {
+    const s = salaCom(3, 'casual');
+    const vistos = new Set<number>();
+    for (let r = 1; r <= 30; r++) {
+      const a = sorteioDaRodada(s, r);
+      expect(sorteioDaRodada(s, r)).toEqual(a);
+      vistos.add(a.primeiro);
+    }
+    expect(vistos.size).toBe(3);
+  });
+  it('na tela de cada um, o vencedor local é a mesma pessoa', () => {
+    const s = salaCom(3, 'casual');
+    const g = sorteioDaRodada(s, 4).primeiro;
+    for (let eu = 0; eu < 3; eu++) expect(sorteioLocal(s, eu, 4).primeiro).toBe((g - eu + 3) % 3);
+  });
+});

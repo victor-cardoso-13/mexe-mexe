@@ -747,7 +747,7 @@ export function htmlSorteio(e: Estado, p: Partida): string {
   } else if (s.viradas) {
     const v = t.vencedor!;
     titulo = v === 0 ? 'Você começa! 🎉' : `${nome(v)} começa!`;
-    texto = 'A maior carta ganhou. Nas próximas rodadas, a vez de começar passa para o jogador do lado.';
+    texto = s.casual ? 'A maior carta ganhou.' : 'A maior carta ganhou. Nas próximas rodadas, a vez de começar passa para o jogador do lado.';
     botao = '<button class="grande" data-acao="sorteioFechar">Jogar</button>';
   }
   return `<div class="fundo-janela"><div class="janela janela-sorteio">

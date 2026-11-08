@@ -12,6 +12,12 @@ function sala(n: number, extra: Partial<Sala> = {}): Sala {
   return { ...s, ...extra };
 }
 
+/** Distribui a rodada, mas com o jogador 0 começando (os testes abaixo contam com isso; o sorteio tem teste próprio). */
+function comecaPeloZero(s: Sala, semente: number, agora: number) {
+  const d = distribuir(s, semente, agora);
+  return { ...d, patch: { ...d.patch, vez: 0 } };
+}
+
 describe('sala online: começar', () => {
   it('distribui 9 cartas para cada um (até 4 pessoas) e o resto fica no monte', () => {
     for (const n of [2, 3, 4]) {
@@ -22,17 +28,15 @@ describe('sala online: começar', () => {
       expect(d.patch.cartas).toEqual(Array(n).fill(9));
     }
   });
-  it('quem começa alterna a cada rodada', () => {
-    const s = sala(3);
-    const r1 = distribuir(s, 1, 0).patch;
-    const r2 = distribuir({ ...s, rodada: 1, ...r1 } as Sala, 2, 0).patch;
-    expect([r1.vez, r2.vez]).toEqual([0, 1]);
+  it('quem começa: ver tests/revezamento.test.ts (sorteio + rodízio)', () => {
+    const r = distribuir(sala(3), 1, 0).patch;
+    expect([0, 1, 2]).toContain(r.vez);
   });
 });
 
 describe('sala online: a partida na tela', () => {
   it('você é o jogador 0; os outros só têm a quantidade de cartas', () => {
-    const d = distribuir(sala(3), 3, 0);
+    const d = comecaPeloZero(sala(3), 3, 0);
     const s = { ...sala(3), ...d.patch } as Sala;
     const p = partidaLocal(s, 1, d.maos.u1);
     expect(p.jogadores.map((j) => j.nome)).toEqual(['P1', 'P2', 'Ana']);
@@ -42,7 +46,7 @@ describe('sala online: a partida na tela', () => {
     expect(ordemLocal(s, 1)).toEqual([1, 2, 0]);
   });
   it('jogar uma carta e passar a vez vira a próxima versão da sala', () => {
-    const d = distribuir(sala(3), 3, 0);
+    const d = comecaPeloZero(sala(3), 3, 0);
     const s = { ...sala(3), ...d.patch } as Sala;
     const p = partidaLocal(s, 0, cs('2c 3c 4c 9e 9o 9p 5o 6o 7o'));
     const ids = p.jogadores[0].mao.slice(0, 3).map((c) => c.id);
@@ -56,7 +60,7 @@ describe('sala online: a partida na tela', () => {
     expect(fim.minhaMao).toHaveLength(6);
   });
   it('comprar leva 1 carta do monte e passa a vez', () => {
-    const d = distribuir(sala(2), 3, 0);
+    const d = comecaPeloZero(sala(2), 3, 0);
     const s = { ...sala(2), ...d.patch } as Sala;
     const p = partidaLocal(s, 0, d.maos.u0);
     const r = comprarEPassar(p);
@@ -91,7 +95,7 @@ describe('sala online: fim da rodada', () => {
 
 describe('sala online: tempo e saídas', () => {
   it('passou o tempo: o jogo compra para quem demorou e passa a vez', () => {
-    const d = distribuir(sala(3), 3, 0);
+    const d = comecaPeloZero(sala(3), 3, 0);
     const s = { ...sala(3), ...d.patch, vezDesde: 0 } as Sala;
     expect(passouOTempo(s, 100_000)).toBe(false);
     expect(passouOTempo(s, 200_000)).toBe(true);
@@ -102,7 +106,7 @@ describe('sala online: tempo e saídas', () => {
     expect(r.patch.cartas).toEqual([10, 9, 9]);
   });
   it('quem sai no meio da vez dele: a vez passa; sobrando só um, ele ganha', () => {
-    const d = distribuir(sala(3), 3, 0);
+    const d = comecaPeloZero(sala(3), 3, 0);
     const s = { ...sala(3), ...d.patch } as Sala;
     const a = aoRemover(s, 0, 5);
     expect(a.vez).toBe(1);

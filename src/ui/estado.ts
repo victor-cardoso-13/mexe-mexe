@@ -80,6 +80,8 @@ export interface Sorteio {
   atual: number;
   /** As cartas já foram viradas? */
   viradas: boolean;
+  /** Partida casual (ou rodada de sala casual): sorteia de novo a cada partida. */
+  casual: boolean;
 }
 
 export interface Estado {

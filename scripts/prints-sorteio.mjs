@@ -7,16 +7,16 @@ const b = await chromium.launch();
 for (const [nome, [w, h]] of Object.entries(telas)) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: true });
   const pg = await ctx.newPage();
-  await pg.addInitScript(() => {
+  await pg.addInitScript((modo) => {
     if (sessionStorage.getItem('feito')) return;
     sessionStorage.setItem('feito', '1');
-    localStorage.setItem('mexe-mexe:ajustes:v1', JSON.stringify({ nivel: 'facil', curinga: false, adversarios: 2, quatroCores: false, velocidade: 'devagar', animacoes: true, visual: 'idade', tutorialVisto: true, modo: 'campeonato', sons: false }));
-  });
+    localStorage.setItem('mexe-mexe:ajustes:v1', JSON.stringify({ nivel: 'facil', curinga: false, adversarios: 2, quatroCores: false, velocidade: 'devagar', animacoes: true, visual: 'idade', tutorialVisto: true, modo: modo, sons: false }));
+  }, process.env.MODO ?? 'campeonato');
   await pg.goto(URL);
   await pg.click('[data-acao="pedirNova"]');
   await pg.click('[data-acao="comecarComoEscolhido"]');
   await pg.waitForSelector('.janela-sorteio');
-  await pg.screenshot({ path: `${saida}/sorteio-1-${nome}.png` });
+  await pg.screenshot({ path: `${saida}/sorteio-${process.env.MODO ?? 'camp'}-1-${nome}.png` });
   await pg.click('[data-acao="sorteioVirar"]');
   await pg.screenshot({ path: `${saida}/sorteio-2-${nome}.png` });
   let guarda = 0;

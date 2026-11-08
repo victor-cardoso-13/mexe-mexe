@@ -6,7 +6,7 @@ import type { Partida } from '../motor/partida';
 import type { Estado, Online } from '../ui/estado';
 import {
   aoTerminarVez, campeonatoLocal, codigoDoLink, codigoValido, indiceDe, linkDaSala, partidaDoFim, partidaLocal,
-  passouOTempo, todosRevelaram, LIMITE_PADRAO_SEG, type ConfigSala, type Sala,
+  mostraSorteio, passouOTempo, sorteioLocal, todosRevelaram, LIMITE_PADRAO_SEG, type ConfigSala, type Sala,
 } from './logica';
 
 type Sala$ = typeof import('./sala');
@@ -190,6 +190,11 @@ export function criarOnline(ctx: Contexto) {
     // cartas que os outros acabaram de baixar ficam com o selo "NOVA"
     e.baixadasPeloComputador = jaTinhaPartida ? nova.mesa.flatMap((j) => j.cartas.map((c) => c.id)).filter((id) => !idsAntes.has(id)) : [];
     e.chegaram = [];
+    // Rodada nova começou: sorteio de quem começa (casual: toda rodada; campeonato: só a 1ª).
+    if (antes && antes.rodada !== sala.rodada && sala.fase === 'jogando' && mostraSorteio(sala, sala.rodada)) {
+      e.sorteio = { tiradas: sorteioLocal(sala, dados.eu, sala.rodada).tiradas, atual: 0, viradas: false, casual: sala.config.modo !== 'campeonato' };
+      e.janela = 'sorteio';
+    }
     e.aviso = perdiAVez
       ? { texto: 'Acabou o seu tempo: o jogo comprou uma carta por você.', tipo: 'problema' }
       : null;
