@@ -9,7 +9,7 @@ import {
   novaPartida, ondeEstaCarta, recomecarJogada, terminarJogada, aplicarJogada, type Destino, type Partida,
 } from './motor/partida';
 import { criarRegras, type NivelIA } from './motor/regras';
-import { novoCampeonato, proximaRodada, semOsEliminados, sobreviventes as sobreviventesDoCampeonato, somarRodada } from './motor/campeonato';
+import { novoCampeonato, proximaRodada, proximoAComecar, sortearQuemComeca, semOsEliminados, sobreviventes as sobreviventesDoCampeonato, somarRodada } from './motor/campeonato';
 import { ultimaBusca, type Passo } from './ia';
 import { cancelarBusca, escolherJogadaAsync } from './ia/assincrono';
 
@@ -18,7 +18,7 @@ const buscarJogada = escolherJogadaAsync;
 import { anotar, baixarDiario, diarioParaEnviar, guardarDicaPerdeu, textoCartas, textoMesa } from './ui/diario';
 import { abrirSugestao } from './ui/sugestao';
 import { estadoInicial, type Ajustes, type Ordenacao } from './ui/estado';
-import { escapar, htmlAjustes, htmlComoJogar, htmlConfirmarNova, htmlConfirmarSair, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenu, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlTutorial, type Mensagem } from './ui/desenho';
+import { escapar, htmlAjustes, htmlComoJogar, htmlConfirmarNova, htmlConfirmarSair, htmlConta, htmlFim, htmlInicio, htmlJogo, htmlMensagem, htmlMenu, htmlMenuOnline, htmlRetrospecto, htmlSala, htmlSorteio, htmlTutorial, type Mensagem } from './ui/desenho';
 import { encaixar, prepararTamanho, reiniciarEncaixe, soltarTamanho } from './ui/encaixe';
 import { codigoNoLink, criarOnline, linkDaSalaAtual, nomeSalvo, LIMITE_PADRAO_SEG } from './online/controle';
 import { carregarAjustes, carregarGaveta, salvarAjustes, salvarGaveta, type Gaveta } from './ui/salvar';
@@ -160,6 +160,7 @@ function desenhar(movimento?: { cartaId?: string; deJogador?: number | null; ms:
   if (e.janela === 'conta') html += htmlConta();
   if (e.janela === 'mensagem' && mensagem) html += htmlMensagem(mensagem);
   if (e.janela === 'tutorial') html += htmlTutorial(e.tutorialPasso);
+  if (e.janela === 'sorteio' && e.sorteio && e.partida) html += htmlSorteio(e, e.partida);
   if (e.janela === 'confirmarNova') html += htmlConfirmarNova();
   if (e.janela === 'confirmarSair') html += htmlConfirmarSair();
   if (e.janela === 'comoJogar') html += htmlComoJogar(ajustes);
@@ -308,17 +309,46 @@ function comecarPartida(proxima = false, semEliminados = false) {
   reiniciarEncaixe();
   maoVista = '';
   const semente = Math.floor(Math.random() * 2 ** 31);
-  e.partida = novaPartida(regras, semente, nomes ?? undefined);
+  const antigo = e.campeonato;
+  // Quem começa: campeonato novo = sorteio de cartas; próxima rodada = o jogador do lado (de 1 em 1); casual = você.
+  let primeiro = 0;
+  e.sorteio = null;
+  if (nomesVivos && antigo) primeiro = proximoAComecar(antigo, sobreviventesDoCampeonato(antigo));
+  else if (proxima && antigo) primeiro = proximoAComecar(antigo);
+  else if (ajustes.modo === 'campeonato') {
+    const tiradas = sortearQuemComeca(Math.min(3, Math.max(1, regras.adversarios)) + 1, Math.floor(Math.random() * 2 ** 31));
+    primeiro = tiradas[tiradas.length - 1].vencedor!;
+    e.sorteio = { tiradas, atual: 0, viradas: false };
+  }
+  e.partida = novaPartida(regras, semente, nomes ?? undefined, primeiro);
   e.partidaId = `${Date.now().toString(36)}-${semente.toString(36)}`;
-  if (nomesVivos) e.campeonato = semOsEliminados(e.campeonato!);
-  else if (proxima && e.campeonato) e.campeonato = proximaRodada(e.campeonato);
-  else e.campeonato = ajustes.modo === 'campeonato' ? novoCampeonato(e.partida.jogadores.length) : null;
-  Object.assign(e, { tela: 'jogo', janela: null, selecionadas: [], novaCartaId: null, ordemManual: [], baixadasPeloComputador: [], ultimasJogadas: [], revendo: null });
+  if (nomesVivos) e.campeonato = { ...semOsEliminados(antigo!), primeiro };
+  else if (proxima && antigo) e.campeonato = { ...proximaRodada(antigo), primeiro };
+  else e.campeonato = ajustes.modo === 'campeonato' ? { ...novoCampeonato(e.partida.jogadores.length), primeiro } : null;
+  Object.assign(e, { tela: 'jogo', janela: e.sorteio ? 'sorteio' : null, selecionadas: [], novaCartaId: null, ordemManual: [], baixadasPeloComputador: [], ultimasJogadas: [], revendo: null });
   limparMensagens();
   if (e.ordenacao === 'manual') e.ordenacao = 'naipe';
   salvar();
   // Primeira partida: mostra o tutorial (a pessoa pode pular).
   if (!ajustes.tutorialVisto) Object.assign(e, { janela: 'tutorial', tutorialPasso: 0 });
+  desenhar();
+  // Se o computador começa (e não há sorteio nem tutorial na tela), ele joga já.
+  if (!e.janela && primeiro !== 0) void continuarJogo(700);
+}
+
+/** Sorteio de quem começa: virar, tirar de novo, jogar. */
+function sorteioAcao(acao: 'virar' | 'outra' | 'fechar') {
+  const s = e.sorteio;
+  if (!s) return;
+  if (acao === 'virar') s.viradas = true;
+  else if (acao === 'outra') Object.assign(s, { atual: s.atual + 1, viradas: false });
+  else {
+    e.sorteio = null;
+    e.janela = null;
+    desenhar();
+    if (e.partida && e.partida.vez !== 0) void continuarJogo(500);
+    return;
+  }
   desenhar();
 }
 
@@ -337,9 +367,10 @@ function fecharTutorial() {
     ajustes.tutorialVisto = true;
     salvarAjustes(ajustes);
   }
-  e.janela = e.voltarPara;
+  e.janela = e.voltarPara ?? (e.sorteio ? 'sorteio' : null);
   e.voltarPara = null;
   desenhar();
+  if (!e.janela && e.partida && e.tela === 'jogo' && e.partida.vez !== 0 && !e.partida.resultado) void continuarJogo(700);
 }
 
 // ---------------------------------------------------------------------------
@@ -999,6 +1030,9 @@ app.addEventListener('click', (ev) => {
         if (minhaVez() && e.selecionadas.length) mover(e.selecionadas, { tipo: 'novoJogo' });
         return;
       case 'proximaRodada': return comecarPartida(true);
+      case 'sorteioVirar': return sorteioAcao('virar');
+      case 'sorteioOutra': return sorteioAcao('outra');
+      case 'sorteioFechar': return sorteioAcao('fechar');
       case 'abrirOnline':
         e.janela = 'online';
         return desenhar();
