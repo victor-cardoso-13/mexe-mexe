@@ -9,7 +9,7 @@
 import { criarRegras, type Regras } from '../motor/regras';
 import { novaPartida, resultadoPorMonteVazio, type Jogo, type Partida, type Resultado } from '../motor/partida';
 import { pontosDaMao, type Carta } from '../motor/cartas';
-import { pontosDaRodada, type Campeonato } from '../motor/campeonato';
+import { pontosDaRodada, sortearQuemComeca, type Campeonato, type TiradaDoSorteio } from '../motor/campeonato';
 
 export const MAX_JOGADORES = 4;
 export const MIN_JOGADORES = 2;
@@ -127,7 +127,42 @@ export interface Distribuicao {
   maos: Record<string, Carta[]>;
 }
 
-/** Embaralha e distribui. Quem começa vai alternando a cada rodada. */
+/**
+ * Quem começa a rodada (sem guardar nada na sala: todo aparelho chega à mesma resposta).
+ * - Casual: sorteio de cartas a CADA rodada.
+ * - Campeonato: sorteio só na 1ª rodada; depois a vez de começar passa para o jogador do lado, de 1 em 1
+ *   (a ordem da mesa é a da lista "jogadores": você, o seguinte, ...). Quem saiu é pulado.
+ * O sorteio usa só dados públicos da sala (criadaEm e número da rodada) como semente, e sorteia entre todos
+ * os da lista (quem saiu antes de começar continua na lista, então o resultado não muda depois).
+ */
+export function sorteioDaRodada(s: Sala, rodada: number): { tiradas: TiradaDoSorteio[]; primeiro: number } {
+  const campeonato = s.config.modo === 'campeonato';
+  const semente = (Math.floor(s.criadaEm) + (campeonato ? 1 : rodada) * 104729) % 2147483647;
+  const tiradas = sortearQuemComeca(s.jogadores.length, semente);
+  let primeiro = tiradas[tiradas.length - 1].vencedor!;
+  if (s.jogadores[primeiro]?.removido) primeiro = proximoAtivo(s, primeiro);
+  if (campeonato) for (let r = 1; r < rodada; r++) primeiro = proximoAtivo(s, primeiro);
+  return { tiradas, primeiro };
+}
+
+/** O sorteio aparece na tela em toda rodada casual e só na 1ª do campeonato. */
+export const mostraSorteio = (s: Sala, rodada: number) => s.config.modo !== 'campeonato' || rodada === 1;
+
+/** O sorteio com os números de jogador da TELA (você = 0); quem saiu da sala fica de fora. */
+export function sorteioLocal(s: Sala, eu: number, rodada: number): { tiradas: TiradaDoSorteio[]; primeiro: number } {
+  const { tiradas, primeiro } = sorteioDaRodada(s, rodada);
+  const ordem = ordemLocal(s, eu);
+  const local = ordem.indexOf(primeiro);
+  const t = tiradas.map((t) => {
+    const k = t.jogadores.map((j, i) => (ordem.includes(j) ? i : -1)).filter((i) => i >= 0);
+    const jogadores = k.map((i) => ordem.indexOf(t.jogadores[i]));
+    const vencedor = t.vencedor === null ? null : ordem.includes(t.vencedor) ? ordem.indexOf(t.vencedor) : local;
+    return { jogadores, cartas: k.map((i) => t.cartas[i]), vencedor };
+  });
+  return { tiradas: t, primeiro: local };
+}
+
+/** Embaralha e distribui. Quem começa vem do sorteio / rodízio (ver "sorteioDaRodada"). */
 export function distribuir(s: Sala, semente: number, agora: number): Distribuicao {
   const lista = ativos(s);
   const regras = regrasDaSala(s);
@@ -148,7 +183,7 @@ export function distribuir(s: Sala, semente: number, agora: number): Distribuica
       monte: JSON.stringify(p.monte),
       proximoId: 1,
       cartas,
-      vez: lista[(rodada - 1) % lista.length],
+      vez: sorteioDaRodada(s, rodada).primeiro,
       vezDesde: agora,
       versao: s.versao + 1,
       motivoFim: null,
